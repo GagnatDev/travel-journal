@@ -1,5 +1,7 @@
 # Design Implementation Guide: Terra & Tide
 
+> **Terra & Tide** is the design concept name for **Travel Journal** (EN) / **Reisedagbok** (NO). This document defines the app's visual identity and aesthetic direction; the concept name is used internally and is not customer-facing.
+
 ## 1. Creative North Star: "The Curated Chronicle"
 Terra & Tide is designed to feel like a digital keepsake—a modern evolution of the physical travel journal. It prioritizes warmth, tactile textures, and a sense of timelessness, moving away from sterile, grid-locked app designs.
 

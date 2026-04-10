@@ -34,8 +34,8 @@ The application follows a classic three-tier architecture: a React PWA client, a
 | State | TBD (React Query recommended) | Server-state caching aligns well with offline sync requirements |
 
 ### Language Detection Order
-1. User preference stored in `localStorage`
-2. Browser `Accept-Language` header
+1. `preferredLocale` from the authenticated user's profile (synced from the database on login; cached in `localStorage` for immediate access on subsequent loads)
+2. Browser `Accept-Language` header (first visit only, before any account exists)
 3. Fallback to `nb`
 
 ### PWA Offline Strategy
@@ -60,6 +60,10 @@ The application follows a classic three-tier architecture: a React PWA client, a
 - RESTful JSON API
 - All routes under `/api/v1/` — versioned from day one to allow non-breaking evolution
 - Authentication header: `Authorization: Bearer <token>`
+
+### Public Share Route
+- `GET /api/v1/trips/share/:shareSlug` — public endpoint (no authentication required); returns trip data for the read-only share view
+- Client-side: `/share/:shareSlug` is served as an unauthenticated React route
 
 ### Media Proxy
 All S3 access is mediated by the backend. Clients never hold permanent S3 URLs.

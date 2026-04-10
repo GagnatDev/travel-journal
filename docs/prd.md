@@ -3,7 +3,7 @@
 ## 1. Overview
 
 ### 1.1 Product Name
-**Travel Journal (working title)**
+**Travel Journal** (EN) / **Reisedagbok** (NO)
 
 ### 1.2 Vision
 Create a lightweight, mobile-first Progressive Web App (PWA) that allows a family to document their travel experiences in real-time and share them with others through a private, beautifully presented timeline.
@@ -113,7 +113,7 @@ Within any given trip, a user has exactly one of three trip-level roles:
 - Expected volume: ~5–10 images per user per day
 - **All media access goes through the backend API — no direct client access to S3**
 - Upload flow: client POSTs image file to backend → backend validates, compresses if needed, and stores in S3
-- Download flow: client requests media via backend API (`GET /api/media/:id`) → backend fetches from S3 and streams the response to the client; no S3 URLs are ever exposed to the client
+- Download flow: client requests media via backend API (`GET /api/v1/media/:key`) → backend verifies trip membership, generates a signed S3 URL (1-hour TTL), and returns a 302 redirect; no permanent or stored S3 URLs are ever exposed to the client
 
 #### Image Ordering
 Images within an entry are stored as an ordered array. Since the maximum is 10 images per entry, ordering is handled by simple full-array replacement:
@@ -154,7 +154,7 @@ Trip creators can invite existing platform users to a specific trip. No new acco
 
 1. Trip creator opens Trip Settings → Member Management and searches for a user by display name or email
 2. Creator assigns a trip-level role: `contributor` or `follower`
-3. The user is added to the trip immediately and receives an in-app notification (email notification in Phase 2)
+3. The user is added to the trip immediately. They will see the trip on their dashboard on next login or app refresh. In-app and email notifications are Phase 2.
 4. The user sees the trip on their dashboard on next login / app refresh
 
 > A user must already have a platform account to be added to a trip. If the person doesn't have an account yet, the admin must first issue a platform invite.
@@ -163,12 +163,22 @@ Trip creators can invite existing platform users to a specific trip. No new acco
 - **Promoting a Follower to Creator:** Admin-only action, available in the Admin Panel on the user's profile. Changes the user's app-level `role` from `follower` to `creator`.
 - **Changing a trip-level role:** Trip creator can change any member's trip role (contributor ↔ follower) from Trip Settings → Member Management. The trip creator role itself cannot be transferred.
 - **Removing a member from a trip:** Trip creator can remove any contributor or follower from Trip Settings. Removed users lose access immediately.
+- **Account deletion:** An account cannot be deleted while the user is the `createdBy` owner of any trip with status `planned` or `active`. The user must complete or delete those trips first. Admin exception: the admin can reassign trip ownership from the Admin Panel (emergency use only — not a routine trip management feature).
 
 #### Session Management
-- JWT issued on login, valid for **7 days**; payload includes `userId`, `email`, and `appRole`
-- Token is stored in `localStorage` (acceptable trade-off for a private family app; revisit if scope expands)
-- On logout: client discards the token; no server-side invalidation needed at this scale
-- Auto-login: if a valid token is present on app load, skip the login screen
+
+Two tokens are issued on every successful login:
+
+| Token | Type | Expiry | Storage | Used for |
+|-------|------|--------|---------|----------|
+| **Access token** | JWT; payload `{ userId, email, appRole }` | 15 min | JS memory only | `Authorization: Bearer` header on every API call |
+| **Refresh token** | Opaque random 32-byte hex string | 30 days | `HttpOnly Secure SameSite=Strict` cookie | Exchanged at `POST /api/v1/auth/refresh` for a new access token |
+
+The raw refresh token is never stored on the server — only its SHA-256 hash is written to the `Session` collection, enabling server-side revocation.
+
+- **Auto-login:** on app load, if no access token is in memory, silently call the refresh endpoint. If the `HttpOnly` cookie is valid, a new access token is issued without prompting the user.
+- **Logout:** client discards the access token from memory; server deletes the `Session` document and instructs the browser to clear the cookie.
+- **Token rotation:** the refresh token is rotated (new token issued, old one revoked) on each successful refresh call, limiting the blast radius of a stolen cookie.
 
 #### Account Ownership
 - A user account is independent of any single trip
@@ -181,10 +191,11 @@ Trip creators can invite existing platform users to a specific trip. No new acco
 - **Status transitions are manual** — the trip creator explicitly sets the status in Trip Settings. Departure/return dates serve as a reference display only, not as auto-triggers
 - Allowed transitions: `planned → active`, `active → completed`, `completed → active` (re-open allowed)
 - Trip dashboard: list of trips the user belongs to (as creator, contributor, or follower), grouped by status
-- Only one trip is typically "active" at a time, but users can switch freely
+- Multiple trips can be active simultaneously. The dashboard groups trips by status; no backend constraint limits the number of active trips.
 
 ### 4.1.6 Shareable Public View
 - Unique URL per trip for read-only access — this is the only part of the app accessible without login
+- Public share URL pattern: `/share/:shareSlug`; served by the React client as an unauthenticated route; the backend exposes `GET /api/v1/trips/share/:shareSlug` to supply trip data for this view
 - Protected by an optional password (bcrypt-hashed on the server)
 - Password entry screen is shown before the timeline if a password is set
 - Optimized for non-technical viewers (no editing controls, clean layout)
@@ -211,33 +222,28 @@ Trip creators can invite existing platform users to a specific trip. No new acco
 - User can opt-in/opt-out per trip
 - *Moved to Phase 2: requires service worker push infrastructure; too complex for MVP*
 
-### 4.2.4 Reactions & Comments
-- Emoji reactions (❤️ 👍 😂)
-- Optional comments on entries
-- No login required for viewers on the public share view (nickname-based)
-
-### 4.2.5 Daily Grouping ("Story Mode")
+### 4.2.4 Daily Grouping ("Story Mode")
 - Group entries by day
 - Auto-generate day titles (e.g., "Day 4 in Paris")
 - Highlight key photos
 
-### 4.2.6 Daily Prompts
+### 4.2.5 Daily Prompts
 - Optional prompts when creating entries:
   - "Best moment today?"
   - "What surprised you?"
   - "Favorite food?"
 
-### 4.2.7 Trip Templates
+### 4.2.6 Trip Templates
 - Pre-fill a trip with known destinations and dates
 - Timeline has structure (day placeholders) before content is added
 - Useful for planning-oriented users
 
-### 4.2.8 Weather Data
+### 4.2.7 Weather Data
 - Auto-attach weather conditions to entries at creation time (using a free weather API)
 - Stored as metadata: temperature, conditions, icon
 - Displayed as a subtle badge on entry cards
 
-### 4.2.9 Mentions & Tags
+### 4.2.8 Mentions & Tags
 - Tag/mention other trip members in entries (e.g., "@Mom found this amazing bakery")
 - Mentioned users receive a notification
 
@@ -249,20 +255,25 @@ Trip creators can invite existing platform users to a specific trip. No new acco
 - Mark entries as favorites
 - Generate "Best of Trip" view
 
-### 4.3.2 Voice Notes
+### 4.3.2 Reactions & Comments
+- Emoji reactions (❤️ 👍 😂)
+- Optional comments on entries
+- No login required for viewers on the public share view (nickname-based); logged-in users are identified by their account
+
+### 4.3.3 Voice Notes
 - Record short audio clips
 - Attach to entries
 
-### 4.3.3 Live Status
+### 4.3.4 Live Status
 - "Currently in [location]"
 - Manual or auto-updated
 
-### 4.3.4 Trip Stats
+### 4.3.5 Trip Stats
 - Number of places visited
 - Entries created
 - Photos uploaded
 
-### 4.3.5 Export / Keepsake Mode
+### 4.3.6 Export / Keepsake Mode
 - Export to:
   - PDF (travel book)
   - Static website
@@ -376,7 +387,7 @@ Full data model — collections, fields, indexes, relationships, and improvement
 | Database | MongoDB Atlas (managed) |
 | Object storage | Scaleway Object Storage (S3-compatible, private bucket) |
 | Compute | Scaleway Serverless Containers |
-| Auth | JWT (7-day, stateless); bcrypt passwords (cost ≥ 12) |
+| Auth | Dual-token: 15-min JWT access token (JS memory) + 30-day refresh token (`HttpOnly` cookie); bcrypt passwords (cost ≥ 12) |
 | Media | All S3 access via backend proxy; S3 URLs are never exposed to clients |
 
 ---
@@ -398,10 +409,11 @@ Full data model — collections, fields, indexes, relationships, and improvement
 See [`docs/architecture.md § Authentication & Authorization`](architecture.md#4-authentication--authorization) for the full auth model and authorization matrix.
 
 Summary:
-- All app functionality (except public share view) requires a valid JWT
-- JWT payload: `{ userId, email, appRole }`; stateless; 7-day expiry
+- All app functionality (except public share view) requires a valid JWT access token
+- Access token JWT payload: `{ userId, email, appRole }`; 15-min expiry; stored in JS memory only
+- Refresh token: 30-day opaque token in `HttpOnly Secure` cookie; rotated on each use; SHA-256 hash stored server-side in `Session` collection
 - `ADMIN_EMAIL` is a server-side environment variable only; never exposed to clients or API responses
-- All S3 access is private; media served only via backend proxy (`GET /api/media/:id`); S3 URLs are never exposed to clients
+- All S3 access is private; media served only via backend proxy (`GET /api/v1/media/:key`) using signed URLs (1-hour TTL); no permanent S3 URLs are stored or exposed to clients
 - Rate limiting on auth and media upload endpoints
 
 ### 7.4 Scalability

@@ -78,7 +78,11 @@ Stores active refresh tokens to support server-side revocation in the dual-token
 | `tripRole` | enum | `creator` \| `contributor` \| `follower` |
 | `addedAt` | Date | when the user was added to the trip |
 
+> When a trip is created, the creator is automatically added to the `members` array with `tripRole: "creator"`. The `createdBy` field is a convenience reference to identify the owner without scanning the array; all membership queries use the `members` array as the single source of truth.
+
 > The `members` array is always small (5–20 users per trip) so embedding is appropriate. The multikey index on `members.userId` covers membership queries across trips efficiently.
+
+> **Orphan handling:** if a creator account is deleted without being reassigned, trips with a dangling `createdBy` reference are treated as admin-owned for management purposes.
 
 ---
 
@@ -180,11 +184,13 @@ Issued by admin to create new platform accounts.
 | `entryId` | ObjectId | ref → Entry |
 | `tripId` | ObjectId | ref → Trip (denormalized for efficient trip-level queries) |
 | `emoji` | string | e.g., `❤️` |
-| `nickname` | string | viewer display name (no account required on public share view) |
+| `userId` | ObjectId? | ref → User; `null` for anonymous public-share viewers |
+| `nickname` | string | display name; derived from `User.displayName` if authenticated, user-provided if anonymous |
 | `createdAt` | Date | |
 
 **Indexes:**
 - `{ entryId: 1 }` — reactions per entry
+- `{ entryId: 1, userId: 1 }` — sparse unique index; prevents duplicate reactions from the same authenticated user (`null` userId values are excluded from the uniqueness constraint)
 
 ---
 
@@ -195,7 +201,8 @@ Issued by admin to create new platform accounts.
 | `_id` | ObjectId | |
 | `entryId` | ObjectId | ref → Entry |
 | `tripId` | ObjectId | ref → Trip (denormalized) |
-| `nickname` | string | viewer display name |
+| `userId` | ObjectId? | ref → User; `null` for anonymous public-share viewers |
+| `nickname` | string | display name; derived from `User.displayName` if authenticated, user-provided if anonymous |
 | `content` | string | |
 | `createdAt` | Date | |
 
