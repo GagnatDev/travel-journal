@@ -61,10 +61,6 @@ The application follows a classic three-tier architecture: a React PWA client, a
 - All routes under `/api/v1/` — versioned from day one to allow non-breaking evolution
 - Authentication header: `Authorization: Bearer <token>`
 
-### Public Share Route
-- `GET /api/v1/trips/share/:shareSlug` — public endpoint (no authentication required); returns trip data for the read-only share view
-- Client-side: `/share/:shareSlug` is served as an unauthenticated React route
-
 ### Media Proxy
 All S3 access is mediated by the backend. Clients never hold permanent S3 URLs.
 
@@ -149,7 +145,6 @@ The very first account is bootstrapped via the `ADMIN_EMAIL` environment variabl
 | Edit/delete others' entries | ❌ | ❌ | ❌ | |
 | Change trip settings | Trip creator | Trip creator | ❌ | |
 | View trip timeline | Any authenticated member | Any authenticated member | Any authenticated member | All trip roles can read |
-| Access public share view | No login required | No login required | No login required | `shareSlug` URL only |
 
 ---
 

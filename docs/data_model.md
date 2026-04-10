@@ -56,8 +56,6 @@ Stores active refresh tokens to support server-side revocation in the dual-token
 | `status` | enum | `planned` \| `active` \| `completed`; manually set by trip creator |
 | `createdBy` | ObjectId | ref → User; always holds trip role `creator` |
 | `members` | TripMember[] | embedded array; see sub-document below |
-| `shareSlug` | string | unique URL-safe slug; used in the public share URL |
-| `sharePasswordHash` | string? | bcrypt-hashed; `null` means no password required |
 | `coverImageKey` | string? | S3 key for trip cover image (Phase 2) |
 | `createdAt` | Date | |
 | `updatedAt` | Date | |
@@ -65,7 +63,6 @@ Stores active refresh tokens to support server-side revocation in the dual-token
 **Status transitions:** `planned → active`, `active → completed`, `completed → active` (re-open allowed).
 
 **Indexes:**
-- `{ shareSlug: 1 }` — unique (public share lookup)
 - `{ createdBy: 1 }` — list trips created by a user
 - `{ "members.userId": 1 }` — list all trips a user belongs to
 - `{ status: 1 }` — filter by status on the dashboard
@@ -184,13 +181,13 @@ Issued by admin to create new platform accounts.
 | `entryId` | ObjectId | ref → Entry |
 | `tripId` | ObjectId | ref → Trip (denormalized for efficient trip-level queries) |
 | `emoji` | string | e.g., `❤️` |
-| `userId` | ObjectId? | ref → User; `null` for anonymous public-share viewers |
-| `nickname` | string | display name; derived from `User.displayName` if authenticated, user-provided if anonymous |
+| `userId` | ObjectId | ref → User |
+| `nickname` | string | display name; derived from `User.displayName` |
 | `createdAt` | Date | |
 
 **Indexes:**
 - `{ entryId: 1 }` — reactions per entry
-- `{ entryId: 1, userId: 1 }` — sparse unique index; prevents duplicate reactions from the same authenticated user (`null` userId values are excluded from the uniqueness constraint)
+- `{ entryId: 1, userId: 1 }` — unique index; prevents duplicate reactions from the same user
 
 ---
 
@@ -201,8 +198,8 @@ Issued by admin to create new platform accounts.
 | `_id` | ObjectId | |
 | `entryId` | ObjectId | ref → Entry |
 | `tripId` | ObjectId | ref → Trip (denormalized) |
-| `userId` | ObjectId? | ref → User; `null` for anonymous public-share viewers |
-| `nickname` | string | display name; derived from `User.displayName` if authenticated, user-provided if anonymous |
+| `userId` | ObjectId | ref → User |
+| `nickname` | string | display name; derived from `User.displayName` |
 | `content` | string | |
 | `createdAt` | Date | |
 

@@ -125,7 +125,7 @@ Images within an entry are stored as an ordered array. Since the maximum is 10 i
 
 ### 4.1.4 Authentication & Multi-User
 
-All access to the app — including viewing trip journals — requires a user account and a valid JWT session. The public share view (Section 4.1.6) is the only exception and is a separate read-only URL.
+All access to the app — including viewing trip journals — requires a user account and a valid JWT session.
 
 #### Admin Bootstrap (First User)
 The very first account is bootstrapped via a server-side environment variable `ADMIN_EMAIL`:
@@ -193,14 +193,6 @@ The raw refresh token is never stored on the server — only its SHA-256 hash is
 - Trip dashboard: list of trips the user belongs to (as creator, contributor, or follower), grouped by status
 - Multiple trips can be active simultaneously. The dashboard groups trips by status; no backend constraint limits the number of active trips.
 
-### 4.1.6 Shareable Public View
-- Unique URL per trip for read-only access — this is the only part of the app accessible without login
-- Public share URL pattern: `/share/:shareSlug`; served by the React client as an unauthenticated route; the backend exposes `GET /api/v1/trips/share/:shareSlug` to supply trip data for this view
-- Protected by an optional password (bcrypt-hashed on the server)
-- Password entry screen is shown before the timeline if a password is set
-- Optimized for non-technical viewers (no editing controls, clean layout)
-- Single shared link per trip, generated and managed in Trip Settings
-
 ---
 
 ## 4.2 Enhanced Features (Should Have)
@@ -258,7 +250,6 @@ The raw refresh token is never stored on the server — only its SHA-256 hash is
 ### 4.3.2 Reactions & Comments
 - Emoji reactions (❤️ 👍 😂)
 - Optional comments on entries
-- No login required for viewers on the public share view (nickname-based); logged-in users are identified by their account
 
 ### 4.3.3 Voice Notes
 - Record short audio clips
@@ -326,16 +317,9 @@ The functional principles that drive screen and interaction design are:
 - Pins for entries
 - Tap → open entry
 
-#### 5.2.5 Public View
-- Clean, blog-like layout
-- No editing controls
-- Password prompt shown before timeline if trip is password-protected
-- Optimized for sharing
-
-#### 5.2.6 Trip Settings
+#### 5.2.5 Trip Settings
 - Accessible only by the trip creator
 - Trip details (name, dates, description, status transitions)
-- Shared link + password configuration
 - **Member Management:**
   - Member list showing each user's display name, email, and trip-level role
   - Change a member's trip role (contributor ↔ follower) via inline dropdown
@@ -343,25 +327,25 @@ The functional principles that drive screen and interaction design are:
   - Add an existing platform user to the trip: search by display name or email, assign role (contributor / follower)
   - Note: to invite someone who doesn't have a platform account yet, the admin must first issue a platform invite
 
-#### 5.2.7 Invite Accept / Sign Up Screen
+#### 5.2.6 Invite Accept / Sign Up Screen
 - Reached by clicking a **platform invite** link in the email (admin-issued)
 - Email address pre-filled and read-only
 - User enters: display name, password (min 8 characters)
 - Single "Create Account" button — auto-logs in and redirects to the trip dashboard on success
 - If the invite token is expired or revoked, show a clear error with instructions to contact the admin
 
-#### 5.2.8 Login Screen
+#### 5.2.7 Login Screen
 - Email + password fields
 - "Forgot password" (Phase 2)
 - No self-registration path; accounts are created via admin platform invite or the one-time admin bootstrap
 
-#### 5.2.9 Admin Registration Screen (`/register`)
+#### 5.2.8 Admin Registration Screen (`/register`)
 - Only rendered if no admin account exists yet; otherwise redirects to `/login`
 - Email + display name + password fields (same minimal form as invite sign-up)
 - Backend silently rejects any email that does not match `ADMIN_EMAIL`
 - On success: auto-login, redirect to trip dashboard
 
-#### 5.2.10 Admin Panel
+#### 5.2.9 Admin Panel
 - Accessible only to users with `appRole: admin`
 - **User list:** table of all platform users showing display name, email, app-level role, and account creation date
 - **Platform invite:** enter email address(es), select starting app-level role (`creator` or `follower`), send invite
@@ -409,7 +393,7 @@ Full data model — collections, fields, indexes, relationships, and improvement
 See [`docs/architecture.md § Authentication & Authorization`](architecture.md#4-authentication--authorization) for the full auth model and authorization matrix.
 
 Summary:
-- All app functionality (except public share view) requires a valid JWT access token
+- All app functionality requires a valid JWT access token
 - Access token JWT payload: `{ userId, email, appRole }`; 15-min expiry; stored in JS memory only
 - Refresh token: 30-day opaque token in `HttpOnly Secure` cookie; rotated on each use; SHA-256 hash stored server-side in `Session` collection
 - `ADMIN_EMAIL` is a server-side environment variable only; never exposed to clients or API responses
@@ -441,7 +425,6 @@ Summary:
 - Entry creation with image upload (client-side compression, backend media proxy)
 - Image reordering within entries (full-array replacement)
 - Timeline view
-- Public share page (URL + optional password)
 
 ### Phase 2 (Core Enhancements)
 - Offline support with LWW conflict resolution and edit history
@@ -488,9 +471,7 @@ Summary:
 
 - AI-generated summaries
 - Printed photo book integration
-- Public sharing templates
 - Collaborative real-time editing
-- **External viewers (no account):** allow extended family and friends to view a trip via a public share link without requiring a platform account; passive read-only consumers
 
 ---
 
