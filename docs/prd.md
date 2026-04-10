@@ -51,10 +51,6 @@ Within any given trip, a user has exactly one of three trip-level roles:
 
 > A Follower (app-level) can be made a Contributor within a specific trip by the trip creator — this is a trip-level grant only and does not affect their app-level role.
 
-### 2.3 External Viewers (No Account)
-- Extended family / friends viewing the public share link
-- Passive consumers (read-only, no account required)
-
 ---
 
 ## 3. Core User Stories
@@ -117,7 +113,7 @@ Within any given trip, a user has exactly one of three trip-level roles:
 - Expected volume: ~5–10 images per user per day
 - **All media access goes through the backend API — no direct client access to S3**
 - Upload flow: client POSTs image file to backend → backend validates, compresses if needed, and stores in S3
-- Download flow: backend generates a short-lived signed S3 URL (1-hour TTL) and includes it in API responses; client never holds a long-lived or permanent S3 URL
+- Download flow: client requests media via backend API (`GET /api/media/:id`) → backend fetches from S3 and streams the response to the client; no S3 URLs are ever exposed to the client
 
 #### Image Ordering
 Images within an entry are stored as an ordered array. Since the maximum is 10 images per entry, ordering is handled by simple full-array replacement:
@@ -365,159 +361,23 @@ The functional principles that drive screen and interaction design are:
 
 ## 6. Technical Requirements
 
-### 6.1 Frontend
-- Framework: React
-- Styling: Tailwind CSS — color tokens, typography scale, and component styles are derived from [`docs/design_guidelines.md`](design_guidelines.md); implement as CSS variables for light/dark theming
-- PWA:
-  - Service Worker
-  - Manifest
-  - Offline caching
-  - Push notifications (Phase 2)
-- **Internationalisation (i18n):**
-  - Library: `react-i18next` + `i18next`
-  - Supported locales: `nb` (Norwegian Bokmål, default), `en` (English)
-  - Translation files: `public/locales/nb/translation.json` and `public/locales/en/translation.json`
-  - Language detection order: (1) user preference stored in `localStorage`, (2) browser `Accept-Language`, (3) fallback to `nb`
-  - Language switcher available in the app header / user settings (toggles between `nb` and `en`)
-  - All user-facing strings go through `t()` — no hard-coded UI text in components
-  - Date and number formatting uses `Intl` APIs with the active locale
+Full architecture detail — stack choices, media proxy flow, auth model, deployment, and improvement recommendations — is in [`docs/architecture.md`](architecture.md).
 
-### 6.2 Backend
-- Node.js v24 + Express/Fastify
-- External MongoDB (managed, e.g., MongoDB Atlas)
-- Object storage: Scaleway S3-compatible buckets
-- **Media proxy:** all S3 access is mediated by the backend; clients never call S3 directly
-  - Uploads: `POST /api/media/upload` — backend receives the file, validates type/size, uploads to S3
-  - Reads: image URLs returned by the API are backend endpoints (e.g., `/api/media/:key`) that generate a short-lived signed S3 URL (1-hour TTL) and issue a redirect
-- **Rate limiting:** apply rate limits on auth endpoints (login, invite accept) and media upload to prevent abuse
+Full data model — collections, fields, indexes, relationships, and improvement recommendations — is in [`docs/data_model.md`](data_model.md).
 
-### 6.3 Deployment
-- **Compute:** Scaleway Serverless Containers
-- **Storage:** Scaleway Object Storage (S3-compatible) for media; bucket is private (no public access)
-- **Database:** External MongoDB (e.g., MongoDB Atlas)
+### Summary
 
-### 6.4 Data Model
-
-#### User
-| Field | Type | Notes |
-|-------|------|-------|
-| `_id` | ObjectId | |
-| `email` | string | unique, used for login |
-| `passwordHash` | string | bcrypt |
-| `displayName` | string | shown on entries |
-| `appRole` | enum | `admin` / `creator` / `follower` — set at account creation; only admin can promote `follower` → `creator` |
-| `preferredLocale` | enum | `nb` / `en` — defaults to `nb`; user-selectable |
-| `avatarUrl` | string? | optional profile picture |
-| `createdAt` | Date | |
-| `updatedAt` | Date | |
-
-#### Trip
-| Field | Type | Notes |
-|-------|------|-------|
-| `_id` | ObjectId | |
-| `name` | string | e.g., "Japan 2026" |
-| `description` | string? | optional |
-| `departureDate` | Date? | planned start (display only) |
-| `returnDate` | Date? | planned end (display only) |
-| `status` | enum | `planned` / `active` / `completed` — manually set |
-| `createdBy` | ObjectId | ref → User (always has trip role `creator`) |
-| `members` | TripMember[] | embedded array of trip membership sub-documents (see below) |
-| `shareSlug` | string | unique, used in public URL |
-| `sharePassword` | string? | bcrypt hashed, optional |
-| `createdAt` | Date | |
-| `updatedAt` | Date | |
-
-#### TripMember (sub-document of Trip)
-| Field | Type | Notes |
-|-------|------|-------|
-| `userId` | ObjectId | ref → User |
-| `tripRole` | enum | `creator` / `contributor` / `follower` |
-| `addedAt` | Date | when the user was added to the trip |
-
-#### PlatformInvite
-Issued by admin to create new platform accounts.
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `_id` | ObjectId | |
-| `email` | string | invited email address |
-| `assignedAppRole` | enum | `creator` / `follower` — app-level role granted on sign-up |
-| `tokenHash` | string | bcrypt hash of the invite token (raw token sent in email only) |
-| `status` | enum | `pending` / `accepted` / `revoked` |
-| `invitedBy` | ObjectId | ref → User (must be admin) |
-| `expiresAt` | Date | 7 days from creation |
-| `createdAt` | Date | |
-
-#### Entry
-| Field | Type | Notes |
-|-------|------|-------|
-| `_id` | ObjectId | |
-| `tripId` | ObjectId | ref → Trip |
-| `authorId` | ObjectId | ref → User |
-| `title` | string | |
-| `content` | string | plain text with basic formatting |
-| `images` | Image[] | ordered array (see sub-document); full array replaced atomically on update |
-| `location` | Location? | see sub-document |
-| `weather` | Weather? | auto-populated (Phase 2) |
-| `mentions` | ObjectId[] | refs → User **(Phase 2)** |
-| `promptUsed` | string? | which prompt was used, if any |
-| `isFavorite` | boolean | default false |
-| `editHistory` | EditSnapshot[]? | previous versions preserved on LWW conflict **(Phase 2)** |
-| `syncVersion` | number | incremented on each update, used for LWW conflict resolution **(Phase 2)** |
-| `createdAt` | Date | |
-| `updatedAt` | Date | |
-
-#### Image (sub-document of Entry)
-| Field | Type | Notes |
-|-------|------|-------|
-| `key` | string | S3 object key |
-| `url` | string | backend proxy URL: `/api/media/:key` |
-| `width` | number | original dimensions (post-compression) |
-| `height` | number | original dimensions (post-compression) |
-| `order` | number | display order within entry (0-based integer, normalized on every save) |
-| `uploadedAt` | Date | |
-
-#### Location (sub-document)
-| Field | Type | Notes |
-|-------|------|-------|
-| `lat` | number | latitude |
-| `lng` | number | longitude |
-| `name` | string? | human-readable (e.g., "Shibuya, Tokyo") |
-
-#### Weather (sub-document, Phase 2)
-| Field | Type | Notes |
-|-------|------|-------|
-| `temp` | number | temperature in °C |
-| `conditions` | string | e.g., "Partly Cloudy" |
-| `icon` | string | icon code from weather API |
-
-#### EditSnapshot (sub-document of Entry, Phase 2)
-| Field | Type | Notes |
-|-------|------|-------|
-| `content` | string | entry content at time of snapshot |
-| `images` | Image[] | image array at time of snapshot |
-| `savedAt` | Date | timestamp of the overwritten version |
-| `savedBy` | ObjectId | ref → User who held this version |
-
-#### Reaction
-| Field | Type | Notes |
-|-------|------|-------|
-| `_id` | ObjectId | |
-| `entryId` | ObjectId | ref → Entry |
-| `tripId` | ObjectId | ref → Trip (denormalized for efficient trip-level queries) |
-| `emoji` | string | e.g., "❤️" |
-| `nickname` | string | viewer display name |
-| `createdAt` | Date | |
-
-#### Comment
-| Field | Type | Notes |
-|-------|------|-------|
-| `_id` | ObjectId | |
-| `entryId` | ObjectId | ref → Entry |
-| `tripId` | ObjectId | ref → Trip (denormalized for efficient trip-level queries) |
-| `nickname` | string | viewer display name |
-| `content` | string | |
-| `createdAt` | Date | |
+| Concern | Choice |
+|---------|--------|
+| Frontend | React + Tailwind CSS (tokens from [`docs/design_guidelines.md`](design_guidelines.md)) |
+| i18n | `react-i18next`; locales `nb` (default) and `en`; translation files at `public/locales/{nb,en}/translation.json` |
+| PWA | Service Worker + Web App Manifest; offline + background sync in Phase 2 |
+| Backend | Node.js v24 + Express/Fastify |
+| Database | MongoDB Atlas (managed) |
+| Object storage | Scaleway Object Storage (S3-compatible, private bucket) |
+| Compute | Scaleway Serverless Containers |
+| Auth | JWT (7-day, stateless); bcrypt passwords (cost ≥ 12) |
+| Media | All S3 access via backend proxy; S3 URLs are never exposed to clients |
 
 ---
 
@@ -525,7 +385,7 @@ Issued by admin to create new platform accounts.
 
 ### 7.1 Performance
 - **LCP < 2s on a 4G mobile connection** (Largest Contentful Paint, measured with images lazy-loaded)
-- Optimized image delivery (client-side compression before upload + signed S3 thumbnails)
+- Optimized image delivery (client-side compression before upload + backend media proxy streaming from S3)
 - Lazy loading media in timeline
 
 ### 7.2 Reliability
@@ -535,34 +395,14 @@ Issued by admin to create new platform accounts.
 
 ### 7.3 Security & Authorization
 
-#### Authentication
+See [`docs/architecture.md § Authentication & Authorization`](architecture.md#4-authentication--authorization) for the full auth model and authorization matrix.
+
+Summary:
 - All app functionality (except public share view) requires a valid JWT
-- JWT duration: 7 days, stateless (no server-side session store); payload: `{ userId, email, appRole }`
-- Passwords hashed with bcrypt (cost factor ≥ 12)
-- Platform invite tokens: raw token sent in email only; `tokenHash` (bcrypt) stored in DB; single-use (marked `accepted` on use); expire in 7 days
-- `ADMIN_EMAIL` is a server-side environment variable only; never exposed to the client or API responses
-
-#### Authorization Matrix
-
-| Action | Admin | Creator | Follower (app) | Notes |
-|--------|-------|---------|----------------|-------|
-| Create a trip | ✅ | ✅ | ❌ | |
-| Invite new user to platform | ✅ | ❌ | ❌ | Admin Panel only |
-| Promote follower → creator | ✅ | ❌ | ❌ | Admin Panel only |
-| Add member to a trip | Trip creator only | Trip creator only | ❌ | Regardless of app role |
-| Post entries to a trip | If trip role = contributor or creator | If trip role = contributor or creator | If trip role = contributor | App role ≠ trip role |
-| Edit/delete own entries | ✅ (if contributor/creator) | ✅ (if contributor/creator) | ❌ | Authors only |
-| Edit/delete others' entries | ❌ | ❌ | ❌ | No one can edit another's entries |
-| Change trip settings | Trip creator only | Trip creator only | ❌ | |
-| View trip timeline | Any authenticated member | Any authenticated member | Any authenticated member | All trip roles can read |
-| Access public share view | No login required | No login required | No login required | `shareSlug` URL only |
-
-#### Media Security
-- All S3 access is private; clients access media only via backend-issued signed URLs (1-hour TTL)
-- Backend validates trip membership before serving any media
-
-#### Rate Limiting
-- Applied on: login, platform invite accept/sign-up, admin registration, and media upload endpoints
+- JWT payload: `{ userId, email, appRole }`; stateless; 7-day expiry
+- `ADMIN_EMAIL` is a server-side environment variable only; never exposed to clients or API responses
+- All S3 access is private; media served only via backend proxy (`GET /api/media/:id`); S3 URLs are never exposed to clients
+- Rate limiting on auth and media upload endpoints
 
 ### 7.4 Scalability
 - Designed for small group usage (5–20 users per trip)
@@ -638,6 +478,7 @@ Issued by admin to create new platform accounts.
 - Printed photo book integration
 - Public sharing templates
 - Collaborative real-time editing
+- **External viewers (no account):** allow extended family and friends to view a trip via a public share link without requiring a platform account; passive read-only consumers
 
 ---
 
