@@ -371,7 +371,7 @@ Full data model — collections, fields, indexes, relationships, and improvement
 | Frontend | React + Tailwind CSS (tokens from [`docs/design_guidelines.md`](design_guidelines.md)) |
 | i18n | `react-i18next`; locales `nb` (default) and `en`; translation files at `public/locales/{nb,en}/translation.json` |
 | PWA | Service Worker + Web App Manifest; offline + background sync in Phase 2 |
-| Backend | Node.js v24 + Express/Fastify |
+| Backend | Node.js v24 + Express |
 | Database | MongoDB Atlas (managed) |
 | Object storage | Scaleway Object Storage (S3-compatible, private bucket) |
 | Compute | Scaleway Serverless Containers |
