@@ -83,25 +83,29 @@ Stores active refresh tokens to support server-side revocation in the dual-token
 
 ---
 
-### PlatformInvite
+### Invite
 
-Issued by admin to create new platform accounts.
+Stores both platform invites (admin-issued) and trip invites (trip-creator-issued). The `type` field discriminates between the two flows; `tripId` and `tripRole` are populated only for trip invites.
 
 | Field | Type | Notes |
 |-------|------|-------|
 | `_id` | ObjectId | |
+| `type` | enum | `platform` \| `trip` |
 | `email` | string | invited email address |
-| `assignedAppRole` | enum | `creator` \| `follower`; app-level role granted on sign-up |
-| `tokenHash` | string | SHA-256 hex of the raw invite token (raw token sent in email only, never stored) |
+| `assignedAppRole` | enum | `creator` \| `follower`; app-level role granted on sign-up. Trip invites always assign `follower` |
+| `tripId` | ObjectId? | ref → Trip; populated for `trip` invites only |
+| `tripRole` | enum? | `contributor` \| `follower`; trip-level role granted on sign-up; populated for `trip` invites only |
+| `tokenHash` | string | SHA-256 hex of the raw invite token (raw token sent in invite link only, never stored) |
 | `status` | enum | `pending` \| `accepted` \| `revoked` |
-| `invitedBy` | ObjectId | ref → User (must be admin) |
+| `invitedBy` | ObjectId | ref → User (admin for platform invites; trip creator for trip invites) |
 | `expiresAt` | Date | 7 days from creation |
 | `createdAt` | Date | |
 | `updatedAt` | Date | updated when status changes (`accepted` or `revoked`) |
 
 **Indexes:**
-- `{ tokenHash: 1 }` — invite lookup on accept
+- `{ tokenHash: 1 }` — unique; invite lookup on accept (single code path for both invite types)
 - `{ email: 1, status: 1 }` — check for existing pending invite before issuing a new one
+- `{ tripId: 1, status: 1 }` — list pending trip invites for a trip's member management view
 - `{ expiresAt: 1 }` — TTL index to auto-purge expired invites (set `expireAfterSeconds: 0`)
 
 ---
@@ -119,7 +123,7 @@ Issued by admin to create new platform accounts.
 | `location` | Location? | see sub-document |
 | `weather` | Weather? | auto-populated at creation time (Phase 2) |
 | `promptUsed` | string? | which prompt was selected, if any |
-| `isFavorite` | boolean | default `false` |
+| `isFavorite` | boolean | default `false`; see Memory Highlights feature (Phase 3) |
 | `syncVersion` | number | incremented on each update; used for LWW conflict resolution (Phase 2) |
 | `editHistory` | EditSnapshot[]? | previous versions preserved on LWW conflict (Phase 2) |
 | `createdAt` | Date | |
@@ -236,6 +240,7 @@ Trip ──< Entry
 Entry ──< Image (embedded)
 Entry ──< Reaction
 Entry ──< Comment
-User ──< PlatformInvite (as invitedBy)
+User ──< Invite (as invitedBy)
+Trip ──< Invite (trip invites only)
 User ──< Notification (as recipient, Phase 2)
 ```

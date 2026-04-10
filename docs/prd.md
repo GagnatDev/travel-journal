@@ -110,7 +110,7 @@ Within any given trip, a user has exactly one of three trip-level roles:
 ### 4.1.3 Media Handling
 - Image upload with client-side compression before upload
 - Support for multiple images per entry (max 10)
-- Expected volume: ~5–10 images per user per day
+- Expected volume: ~10 images per user per day
 - **All media access goes through the backend API — no direct client access to S3**
 - Upload flow: client POSTs image file to backend → backend validates, compresses if needed, and stores in S3
 - Download flow: client requests media via backend API (`GET /api/v1/media/:key`) → backend verifies trip membership, generates a signed S3 URL (1-hour TTL), and returns a 302 redirect; no permanent or stored S3 URLs are ever exposed to the client
@@ -240,6 +240,10 @@ The raw refresh token is never stored on the server — only its SHA-256 hash is
 - Tag/mention other trip members in entries (e.g., "@Mom found this amazing bakery")
 - Mentioned users receive a notification
 
+### 4.2.9 Reactions & Comments
+- Emoji reactions on entries (❤️ 👍 😂)
+- Optional text comments on entries
+
 ---
 
 ## 4.3 Delight Features (Nice to Have)
@@ -248,24 +252,16 @@ The raw refresh token is never stored on the server — only its SHA-256 hash is
 - Mark entries as favorites
 - Generate "Best of Trip" view
 
-### 4.3.2 Reactions & Comments
-- Emoji reactions (❤️ 👍 😂)
-- Optional comments on entries
-
-### 4.3.3 Voice Notes
-- Record short audio clips
-- Attach to entries
-
-### 4.3.4 Live Status
+### 4.3.2 Live Status
 - "Currently in [location]"
 - Manual or auto-updated
 
-### 4.3.5 Trip Stats
+### 4.3.3 Trip Stats
 - Number of places visited
 - Entries created
 - Photos uploaded
 
-### 4.3.6 Export / Keepsake Mode
+### 4.3.4 Export / Keepsake Mode
 - Export to:
   - PDF (travel book)
   - Static website
@@ -422,7 +418,7 @@ Summary:
 - i18n foundation: `react-i18next` setup, `nb` and `en` translation files, language switcher, `preferredLocale` persisted per user
 - Admin bootstrap registration (`ADMIN_EMAIL`-gated `/register` route, disabled after first use)
 - Admin Panel: platform invite flow (generates link, no email sent), pending invite management, user list, promote follower → creator
-- Login screen + JWT session management (7-day tokens, `appRole` in payload)
+- Login screen + JWT session management (dual-token: 15-min access token + 30-day refresh token; `appRole` in access token payload)
 - Trip creation (admin and creator only)
 - Trip share flow: add member by nickname or email + assign trip role; generate trip invite link for new users (no email sent); new accounts via trip invite get app-level `follower` role; change trip roles; remove members
 - Multi-trip dashboard
@@ -437,11 +433,11 @@ Summary:
 - Trip templates
 - Weather data on entries
 - Mentions & tags
+- Reactions & comments
 - Daily prompts
 - Password reset flow
 
 ### Phase 3 (Polish)
-- Reactions/comments
 - Story mode (daily grouping)
 - Memory highlights & favorites
 - Trip stats

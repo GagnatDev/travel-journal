@@ -2,7 +2,7 @@
 
 ## 1. System Overview
 
-The application follows a classic three-tier architecture: a React PWA client, a Node.js API server, and persistent storage (MongoDB + S3-compatible object storage). All client-server communication goes through the REST API — clients never access storage directly.
+The application follows a classic three-tier architecture: a React PWA client, a Node.js API server, and persistent storage (MongoDB + S3-compatible object storage). All API communication goes through the REST API. Media downloads are an exception: the backend verifies authorization and issues a short-lived signed S3 URL, then redirects the client to fetch the bytes directly from object storage.
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -329,4 +329,4 @@ The following are excluded from the initial implementation due to added complexi
 
 ### 8.2 Background Job Queue for Media Processing
 **Current:** Upload processing (validation, compression, S3 write) happens inline in the request handler.
-**Recommendation:** Accept the upload, store the raw file temporarily, enqueue a job, and return immediately. A worker processes the file asynchronously. Prevents request timeouts on large files and enables retry logic. A simple in-process queue (e.g., `bullmq` backed by Redis) is sufficient at this scale. Also becomes necessary if thumbnail generation (7.1) is adopted.
+**Recommendation:** Accept the upload, store the raw file temporarily, enqueue a job, and return immediately. A worker processes the file asynchronously. Prevents request timeouts on large files and enables retry logic. A simple in-process queue (e.g., `bullmq` backed by Redis) is sufficient at this scale. Also becomes necessary if thumbnail generation (8.1) is adopted.
