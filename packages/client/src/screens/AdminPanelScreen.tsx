@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { Invite, PublicUser } from '@travel-journal/shared';
 
+import { CopyableLinkField } from '../components/CopyableLinkField.js';
 import { useAuth } from '../context/AuthContext.js';
 
 type Tab = 'users' | 'invites';
@@ -39,7 +40,6 @@ export function AdminPanelScreen() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'creator' | 'follower'>('follower');
   const [generatedLink, setGeneratedLink] = useState('');
-  const [linkCopied, setLinkCopied] = useState(false);
 
   if (!user || user.appRole !== 'admin') {
     return (
@@ -68,8 +68,6 @@ export function AdminPanelScreen() {
       setInviteRole={setInviteRole}
       generatedLink={generatedLink}
       setGeneratedLink={setGeneratedLink}
-      linkCopied={linkCopied}
-      setLinkCopied={setLinkCopied}
       queryClient={queryClient}
     />
   );
@@ -85,8 +83,6 @@ function AdminPanelContent({
   setInviteRole,
   generatedLink,
   setGeneratedLink,
-  linkCopied,
-  setLinkCopied,
   queryClient,
 }: {
   token: string;
@@ -98,8 +94,6 @@ function AdminPanelContent({
   setInviteRole: (v: 'creator' | 'follower') => void;
   generatedLink: string;
   setGeneratedLink: (v: string) => void;
-  linkCopied: boolean;
-  setLinkCopied: (v: boolean) => void;
   queryClient: ReturnType<typeof useQueryClient>;
 }) {
   const { t } = useTranslation();
@@ -150,12 +144,6 @@ function AdminPanelContent({
       void queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     },
   });
-
-  async function copyLink() {
-    await navigator.clipboard.writeText(generatedLink);
-    setLinkCopied(true);
-    setTimeout(() => setLinkCopied(false), 2000);
-  }
 
   return (
     <div className="min-h-screen bg-bg-primary pb-24">
@@ -263,28 +251,16 @@ function AdminPanelContent({
                 </button>
               </form>
 
-              {generatedLink && (
-                <div className="p-3 bg-bg-secondary rounded-round-eight space-y-2">
-                  <label className="block font-ui text-xs font-medium text-caption">
-                    {t('admin.invite.linkLabel')}
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={generatedLink}
-                      readOnly
-                      aria-label={t('admin.invite.linkLabel')}
-                      className="flex-1 px-2 py-1 border border-caption rounded font-ui text-xs text-body bg-bg-primary"
-                    />
-                    <button
-                      onClick={copyLink}
-                      className="px-3 py-1 border border-accent text-accent font-ui text-xs font-semibold rounded hover:bg-accent hover:text-white transition-all"
-                    >
-                      {linkCopied ? t('admin.invite.linkCopied') : t('admin.invite.copyButton')}
-                    </button>
-                  </div>
-                </div>
-              )}
+              {generatedLink ? (
+                <CopyableLinkField
+                  value={generatedLink}
+                  fieldLabel={t('admin.invite.linkLabel')}
+                  inputAriaLabel={t('admin.invite.linkLabel')}
+                  copyLabel={t('admin.invite.copyButton')}
+                  copiedLabel={t('admin.invite.linkCopied')}
+                  errorLabel={t('common.copyFailed')}
+                />
+              ) : null}
             </div>
 
             {/* Pending invites */}

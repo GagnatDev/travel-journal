@@ -75,7 +75,8 @@
     "delete": "Delete",
     "confirm": "Confirm",
     "copy": "Copy",
-    "copied": "Copied!"
+    "copied": "Copied!",
+    "copyFailed": "Could not copy"
   },
   "language": {
     "nb": "Norsk",
