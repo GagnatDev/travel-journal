@@ -2,10 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import type { CreateEntryRequest, UpdateEntryRequest } from '@travel-journal/shared';
+import type { CreateEntryRequest, EntryImage, UpdateEntryRequest } from '@travel-journal/shared';
 
 import { createEntry, fetchEntry, updateEntry } from '../api/entries.js';
+import { uploadMedia } from '../api/media.js';
 import { useAuth } from '../context/AuthContext.js';
+import { ImageReorder } from '../components/ImageReorder.js';
+import { compressImage } from '../utils/compressImage.js';
 
 interface EntryFormState {
   title: string;
@@ -25,8 +28,17 @@ const EMPTY_FORM: EntryFormState = {
   locationName: '',
 };
 
-function formIsDirty(form: EntryFormState, initial: EntryFormState): boolean {
+function formIsDirty(
+  form: EntryFormState,
+  initial: EntryFormState,
+  images: EntryImage[],
+  initialImages: EntryImage[],
+): boolean {
+  const imagesDirty =
+    images.length !== initialImages.length ||
+    images.some((img, i) => img.key !== initialImages[i]?.key);
   return (
+    imagesDirty ||
     form.title !== initial.title ||
     form.content !== initial.content ||
     form.locationEnabled !== initial.locationEnabled ||
@@ -46,6 +58,9 @@ export function CreateEntryScreen() {
   const [form, setForm] = useState<EntryFormState>(EMPTY_FORM);
   const [initialForm, setInitialForm] = useState<EntryFormState>(EMPTY_FORM);
   const [titleError, setTitleError] = useState('');
+  const [images, setImages] = useState<EntryImage[]>([]);
+  const [initialImages, setInitialImages] = useState<EntryImage[]>([]);
+  const [uploadingCount, setUploadingCount] = useState(0);
 
   // Load existing entry when editing
   const { data: existingEntry } = useQuery({
@@ -66,6 +81,9 @@ export function CreateEntryScreen() {
     };
     setForm(loaded);
     setInitialForm(loaded);
+    const loadedImages = existingEntry.images ?? [];
+    setImages(loadedImages);
+    setInitialImages(loadedImages);
     // Depend on id only so React Query refetches (new object identity) do not wipe in-progress edits.
   }, [existingEntry?.id]);
 
@@ -79,6 +97,31 @@ export function CreateEntryScreen() {
       updateEntry(tripId!, entryId!, data, accessToken!),
     onSuccess: () => navigate(`/trips/${tripId}/timeline`),
   });
+
+  const handleFileSelect = useCallback(
+    async (files: FileList) => {
+      const remaining = 10 - images.length;
+      const toProcess = Array.from(files).slice(0, remaining);
+      setUploadingCount((prev) => prev + toProcess.length);
+      await Promise.all(
+        toProcess.map(async (file) => {
+          try {
+            const { blob, width, height } = await compressImage(file);
+            const result = await uploadMedia(tripId!, blob, width, height, accessToken!);
+            setImages((prev) => [
+              ...prev,
+              { key: result.key, width, height, order: prev.length, uploadedAt: new Date().toISOString() },
+            ]);
+          } catch {
+            // silently ignore individual upload failures
+          } finally {
+            setUploadingCount((prev) => prev - 1);
+          }
+        }),
+      );
+    },
+    [images.length, tripId, accessToken],
+  );
 
   const handleLocationToggle = useCallback(() => {
     if (!form.locationEnabled) {
@@ -107,7 +150,7 @@ export function CreateEntryScreen() {
   }, [form.locationEnabled]);
 
   const handleDiscard = useCallback(() => {
-    if (formIsDirty(form, initialForm)) {
+    if (formIsDirty(form, initialForm, images, initialImages)) {
       if (!window.confirm(t('entries.discardConfirm'))) return;
     }
     navigate(`/trips/${tripId}/timeline`);
@@ -136,12 +179,14 @@ export function CreateEntryScreen() {
         updateMutation.mutate({
           title: form.title.trim(),
           content: form.content,
+          images,
           location: form.locationEnabled ? (location ?? null) : null,
         });
       } else {
-        const createData = {
+        const createData: CreateEntryRequest = {
           title: form.title.trim(),
           content: form.content,
+          images,
           ...(location !== undefined && { location }),
         };
         createMutation.mutate(createData);
@@ -150,7 +195,7 @@ export function CreateEntryScreen() {
     [form, isEdit, createMutation, updateMutation, t],
   );
 
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  const isPending = createMutation.isPending || updateMutation.isPending || uploadingCount > 0;
 
   return (
     <div className="min-h-screen bg-bg-primary pb-8">
@@ -193,6 +238,19 @@ export function CreateEntryScreen() {
             rows={8}
             className="w-full px-3 py-2 bg-bg-secondary border border-caption/30 rounded-round-eight font-ui text-body focus:outline-none focus:border-accent resize-none"
             placeholder={t('entries.contentPlaceholder')}
+          />
+        </div>
+
+        {/* Images */}
+        <div>
+          <label className="block font-ui text-sm font-medium text-body mb-1">
+            {t('entries.addPhotos')}
+          </label>
+          <ImageReorder
+            images={images}
+            onImagesChange={setImages}
+            onFileSelect={handleFileSelect}
+            isUploading={uploadingCount > 0}
           />
         </div>
 

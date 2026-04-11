@@ -160,6 +160,10 @@
     "edit": "Edit",
     "delete": "Delete",
     "deleteConfirm": "Delete this entry?",
-    "discardConfirm": "Discard unsaved changes?"
+    "discardConfirm": "Discard unsaved changes?",
+    "addPhotos": "Add Photos",
+    "uploadingImage": "Uploading...",
+    "imageLimit": "Maximum 10 images",
+    "removeImage": "Remove image"
   }
 }

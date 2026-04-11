@@ -34,6 +34,7 @@ export function EntryCard({ entry, tripId, currentUserId, onDelete }: EntryCardP
         <img
           src={`/api/v1/media/${heroImage.key}`}
           alt={entry.title}
+          loading="lazy"
           className="w-full aspect-video object-cover"
         />
       )}
@@ -90,6 +91,7 @@ export function EntryCard({ entry, tripId, currentUserId, onDelete }: EntryCardP
                 key={img.key}
                 src={`/api/v1/media/${img.key}`}
                 alt=""
+                loading="lazy"
                 className="h-20 w-20 object-cover rounded"
               />
             ))}

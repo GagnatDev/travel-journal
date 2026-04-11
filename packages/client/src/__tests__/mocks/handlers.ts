@@ -245,4 +245,12 @@ export const handlers = [
   http.delete('/api/v1/trips/:id/entries/:entryId', () =>
     new HttpResponse(null, { status: 204 }),
   ),
+
+  // Media
+  http.post('/api/v1/media/upload', async () => {
+    return HttpResponse.json(
+      { key: 'media/trip-1/mock-uuid.jpg', url: '/api/v1/media/media/trip-1/mock-uuid.jpg' },
+      { status: 201 },
+    );
+  }),
 ];

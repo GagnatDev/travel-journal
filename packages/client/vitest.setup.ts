@@ -140,6 +140,10 @@ const nb = {
     delete: 'Slett',
     deleteConfirm: 'Slette dette innlegget?',
     discardConfirm: 'Forkaste ulagrede endringer?',
+    addPhotos: 'Legg til bilder',
+    uploadingImage: 'Laster opp...',
+    imageLimit: 'Maks 10 bilder',
+    removeImage: 'Fjern bilde',
   },
 };
 

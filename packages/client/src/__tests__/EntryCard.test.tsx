@@ -104,4 +104,16 @@ describe('EntryCard', () => {
     expect(img.src).toContain('/api/v1/media/media/trip-1/abc.jpg');
     expect(img.src).not.toMatch(/^https?:\/\/.*\.s3\./);
   });
+
+  it('all images have loading="lazy" attribute', () => {
+    const entry = makeEntry({
+      images: [
+        { key: 'media/trip-1/a.jpg', width: 800, height: 600, order: 0, uploadedAt: new Date().toISOString() },
+        { key: 'media/trip-1/b.jpg', width: 800, height: 600, order: 1, uploadedAt: new Date().toISOString() },
+      ],
+    });
+    renderCard(entry, 'other-user');
+    const imgs = screen.getAllByRole('img');
+    imgs.forEach((img) => expect(img).toHaveAttribute('loading', 'lazy'));
+  });
 });
