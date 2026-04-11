@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { PublicUser } from '@travel-journal/shared';
 
+import { apiJson, apiJsonIfOk } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.js';
 
 interface ValidateResponse {
@@ -36,12 +37,11 @@ export function InviteAcceptScreen() {
       return;
     }
 
-    fetch(`/api/v1/invites/${encodeURIComponent(token)}/validate`)
-      .then(async (res) => {
-        if (!res.ok) {
+    apiJsonIfOk<ValidateResponse>(`/api/v1/invites/${encodeURIComponent(token)}/validate`)
+      .then((data) => {
+        if (!data) {
           setTokenError(true);
         } else {
-          const data = (await res.json()) as ValidateResponse;
           setEmail(data.email);
         }
       })
@@ -61,24 +61,15 @@ export function InviteAcceptScreen() {
 
     setSubmitting(true);
     try {
-      const res = await fetch('/api/v1/invites/accept', {
+      const data = await apiJson<{ accessToken: string; user: PublicUser }>('/api/v1/invites/accept', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ token, displayName, password }),
+        body: { token, displayName, password },
       });
-
-      if (!res.ok) {
-        const data = (await res.json()) as { error: { message: string } };
-        setSubmitError(data.error?.message ?? t('common.error'));
-        return;
-      }
-
-      const data = (await res.json()) as { accessToken: string; user: PublicUser };
       loginWithToken(data.accessToken, data.user);
       navigate('/trips');
-    } catch {
-      setSubmitError(t('common.error'));
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : t('common.error'));
     } finally {
       setSubmitting(false);
     }

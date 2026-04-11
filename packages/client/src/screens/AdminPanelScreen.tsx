@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { Invite, PublicUser } from '@travel-journal/shared';
 
+import { apiJson } from '../api/client.js';
 import { CopyableLinkField } from '../components/CopyableLinkField.js';
 import { SettingsListRow } from '../components/SettingsListRow.js';
 import { useAuth } from '../context/AuthContext.js';
@@ -12,23 +13,6 @@ type Tab = 'users' | 'invites';
 
 interface AdminUser extends PublicUser {
   createdAt?: string;
-}
-
-async function apiFetch<T>(path: string, token: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...options?.headers,
-    },
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: { message: string } };
-    throw new Error(body.error?.message ?? 'Request failed');
-  }
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
 }
 
 export function AdminPanelScreen() {
@@ -101,26 +85,23 @@ function AdminPanelContent({
 
   const { data: users = [] } = useQuery<AdminUser[]>({
     queryKey: ['admin-users'],
-    queryFn: () => apiFetch<AdminUser[]>('/api/v1/users', token),
+    queryFn: () => apiJson<AdminUser[]>('/api/v1/users', { token }),
     enabled: !!token && activeTab === 'users',
   });
 
   const { data: invites = [] } = useQuery<Invite[]>({
     queryKey: ['admin-invites'],
-    queryFn: () => apiFetch<Invite[]>('/api/v1/invites/platform?status=pending', token),
+    queryFn: () => apiJson<Invite[]>('/api/v1/invites/platform?status=pending', { token }),
     enabled: !!token && activeTab === 'invites',
   });
 
   const createInviteMutation = useMutation({
     mutationFn: async () => {
-      const data = await apiFetch<{ invite: Invite; inviteLink: string }>(
-        '/api/v1/invites/platform',
+      const data = await apiJson<{ invite: Invite; inviteLink: string }>('/api/v1/invites/platform', {
+        method: 'POST',
         token,
-        {
-          method: 'POST',
-          body: JSON.stringify({ email: inviteEmail, assignedAppRole: inviteRole }),
-        },
-      );
+        body: { email: inviteEmail, assignedAppRole: inviteRole },
+      });
       return data;
     },
     onSuccess: (data) => {
@@ -132,7 +113,7 @@ function AdminPanelContent({
 
   const revokeInviteMutation = useMutation({
     mutationFn: (inviteId: string) =>
-      apiFetch<void>(`/api/v1/invites/platform/${inviteId}`, token, { method: 'DELETE' }),
+      apiJson<void>(`/api/v1/invites/platform/${inviteId}`, { method: 'DELETE', token }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin-invites'] });
     },
@@ -140,7 +121,7 @@ function AdminPanelContent({
 
   const promoteMutation = useMutation({
     mutationFn: (userId: string) =>
-      apiFetch<AdminUser>(`/api/v1/users/${userId}/promote`, token, { method: 'PATCH' }),
+      apiJson<AdminUser>(`/api/v1/users/${userId}/promote`, { method: 'PATCH', token }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     },

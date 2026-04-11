@@ -3,17 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { Trip } from '@travel-journal/shared';
 
+import { fetchTrips } from '../api/trips.js';
 import { useAuth } from '../context/AuthContext.js';
 import { TripCard } from '../components/TripCard.js';
 import { CreateTripModal } from '../components/CreateTripModal.js';
-
-async function fetchTrips(accessToken: string): Promise<Trip[]> {
-  const res = await fetch('/api/v1/trips', {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) throw new Error('Failed to fetch trips');
-  return res.json() as Promise<Trip[]>;
-}
 
 export function TripDashboardScreen() {
   const { t } = useTranslation();

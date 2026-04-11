@@ -2,48 +2,13 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import type { Entry, Trip } from '@travel-journal/shared';
 
+import type { EntriesPage } from '../api/entries.js';
+import { deleteEntry, fetchEntriesPage } from '../api/entries.js';
+import { fetchTrip } from '../api/trips.js';
 import { useAuth } from '../context/AuthContext.js';
 import { BottomNavBar } from '../components/BottomNavBar.js';
 import { EntryCard } from '../components/EntryCard.js';
-
-interface EntriesPage {
-  entries: Entry[];
-  total: number;
-}
-
-async function fetchEntriesPage(
-  tripId: string,
-  page: number,
-  accessToken: string,
-): Promise<EntriesPage> {
-  const res = await fetch(`/api/v1/trips/${tripId}/entries?page=${page}&limit=20`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) throw new Error('Failed to fetch entries');
-  return res.json() as Promise<EntriesPage>;
-}
-
-async function fetchTrip(tripId: string, accessToken: string): Promise<Trip> {
-  const res = await fetch(`/api/v1/trips/${tripId}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) throw new Error('Failed to fetch trip');
-  return res.json() as Promise<Trip>;
-}
-
-async function deleteEntryRequest(
-  tripId: string,
-  entryId: string,
-  accessToken: string,
-): Promise<void> {
-  const res = await fetch(`/api/v1/trips/${tripId}/entries/${entryId}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) throw new Error('Failed to delete entry');
-}
 
 export function TimelineScreen() {
   const { id: tripId } = useParams<{ id: string }>();
@@ -80,7 +45,7 @@ export function TimelineScreen() {
   const allEntries = data?.pages.flatMap((p) => p.entries) ?? [];
 
   const deleteMutation = useMutation({
-    mutationFn: (entryId: string) => deleteEntryRequest(tripId!, entryId, accessToken!),
+    mutationFn: (entryId: string) => deleteEntry(tripId!, entryId, accessToken!),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['entries', tripId] });
     },
