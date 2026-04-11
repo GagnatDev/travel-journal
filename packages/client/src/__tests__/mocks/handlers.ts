@@ -49,4 +49,62 @@ export const handlers = [
     };
     return HttpResponse.json({ accessToken: 'mock-admin-token', user }, { status: 201 });
   }),
+
+  http.get('/api/v1/trips', () => HttpResponse.json([])),
+
+  http.post('/api/v1/trips', async ({ request }) => {
+    const body = (await request.json()) as { name: string };
+    return HttpResponse.json(
+      {
+        id: 'new-trip-1',
+        name: body.name,
+        status: 'planned',
+        createdBy: 'user-1',
+        members: [{ userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() }],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.get('/api/v1/trips/:id', ({ params }) => {
+    return HttpResponse.json({
+      id: params['id'],
+      name: 'Mock Trip',
+      status: 'planned',
+      createdBy: 'user-1',
+      members: [{ userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() }],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }),
+
+  http.patch('/api/v1/trips/:id', async ({ params, request }) => {
+    const body = (await request.json()) as Record<string, string>;
+    return HttpResponse.json({
+      id: params['id'],
+      name: body['name'] ?? 'Mock Trip',
+      status: 'planned',
+      createdBy: 'user-1',
+      members: [{ userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() }],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }),
+
+  http.patch('/api/v1/trips/:id/status', async ({ params, request }) => {
+    const body = (await request.json()) as { status: string };
+    return HttpResponse.json({
+      id: params['id'],
+      name: 'Mock Trip',
+      status: body.status,
+      createdBy: 'user-1',
+      members: [{ userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() }],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }),
+
+  http.delete('/api/v1/trips/:id', () => new HttpResponse(null, { status: 204 })),
 ];

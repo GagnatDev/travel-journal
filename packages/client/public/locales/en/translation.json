@@ -48,5 +48,56 @@
   "language": {
     "nb": "Norsk",
     "en": "English"
+  },
+  "trips": {
+    "dashboard": {
+      "title": "My Trips",
+      "createButton": "Create Trip",
+      "emptyState": "You have no trips yet.",
+      "statusGroup": {
+        "active": "Active",
+        "planned": "Planned",
+        "completed": "Completed"
+      }
+    },
+    "role": {
+      "creator": "Creator",
+      "contributor": "Contributor",
+      "follower": "Follower"
+    },
+    "status": {
+      "planned": "Planned",
+      "active": "Active",
+      "completed": "Completed"
+    },
+    "create": {
+      "title": "Create Trip",
+      "nameLabel": "Trip name",
+      "namePlaceholder": "Where are you going?",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional description",
+      "departureDateLabel": "Departure date",
+      "returnDateLabel": "Return date",
+      "submitButton": "Create trip",
+      "nameRequired": "Trip name is required"
+    },
+    "settings": {
+      "title": "Trip Settings",
+      "detailsTitle": "Trip Details",
+      "statusTitle": "Status Management",
+      "markActive": "Mark as Active",
+      "markCompleted": "Mark as Completed",
+      "reopen": "Re-open",
+      "deleteButton": "Delete Trip",
+      "deleteConfirmTitle": "Delete trip?",
+      "deleteConfirmMessage": "This action cannot be undone.",
+      "notCreatorRedirect": "Only the trip creator can access settings."
+    },
+    "nav": {
+      "timeline": "Timeline",
+      "map": "Map",
+      "settings": "Settings",
+      "addEntry": "Add Entry"
+    }
   }
 }

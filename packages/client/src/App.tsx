@@ -3,11 +3,13 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute.js';
 import { AdminRegisterScreen } from './screens/AdminRegisterScreen.js';
 import { LoginScreen } from './screens/LoginScreen.js';
+import { TripDashboardScreen } from './screens/TripDashboardScreen.js';
+import { TripSettingsScreen } from './screens/TripSettingsScreen.js';
 
-function TripsPlaceholder() {
+function TimelinePlaceholder() {
   return (
     <div className="min-h-screen bg-bg-primary flex items-center justify-center">
-      <p className="font-display text-heading text-xl">Trips — coming in Phase 3</p>
+      <p className="font-display text-heading text-xl">Timeline — coming in Phase 4</p>
     </div>
   );
 }
@@ -21,7 +23,23 @@ export function App() {
         path="/trips"
         element={
           <ProtectedRoute>
-            <TripsPlaceholder />
+            <TripDashboardScreen />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/trips/:id/timeline"
+        element={
+          <ProtectedRoute>
+            <TimelinePlaceholder />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/trips/:id/settings"
+        element={
+          <ProtectedRoute>
+            <TripSettingsScreen />
           </ProtectedRoute>
         }
       />

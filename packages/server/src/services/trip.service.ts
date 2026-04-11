@@ -1,0 +1,174 @@
+import mongoose from 'mongoose';
+import type { CreateTripRequest, Trip, TripStatus, UpdateTripRequest } from '@travel-journal/shared';
+
+import { Trip as TripModel, ITrip } from '../models/Trip.model.js';
+import { User } from '../models/User.model.js';
+
+function createHttpError(message: string, status: number, code: string): Error {
+  const err = new Error(message) as Error & { status: number; code: string };
+  err.status = status;
+  err.code = code;
+  return err;
+}
+
+async function toTrip(doc: ITrip): Promise<Trip> {
+  const userIds = doc.members.map((m) => m.userId);
+  const users = await User.find({ _id: { $in: userIds } }).lean();
+  const userMap = new Map(users.map((u) => [String(u._id), u.displayName as string]));
+
+  const trip: Trip = {
+    id: String(doc._id),
+    name: doc.name,
+    status: doc.status,
+    createdBy: String(doc.createdBy),
+    members: doc.members.map((m) => ({
+      userId: String(m.userId),
+      displayName: userMap.get(String(m.userId)) ?? '',
+      tripRole: m.tripRole,
+      addedAt: m.addedAt.toISOString(),
+    })),
+    createdAt: doc.createdAt.toISOString(),
+    updatedAt: doc.updatedAt.toISOString(),
+  };
+
+  if (doc.description !== undefined) trip.description = doc.description;
+  if (doc.departureDate !== undefined) trip.departureDate = doc.departureDate.toISOString();
+  if (doc.returnDate !== undefined) trip.returnDate = doc.returnDate.toISOString();
+
+  return trip;
+}
+
+export function isValidStatusTransition(from: TripStatus, to: TripStatus): boolean {
+  if (from === 'planned' && to === 'active') return true;
+  if (from === 'active' && to === 'completed') return true;
+  if (from === 'completed' && to === 'active') return true;
+  return false;
+}
+
+export function assertTripCreator(trip: Trip, userId: string): void {
+  const member = trip.members.find((m) => m.userId === userId);
+  if (!member || member.tripRole !== 'creator') {
+    throw createHttpError('Forbidden', 403, 'FORBIDDEN');
+  }
+}
+
+export async function createTrip(data: CreateTripRequest, creatorId: string): Promise<Trip> {
+  const user = await User.findById(creatorId).lean();
+  if (!user) throw createHttpError('User not found', 404, 'NOT_FOUND');
+
+  const doc = await TripModel.create({
+    name: data.name.trim(),
+    description: data.description,
+    departureDate: data.departureDate ? new Date(data.departureDate) : undefined,
+    returnDate: data.returnDate ? new Date(data.returnDate) : undefined,
+    createdBy: new mongoose.Types.ObjectId(creatorId),
+    members: [
+      {
+        userId: new mongoose.Types.ObjectId(creatorId),
+        tripRole: 'creator',
+        addedAt: new Date(),
+      },
+    ],
+  });
+
+  return toTrip(doc);
+}
+
+export async function getTripById(tripId: string): Promise<Trip | null> {
+  if (!mongoose.Types.ObjectId.isValid(tripId)) return null;
+  const doc = await TripModel.findById(tripId);
+  if (!doc) return null;
+  return toTrip(doc);
+}
+
+export async function listTripsForUser(userId: string): Promise<Trip[]> {
+  const docs = await TripModel.find({
+    'members.userId': new mongoose.Types.ObjectId(userId),
+  });
+  return Promise.all(docs.map(toTrip));
+}
+
+export async function updateTrip(
+  tripId: string,
+  data: UpdateTripRequest,
+  requesterId: string,
+): Promise<Trip> {
+  if (!mongoose.Types.ObjectId.isValid(tripId)) {
+    throw createHttpError('Trip not found', 404, 'NOT_FOUND');
+  }
+  const doc = await TripModel.findById(tripId);
+  if (!doc) throw createHttpError('Trip not found', 404, 'NOT_FOUND');
+
+  const trip = await toTrip(doc);
+  assertTripCreator(trip, requesterId);
+
+  if (data.name !== undefined) doc.name = data.name.trim();
+  if (data.description !== undefined) doc.description = data.description;
+  if (data.departureDate !== undefined) {
+    if (data.departureDate) {
+      doc.departureDate = new Date(data.departureDate);
+    } else {
+      doc.departureDate = undefined as unknown as Date;
+    }
+  }
+  if (data.returnDate !== undefined) {
+    if (data.returnDate) {
+      doc.returnDate = new Date(data.returnDate);
+    } else {
+      doc.returnDate = undefined as unknown as Date;
+    }
+  }
+
+  await doc.save();
+  return toTrip(doc);
+}
+
+export async function updateTripStatus(
+  tripId: string,
+  newStatus: TripStatus,
+  requesterId: string,
+): Promise<Trip> {
+  if (!mongoose.Types.ObjectId.isValid(tripId)) {
+    throw createHttpError('Trip not found', 404, 'NOT_FOUND');
+  }
+  const doc = await TripModel.findById(tripId);
+  if (!doc) throw createHttpError('Trip not found', 404, 'NOT_FOUND');
+
+  const trip = await toTrip(doc);
+  assertTripCreator(trip, requesterId);
+
+  if (!isValidStatusTransition(doc.status, newStatus)) {
+    throw createHttpError(
+      `Invalid status transition: ${doc.status} → ${newStatus}`,
+      400,
+      'INVALID_TRANSITION',
+    );
+  }
+
+  doc.status = newStatus;
+  await doc.save();
+  return toTrip(doc);
+}
+
+export async function deleteTrip(
+  tripId: string,
+  requesterId: string,
+  requesterAppRole: string,
+): Promise<void> {
+  if (!mongoose.Types.ObjectId.isValid(tripId)) {
+    throw createHttpError('Trip not found', 404, 'NOT_FOUND');
+  }
+  const doc = await TripModel.findById(tripId);
+  if (!doc) throw createHttpError('Trip not found', 404, 'NOT_FOUND');
+
+  if (requesterAppRole !== 'admin') {
+    const trip = await toTrip(doc);
+    assertTripCreator(trip, requesterId);
+
+    if (doc.status === 'planned' || doc.status === 'active') {
+      throw createHttpError('Cannot delete a planned or active trip', 409, 'CONFLICT');
+    }
+  }
+
+  await TripModel.deleteOne({ _id: doc._id });
+}
