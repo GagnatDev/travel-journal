@@ -6,6 +6,7 @@ import type { Invite, PublicUser } from '@travel-journal/shared';
 
 import { apiJson } from '../api/client.js';
 import { CopyableLinkField } from '../components/CopyableLinkField.js';
+import { SettingsListRow } from '../components/SettingsListRow.js';
 import { useAuth } from '../context/AuthContext.js';
 
 type Tab = 'users' | 'invites';
@@ -160,24 +161,27 @@ function AdminPanelContent({
             ) : (
               <ul className="space-y-2">
                 {users.map((u) => (
-                  <li
-                    key={u.id}
-                    className="flex items-center justify-between p-3 bg-bg-secondary rounded-round-eight"
-                  >
-                    <div>
-                      <p className="font-ui text-sm font-medium text-body">{u.displayName}</p>
-                      <p className="font-ui text-xs text-caption">{u.email}</p>
-                      <p className="font-ui text-xs text-caption">{u.appRole}</p>
-                    </div>
-                    {u.appRole === 'follower' && (
-                      <button
-                        onClick={() => promoteMutation.mutate(u.id)}
-                        disabled={promoteMutation.isPending}
-                        className="px-3 py-1 border border-accent text-accent font-ui text-xs font-semibold rounded-round-eight hover:bg-accent hover:text-white transition-all disabled:opacity-50"
-                      >
-                        {t('admin.users.promoteButton')}
-                      </button>
-                    )}
+                  <li key={u.id}>
+                    <SettingsListRow
+                      main={
+                        <div>
+                          <p className="font-ui text-sm font-medium text-body">{u.displayName}</p>
+                          <p className="font-ui text-xs text-caption">{u.email}</p>
+                          <p className="font-ui text-xs text-caption">{u.appRole}</p>
+                        </div>
+                      }
+                      actions={
+                        u.appRole === 'follower' ? (
+                          <button
+                            onClick={() => promoteMutation.mutate(u.id)}
+                            disabled={promoteMutation.isPending}
+                            className="px-3 py-1 border border-accent text-accent font-ui text-xs font-semibold rounded-round-eight hover:bg-accent hover:text-white transition-all disabled:opacity-50"
+                          >
+                            {t('admin.users.promoteButton')}
+                          </button>
+                        ) : undefined
+                      }
+                    />
                   </li>
                 ))}
               </ul>
@@ -254,24 +258,27 @@ function AdminPanelContent({
               ) : (
                 <ul className="space-y-2">
                   {invites.map((inv) => (
-                    <li
-                      key={inv.id}
-                      className="flex items-center justify-between p-3 bg-bg-secondary rounded-round-eight"
-                    >
-                      <div>
-                        <p className="font-ui text-sm font-medium text-body">{inv.email}</p>
-                        <p className="font-ui text-xs text-caption">
-                          {inv.assignedAppRole} · {t('admin.invite.expiry')}{' '}
-                          {new Date(inv.expiresAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => revokeInviteMutation.mutate(inv.id)}
-                        disabled={revokeInviteMutation.isPending}
-                        className="px-3 py-1 border border-accent text-accent font-ui text-xs font-semibold rounded-round-eight hover:bg-accent hover:text-white transition-all disabled:opacity-50"
-                      >
-                        {t('admin.invite.revokeButton')}
-                      </button>
+                    <li key={inv.id}>
+                      <SettingsListRow
+                        main={
+                          <div>
+                            <p className="font-ui text-sm font-medium text-body">{inv.email}</p>
+                            <p className="font-ui text-xs text-caption">
+                              {inv.assignedAppRole} · {t('admin.invite.expiry')}{' '}
+                              {new Date(inv.expiresAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        }
+                        actions={
+                          <button
+                            onClick={() => revokeInviteMutation.mutate(inv.id)}
+                            disabled={revokeInviteMutation.isPending}
+                            className="px-3 py-1 border border-accent text-accent font-ui text-xs font-semibold rounded-round-eight hover:bg-accent hover:text-white transition-all disabled:opacity-50"
+                          >
+                            {t('admin.invite.revokeButton')}
+                          </button>
+                        }
+                      />
                     </li>
                   ))}
                 </ul>

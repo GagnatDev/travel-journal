@@ -7,6 +7,7 @@ import type { Trip, TripStatus } from '@travel-journal/shared';
 import { apiJson } from '../api/client.js';
 import { fetchTrip, fetchTripInvites } from '../api/trips.js';
 import { CopyableLinkField } from '../components/CopyableLinkField.js';
+import { SettingsListRow } from '../components/SettingsListRow.js';
 import { useAuth } from '../context/AuthContext.js';
 
 export function TripSettingsScreen() {
@@ -242,56 +243,59 @@ export function TripSettingsScreen() {
           {/* Current members list */}
           <ul className="space-y-2">
             {trip.members.map((member) => (
-              <li
-                key={member.userId}
-                className="flex items-center justify-between p-3 bg-bg-secondary rounded-round-eight"
-              >
-                <div>
-                  <p className="font-ui text-sm font-medium text-body">{member.displayName}</p>
-                  <p className="font-ui text-xs text-caption">{t(`trips.role.${member.tripRole}`)}</p>
-                </div>
-                {member.tripRole !== 'creator' && (
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={member.tripRole}
-                      onChange={(e) =>
-                        changeRoleMutation.mutate({
-                          userId: member.userId,
-                          tripRole: e.target.value as 'contributor' | 'follower',
-                        })
-                      }
-                      aria-label={`${member.displayName} ${t('trips.settings.addMemberRoleLabel')}`}
-                      className="text-xs px-2 py-1 border border-caption rounded font-ui bg-bg-primary text-body"
-                    >
-                      <option value="contributor">{t('trips.role.contributor')}</option>
-                      <option value="follower">{t('trips.role.follower')}</option>
-                    </select>
-                    {memberToRemove === member.userId ? (
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => removeMemberMutation.mutate(member.userId)}
-                          disabled={removeMemberMutation.isPending}
-                          className="px-2 py-1 bg-accent text-white font-ui text-xs rounded"
+              <li key={member.userId}>
+                <SettingsListRow
+                  main={
+                    <div>
+                      <p className="font-ui text-sm font-medium text-body">{member.displayName}</p>
+                      <p className="font-ui text-xs text-caption">{t(`trips.role.${member.tripRole}`)}</p>
+                    </div>
+                  }
+                  actions={
+                    member.tripRole !== 'creator' ? (
+                      <>
+                        <select
+                          value={member.tripRole}
+                          onChange={(e) =>
+                            changeRoleMutation.mutate({
+                              userId: member.userId,
+                              tripRole: e.target.value as 'contributor' | 'follower',
+                            })
+                          }
+                          aria-label={`${member.displayName} ${t('trips.settings.addMemberRoleLabel')}`}
+                          className="text-xs px-2 py-1 border border-caption rounded font-ui bg-bg-primary text-body"
                         >
-                          {t('common.confirm')}
-                        </button>
-                        <button
-                          onClick={() => setMemberToRemove(null)}
-                          className="px-2 py-1 border border-caption text-caption font-ui text-xs rounded"
-                        >
-                          {t('common.cancel')}
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setMemberToRemove(member.userId)}
-                        className="px-2 py-1 border border-accent text-accent font-ui text-xs font-semibold rounded hover:bg-accent hover:text-white transition-all"
-                      >
-                        {t('trips.settings.removeButton')}
-                      </button>
-                    )}
-                  </div>
-                )}
+                          <option value="contributor">{t('trips.role.contributor')}</option>
+                          <option value="follower">{t('trips.role.follower')}</option>
+                        </select>
+                        {memberToRemove === member.userId ? (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => removeMemberMutation.mutate(member.userId)}
+                              disabled={removeMemberMutation.isPending}
+                              className="px-2 py-1 bg-accent text-white font-ui text-xs rounded"
+                            >
+                              {t('common.confirm')}
+                            </button>
+                            <button
+                              onClick={() => setMemberToRemove(null)}
+                              className="px-2 py-1 border border-caption text-caption font-ui text-xs rounded"
+                            >
+                              {t('common.cancel')}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setMemberToRemove(member.userId)}
+                            className="px-2 py-1 border border-accent text-accent font-ui text-xs font-semibold rounded hover:bg-accent hover:text-white transition-all"
+                          >
+                            {t('trips.settings.removeButton')}
+                          </button>
+                        )}
+                      </>
+                    ) : undefined
+                  }
+                />
               </li>
             ))}
           </ul>
@@ -358,23 +362,27 @@ export function TripSettingsScreen() {
               </h3>
               <ul className="space-y-2">
                 {pendingInvites.map((inv) => (
-                  <li
-                    key={inv.id}
-                    className="flex items-center justify-between p-2 bg-bg-secondary rounded-round-eight"
-                  >
-                    <div>
-                      <p className="font-ui text-xs font-medium text-body">{inv.email}</p>
-                      <p className="font-ui text-xs text-caption">
-                        {inv.tripRole} · {new Date(inv.expiresAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => revokeInviteMutation.mutate(inv.id)}
-                      disabled={revokeInviteMutation.isPending}
-                      className="px-2 py-1 border border-accent text-accent font-ui text-xs font-semibold rounded hover:bg-accent hover:text-white transition-all"
-                    >
-                      {t('trips.settings.revokeInviteButton')}
-                    </button>
+                  <li key={inv.id}>
+                    <SettingsListRow
+                      density="compact"
+                      main={
+                        <div>
+                          <p className="font-ui text-xs font-medium text-body">{inv.email}</p>
+                          <p className="font-ui text-xs text-caption">
+                            {inv.tripRole} · {new Date(inv.expiresAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      }
+                      actions={
+                        <button
+                          onClick={() => revokeInviteMutation.mutate(inv.id)}
+                          disabled={revokeInviteMutation.isPending}
+                          className="px-2 py-1 border border-accent text-accent font-ui text-xs font-semibold rounded hover:bg-accent hover:text-white transition-all"
+                        >
+                          {t('trips.settings.revokeInviteButton')}
+                        </button>
+                      }
+                    />
                   </li>
                 ))}
               </ul>
