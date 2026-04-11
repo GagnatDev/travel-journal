@@ -5,6 +5,5 @@ PLAN.md
 coverage
 playwright-report
 test-results
-pnpm-lock.yaml
 *.tsbuildinfo
 .DS_Store
