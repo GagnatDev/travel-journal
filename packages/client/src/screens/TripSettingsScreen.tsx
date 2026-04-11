@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { Invite, Trip, TripStatus } from '@travel-journal/shared';
 
+import { CopyableLinkField } from '../components/CopyableLinkField.js';
 import { SettingsListRow } from '../components/SettingsListRow.js';
 import { useAuth } from '../context/AuthContext.js';
 
@@ -41,7 +42,6 @@ export function TripSettingsScreen() {
     type: 'added' | 'invite_created';
     inviteLink?: string;
   } | null>(null);
-  const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
 
   const { data: trip, isLoading } = useQuery({
@@ -194,12 +194,6 @@ export function TripSettingsScreen() {
 
   if (!isCreator) {
     return null;
-  }
-
-  async function copyInviteLink(link: string) {
-    await navigator.clipboard.writeText(window.location.origin + link);
-    setInviteLinkCopied(true);
-    setTimeout(() => setInviteLinkCopied(false), 2000);
   }
 
   return (
@@ -384,29 +378,16 @@ export function TripSettingsScreen() {
               <p className="font-ui text-sm text-green-600">{t('trips.settings.memberAdded')}</p>
             )}
 
-            {addMemberResult?.type === 'invite_created' && addMemberResult.inviteLink && (
-              <div className="p-3 bg-bg-secondary rounded-round-eight space-y-2">
-                <p className="font-ui text-xs text-caption">
-                  {t('trips.settings.inviteLinkGenerated')}
-                </p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={window.location.origin + addMemberResult.inviteLink}
-                    readOnly
-                    className="flex-1 px-2 py-1 border border-caption rounded font-ui text-xs text-body bg-bg-primary"
-                  />
-                  <button
-                    onClick={() => copyInviteLink(addMemberResult.inviteLink!)}
-                    className="px-3 py-1 border border-accent text-accent font-ui text-xs font-semibold rounded hover:bg-accent hover:text-white transition-all"
-                  >
-                    {inviteLinkCopied
-                      ? t('trips.settings.linkCopied')
-                      : t('trips.settings.copyLink')}
-                  </button>
-                </div>
-              </div>
-            )}
+            {addMemberResult?.type === 'invite_created' && addMemberResult.inviteLink ? (
+              <CopyableLinkField
+                value={window.location.origin + addMemberResult.inviteLink}
+                description={t('trips.settings.inviteLinkGenerated')}
+                inputAriaLabel={t('trips.settings.inviteLinkGenerated')}
+                copyLabel={t('trips.settings.copyLink')}
+                copiedLabel={t('trips.settings.linkCopied')}
+                errorLabel={t('common.copyFailed')}
+              />
+            ) : null}
           </div>
 
           {/* Pending trip invites */}
