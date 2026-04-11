@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { EntryImage } from '@travel-journal/shared';
 
+import { AuthenticatedImage } from './AuthenticatedImage.js';
+
 interface ImageReorderProps {
   images: EntryImage[];
   onImagesChange: (images: EntryImage[]) => void;
@@ -55,8 +57,8 @@ export function ImageReorder({ images, onImagesChange, onFileSelect, isUploading
               onDrop={() => handleDrop(index)}
               className={`relative ${dragOverIndex === index ? 'opacity-50' : ''}`}
             >
-              <img
-                src={`/api/v1/media/${img.key}`}
+              <AuthenticatedImage
+                mediaKey={img.key}
                 alt=""
                 loading="lazy"
                 className="h-20 w-20 object-cover rounded"

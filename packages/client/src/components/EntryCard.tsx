@@ -4,6 +4,8 @@ import type { Entry } from '@travel-journal/shared';
 
 import { formatEntryContent } from '../utils/formatEntryContent.js';
 
+import { AuthenticatedImage } from './AuthenticatedImage.js';
+
 interface EntryCardProps {
   entry: Entry;
   tripId: string;
@@ -31,8 +33,8 @@ export function EntryCard({ entry, tripId, currentUserId, onDelete }: EntryCardP
     <article className="bg-bg-secondary rounded-round-eight border border-caption/20 overflow-hidden">
       {/* Hero image */}
       {heroImage && (
-        <img
-          src={`/api/v1/media/${heroImage.key}`}
+        <AuthenticatedImage
+          mediaKey={heroImage.key}
           alt={entry.title}
           loading="lazy"
           className="w-full aspect-video object-cover"
@@ -87,9 +89,9 @@ export function EntryCard({ entry, tripId, currentUserId, onDelete }: EntryCardP
         {moreImages.length > 0 && (
           <div className="flex gap-2 flex-wrap pt-1">
             {moreImages.map((img) => (
-              <img
+              <AuthenticatedImage
                 key={img.key}
-                src={`/api/v1/media/${img.key}`}
+                mediaKey={img.key}
                 alt=""
                 loading="lazy"
                 className="h-20 w-20 object-cover rounded"
