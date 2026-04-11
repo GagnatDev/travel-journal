@@ -1,0 +1,9 @@
+{
+  "name": "Travel Journal",
+  "short_name": "TravelJournal",
+  "display": "standalone",
+  "background_color": "#fbf9f5",
+  "theme_color": "#9b3f2b",
+  "start_url": "/",
+  "icons": []
+}

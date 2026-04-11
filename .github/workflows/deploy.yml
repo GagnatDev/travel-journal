@@ -1,0 +1,17 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+# TODO: configure registry and Scaleway deployment
+jobs:
+  deploy:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t travel-journal:${{ github.sha }} .
+      # TODO: push to registry and trigger Scaleway redeployment

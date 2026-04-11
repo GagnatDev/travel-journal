@@ -1,0 +1,30 @@
+import './i18n.js';
+import './styles/tokens.css';
+import './styles/global.css';
+
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+
+import { AuthProvider } from './context/AuthContext.js';
+import { App } from './App.js';
+
+// Apply dark mode class based on system preference
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+const storedTheme = localStorage.getItem('theme');
+if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
+  document.documentElement.classList.add('dark');
+}
+
+const rootEl = document.getElementById('root');
+if (!rootEl) throw new Error('Root element not found');
+
+ReactDOM.createRoot(rootEl).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </BrowserRouter>
+  </React.StrictMode>,
+);

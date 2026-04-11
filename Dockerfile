@@ -1,0 +1,39 @@
+FROM node:24-slim AS builder
+
+RUN npm install -g pnpm
+
+WORKDIR /app
+
+COPY pnpm-workspace.yaml package.json ./
+COPY packages/shared/package.json packages/shared/
+COPY packages/client/package.json packages/client/
+COPY packages/server/package.json packages/server/
+
+RUN pnpm install --frozen-lockfile
+
+COPY packages/ packages/
+COPY tsconfig.base.json ./
+
+RUN pnpm --filter @travel-journal/shared build
+RUN pnpm --filter @travel-journal/server build
+RUN pnpm --filter @travel-journal/client build
+
+FROM node:24-slim AS runtime
+
+RUN npm install -g pnpm
+
+WORKDIR /app
+
+COPY pnpm-workspace.yaml package.json ./
+COPY packages/shared/package.json packages/shared/
+COPY packages/server/package.json packages/server/
+
+RUN pnpm install --frozen-lockfile --prod
+
+COPY --from=builder /app/packages/shared/dist packages/shared/dist
+COPY --from=builder /app/packages/server/dist packages/server/dist
+COPY --from=builder /app/packages/client/dist packages/server/dist/public
+
+EXPOSE 3000
+
+CMD ["node", "packages/server/dist/index.js"]

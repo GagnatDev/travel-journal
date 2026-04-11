@@ -1,0 +1,25 @@
+{
+  "name": "travel-journal",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter @travel-journal/server dev\" \"pnpm --filter @travel-journal/client dev\"",
+    "build": "pnpm --filter @travel-journal/shared build && pnpm --filter @travel-journal/server build && pnpm --filter @travel-journal/client build",
+    "lint": "eslint packages --ext .ts,.tsx && tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/client/tsconfig.json",
+    "test": "pnpm --filter @travel-journal/server test && pnpm --filter @travel-journal/client test",
+    "e2e": "playwright test",
+    "typecheck": "tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/client/tsconfig.json"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild", "msw", "@playwright/test"]
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.43.0",
+    "@typescript-eslint/eslint-plugin": "^7.7.0",
+    "@typescript-eslint/parser": "^7.7.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.0",
+    "eslint-plugin-import": "^2.29.1",
+    "prettier": "^3.2.5",
+    "typescript": "^5.4.5"
+  }
+}

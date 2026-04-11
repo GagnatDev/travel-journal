@@ -1,0 +1,52 @@
+{
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "emailLabel": "Email",
+      "emailPlaceholder": "you@example.com",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "Your password",
+      "submitButton": "Sign in",
+      "invalidCredentials": "Invalid email or password"
+    },
+    "register": {
+      "title": "Create admin account",
+      "emailLabel": "Email",
+      "displayNameLabel": "Display name",
+      "displayNamePlaceholder": "Your name",
+      "passwordLabel": "Password",
+      "submitButton": "Create account"
+    },
+    "errors": {
+      "emailRequired": "Email is required",
+      "passwordRequired": "Password is required",
+      "displayNameRequired": "Display name is required"
+    }
+  },
+  "invite": {
+    "accept": {
+      "title": "Complete registration",
+      "expiredError": "This invite has expired or already been used. Contact the person who sent it.",
+      "displayNameLabel": "Display name",
+      "passwordLabel": "Password",
+      "submitButton": "Create account",
+      "passwordMinLength": "Password must be at least 8 characters"
+    }
+  },
+  "nav": {
+    "trips": "Trips",
+    "admin": "Admin"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirm": "Confirm"
+  },
+  "language": {
+    "nb": "Norsk",
+    "en": "English"
+  }
+}
