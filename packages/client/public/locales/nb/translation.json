@@ -146,6 +146,11 @@
       "addEntry": "Legg til innlegg"
     }
   },
+  "storyMode": {
+    "toggle": "Slå på/av historiemodus",
+    "day": "Dag",
+    "dayLabel": "Dag {{number}} — {{date}}"
+  },
   "entries": {
     "emptyState": "Ingen innlegg ennå. Vær den første til å poste!",
     "newTitle": "Nytt innlegg",

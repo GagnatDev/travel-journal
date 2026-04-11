@@ -1,4 +1,5 @@
 import { render, screen, waitFor, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -166,6 +167,55 @@ describe('TimelineScreen', () => {
 
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: /legg til innlegg|add entry/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it('renders Story Mode toggle button', async () => {
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries`, () =>
+        HttpResponse.json({ entries: [], total: 0 }),
+      ),
+    );
+
+    renderTimeline();
+
+    await screen.findByRole('heading', { name: 'Adventure Trip' });
+    expect(screen.getByTestId('story-mode-toggle')).toBeInTheDocument();
+  });
+
+  it('shows day headers when Story Mode is toggled on', async () => {
+    const day1Entry = makeEntry({
+      id: 'e1',
+      title: 'Day 1 Entry',
+      createdAt: '2024-06-10T08:00:00.000Z',
+    });
+    const day2Entry = makeEntry({
+      id: 'e2',
+      title: 'Day 2 Entry',
+      createdAt: '2024-06-11T08:00:00.000Z',
+    });
+
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries`, () =>
+        HttpResponse.json({ entries: [day1Entry, day2Entry], total: 2 }),
+      ),
+    );
+
+    renderTimeline();
+
+    await waitFor(() => {
+      expect(screen.getByText('Day 1 Entry')).toBeInTheDocument();
+    });
+
+    // Story Mode is off by default — no DayHeader elements
+    expect(screen.queryAllByTestId('day-header')).toHaveLength(0);
+
+    // Toggle Story Mode on
+    await userEvent.click(screen.getByTestId('story-mode-toggle'));
+
+    // Two entries on two different days → two DayHeader elements
+    await waitFor(() => {
+      expect(screen.getAllByTestId('day-header')).toHaveLength(2);
     });
   });
 

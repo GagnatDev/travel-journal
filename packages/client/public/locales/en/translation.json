@@ -146,6 +146,11 @@
       "addEntry": "Add Entry"
     }
   },
+  "storyMode": {
+    "toggle": "Toggle Story Mode",
+    "day": "Day",
+    "dayLabel": "Day {{number}} — {{date}}"
+  },
   "entries": {
     "emptyState": "No entries yet. Be the first to post!",
     "newTitle": "New Entry",
