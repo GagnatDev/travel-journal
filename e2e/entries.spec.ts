@@ -52,16 +52,36 @@ test.describe('Entries', () => {
     await createTrip(page, 'Edit Trip');
     await createEntry(page, 'Original Title', 'Original content');
 
-    // Click edit on the entry
+    const entryJsonPromise = page.waitForResponse(
+      (res) =>
+        /\/api\/v1\/trips\/[^/]+\/entries\/[^/?]+$/.test(res.url()) &&
+        res.request().method() === 'GET' &&
+        res.ok(),
+    );
+
     await page.getByRole('button', { name: /rediger|edit/i }).click();
     await page.waitForURL('**/edit');
+    await entryJsonPromise;
 
-    await page.locator('#entry-title').fill('Updated Title');
+    const titleInput = page.getByLabel(/tittel|title/i);
+    await expect(titleInput).toHaveValue('Original Title');
+    await titleInput.fill('Updated Title');
+
+    const savePromise = page.waitForResponse(
+      (res) =>
+        res.request().method() === 'PATCH' &&
+        res.url().includes('/entries/') &&
+        res.ok(),
+    );
     await page.getByRole('button', { name: /lagre|save/i }).click();
+    await savePromise;
     await page.waitForURL('**/timeline');
 
-    await expect(page.getByText('Updated Title')).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('Original Title')).not.toBeVisible();
+    const entryHeading = page.getByRole('heading', { level: 2, name: 'Updated Title', exact: true });
+    await expect(entryHeading).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Original Title', exact: true }),
+    ).not.toBeVisible();
   });
 
   test('author soft-deletes entry — disappears from timeline; direct URL returns 404', async ({

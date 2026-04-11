@@ -25,6 +25,12 @@ async function createTrip(page: Page, name: string) {
   await page.waitForURL('**/timeline');
 }
 
+/** Trip settings renders nothing until the trip query resolves; wait for real UI before acting. */
+async function goToTripSettings(page: Page) {
+  await page.goto(page.url().replace('/timeline', '/settings'));
+  await expect(page.getByRole('heading', { name: /trip settings|turinnstillinger/i })).toBeVisible();
+}
+
 test.describe('Trip dashboard', () => {
   test('admin creates a trip and it appears under Planned', async ({ page }) => {
     await registerAdmin(page);
@@ -62,21 +68,18 @@ test.describe('Trip status transitions', () => {
     await page.getByText('Status Trip').click();
     await page.waitForURL('**/timeline');
 
-    // Go to settings
-    await page.goto(page.url().replace('/timeline', '/settings'));
+    await goToTripSettings(page);
 
     // planned → active
     await page.getByRole('button', { name: /merk som aktiv|mark as active/i }).click();
-    await page.waitForTimeout(500);
+    await expect(page.getByRole('button', { name: /merk som fullf|mark as completed/i })).toBeVisible();
 
     // active → completed
     await page.getByRole('button', { name: /merk som fullf|mark as completed/i }).click();
-    await page.waitForTimeout(500);
+    await expect(page.getByRole('button', { name: /gjenåpne|re-open/i })).toBeVisible();
 
     // completed → active (re-open)
     await page.getByRole('button', { name: /gjenåpne|re-open/i }).click();
-    await page.waitForTimeout(500);
-
     await expect(page.getByRole('button', { name: /merk som fullf|mark as completed/i })).toBeVisible();
   });
 });
@@ -91,13 +94,13 @@ test.describe('Trip deletion', () => {
     // Go to settings
     await page.getByText('To Delete').click();
     await page.waitForURL('**/timeline');
-    await page.goto(page.url().replace('/timeline', '/settings'));
+    await goToTripSettings(page);
 
     // Transition to active then completed
     await page.getByRole('button', { name: /merk som aktiv|mark as active/i }).click();
-    await page.waitForTimeout(500);
+    await expect(page.getByRole('button', { name: /merk som fullf|mark as completed/i })).toBeVisible();
     await page.getByRole('button', { name: /merk som fullf|mark as completed/i }).click();
-    await page.waitForTimeout(500);
+    await expect(page.getByRole('button', { name: /gjenåpne|re-open/i })).toBeVisible();
 
     // Delete
     await page.getByRole('button', { name: /slett tur|delete trip/i }).click();
@@ -115,10 +118,10 @@ test.describe('Trip deletion', () => {
 
     await page.getByText('Active Trip').click();
     await page.waitForURL('**/timeline');
-    await page.goto(page.url().replace('/timeline', '/settings'));
+    await goToTripSettings(page);
 
     await page.getByRole('button', { name: /merk som aktiv|mark as active/i }).click();
-    await page.waitForTimeout(500);
+    await expect(page.getByRole('button', { name: /merk som fullf|mark as completed/i })).toBeVisible();
 
     await page.getByRole('button', { name: /slett tur|delete trip/i }).click();
     await page.getByRole('button', { name: /^slett$|^delete$/i }).click();
