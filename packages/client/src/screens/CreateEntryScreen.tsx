@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import type { CreateEntryRequest, Entry, UpdateEntryRequest } from '@travel-journal/shared';
+import type { CreateEntryRequest, UpdateEntryRequest } from '@travel-journal/shared';
 
 import { createEntry, fetchEntry, updateEntry } from '../api/entries.js';
 import { useAuth } from '../context/AuthContext.js';

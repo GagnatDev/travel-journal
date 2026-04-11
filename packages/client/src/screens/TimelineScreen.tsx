@@ -2,7 +2,6 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import type { Entry, Trip } from '@travel-journal/shared';
 
 import type { EntriesPage } from '../api/entries.js';
 import { deleteEntry, fetchEntriesPage } from '../api/entries.js';

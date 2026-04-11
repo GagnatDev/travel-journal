@@ -75,6 +75,7 @@ const nb = {
     confirm: 'Bekreft',
     copy: 'Kopier',
     copied: 'Kopiert!',
+    copyFailed: 'Kunne ikke kopiere',
   },
   language: { nb: 'Norsk', en: 'English' },
   trips: {
