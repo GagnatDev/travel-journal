@@ -3,18 +3,12 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute.js';
 import { AdminPanelScreen } from './screens/AdminPanelScreen.js';
 import { AdminRegisterScreen } from './screens/AdminRegisterScreen.js';
+import { CreateEntryScreen } from './screens/CreateEntryScreen.js';
 import { InviteAcceptScreen } from './screens/InviteAcceptScreen.js';
 import { LoginScreen } from './screens/LoginScreen.js';
+import { TimelineScreen } from './screens/TimelineScreen.js';
 import { TripDashboardScreen } from './screens/TripDashboardScreen.js';
 import { TripSettingsScreen } from './screens/TripSettingsScreen.js';
-
-function TimelinePlaceholder() {
-  return (
-    <div className="min-h-screen bg-bg-primary flex items-center justify-center">
-      <p className="font-display text-heading text-xl">Timeline — coming in Phase 5</p>
-    </div>
-  );
-}
 
 export function App() {
   return (
@@ -34,7 +28,23 @@ export function App() {
         path="/trips/:id/timeline"
         element={
           <ProtectedRoute>
-            <TimelinePlaceholder />
+            <TimelineScreen />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/trips/:id/entries/new"
+        element={
+          <ProtectedRoute>
+            <CreateEntryScreen />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/trips/:id/entries/:entryId/edit"
+        element={
+          <ProtectedRoute>
+            <CreateEntryScreen />
           </ProtectedRoute>
         }
       />

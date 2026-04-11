@@ -11,6 +11,7 @@ import {
   updateTripStatus,
 } from '../services/trip.service.js';
 
+import { entryRouter } from './entry.router.js';
 import { memberRouter } from './member.router.js';
 
 export const tripRouter: Router = Router();
@@ -126,6 +127,9 @@ tripRouter.patch(
 
 // Mount member management sub-router
 tripRouter.use('/:id/members', memberRouter);
+
+// Mount entry sub-router
+tripRouter.use('/:id/entries', entryRouter);
 
 // DELETE /:id — Delete trip (creator only, with constraints; admin can delete any)
 tripRouter.delete(

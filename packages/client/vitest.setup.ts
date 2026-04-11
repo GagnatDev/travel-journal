@@ -124,6 +124,22 @@ const nb = {
     },
     nav: { timeline: 'Tidslinje', map: 'Kart', settings: 'Innstillinger', addEntry: 'Legg til innlegg' },
   },
+  entries: {
+    emptyState: 'Ingen innlegg ennå. Vær den første til å poste!',
+    newTitle: 'Nytt innlegg',
+    editTitle: 'Rediger innlegg',
+    titleLabel: 'Tittel',
+    titlePlaceholder: 'Hva skjedde?',
+    titleRequired: 'Tittel er påkrevd',
+    contentLabel: 'Innhold',
+    contentPlaceholder: 'Fortell historien din...',
+    locationToggle: 'Legg til plassering',
+    locationNamePlaceholder: 'Stednavn (valgfritt)',
+    edit: 'Rediger',
+    delete: 'Slett',
+    deleteConfirm: 'Slette dette innlegget?',
+    discardConfirm: 'Forkaste ulagrede endringer?',
+  },
 };
 
 i18n.use(initReactI18next).init({

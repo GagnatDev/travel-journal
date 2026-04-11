@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import type { Invite, PublicUser, Trip } from '@travel-journal/shared';
+import type { Entry, Invite, PublicUser, Trip } from '@travel-journal/shared';
 
 export const mockUser: PublicUser = {
   id: 'user-1',
@@ -191,4 +191,58 @@ export const handlers = [
     const body = (await request.json()) as Partial<PublicUser>;
     return HttpResponse.json({ ...mockUser, ...body });
   }),
+
+  // Entries
+  http.get('/api/v1/trips/:id/entries', () =>
+    HttpResponse.json({ entries: [], total: 0 }),
+  ),
+
+  http.post('/api/v1/trips/:id/entries', async ({ request }) => {
+    const body = (await request.json()) as { title: string; content: string };
+    const entry: Entry = {
+      id: 'new-entry-1',
+      tripId: 'trip-1',
+      authorId: 'user-1',
+      authorName: 'Test User',
+      title: body.title,
+      content: body.content,
+      images: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    return HttpResponse.json(entry, { status: 201 });
+  }),
+
+  http.get('/api/v1/trips/:id/entries/:entryId', ({ params }) =>
+    HttpResponse.json({
+      id: params['entryId'],
+      tripId: params['id'],
+      authorId: 'user-1',
+      authorName: 'Test User',
+      title: 'Mock Entry',
+      content: 'Mock content',
+      images: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+  ),
+
+  http.patch('/api/v1/trips/:id/entries/:entryId', async ({ params, request }) => {
+    const body = (await request.json()) as Partial<Entry>;
+    return HttpResponse.json({
+      id: params['entryId'],
+      tripId: params['id'],
+      authorId: 'user-1',
+      authorName: 'Test User',
+      title: body.title ?? 'Mock Entry',
+      content: body.content ?? 'Mock content',
+      images: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }),
+
+  http.delete('/api/v1/trips/:id/entries/:entryId', () =>
+    new HttpResponse(null, { status: 204 }),
+  ),
 ];

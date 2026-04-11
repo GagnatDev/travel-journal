@@ -144,5 +144,21 @@
       "settings": "Settings",
       "addEntry": "Add Entry"
     }
+  },
+  "entries": {
+    "emptyState": "No entries yet. Be the first to post!",
+    "newTitle": "New Entry",
+    "editTitle": "Edit Entry",
+    "titleLabel": "Title",
+    "titlePlaceholder": "What happened?",
+    "titleRequired": "Title is required",
+    "contentLabel": "Content",
+    "contentPlaceholder": "Tell your story...",
+    "locationToggle": "Add location",
+    "locationNamePlaceholder": "Place name (optional)",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this entry?",
+    "discardConfirm": "Discard unsaved changes?"
   }
 }
