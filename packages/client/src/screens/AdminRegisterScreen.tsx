@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { AdminExistsResponse } from '@travel-journal/shared';
 
+import { apiJson, apiJsonIfOk } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.js';
 
 export function AdminRegisterScreen() {
@@ -25,9 +26,12 @@ export function AdminRegisterScreen() {
   const { login } = useAuth();
 
   useEffect(() => {
-    fetch('/api/v1/auth/register')
-      .then((res) => res.json() as Promise<AdminExistsResponse>)
+    apiJsonIfOk<AdminExistsResponse>('/api/v1/auth/register')
       .then((data) => {
+        if (!data) {
+          navigate('/login', { replace: true });
+          return;
+        }
         if (data.adminExists) {
           navigate('/login', { replace: true });
         } else {
@@ -56,17 +60,12 @@ export function AdminRegisterScreen() {
     setErrors({});
 
     try {
-      const res = await fetch('/api/v1/auth/register', {
+      await apiJson('/api/v1/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email, displayName, password }),
+        body: { email, displayName, password },
+        fallbackErrorMessage: t('common.error'),
       });
-
-      if (!res.ok) {
-        const data = (await res.json()) as { error: { message: string } };
-        throw new Error(data.error?.message ?? t('common.error'));
-      }
 
       // Auto-login: the register endpoint already set the cookie, just refresh
       await login(email, password);

@@ -4,23 +4,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { Invite, Trip, TripStatus } from '@travel-journal/shared';
 
+import { apiJson } from '../api/client.js';
+import { fetchTrip, fetchTripInvites } from '../api/trips.js';
 import { useAuth } from '../context/AuthContext.js';
-
-async function fetchTrip(tripId: string, accessToken: string): Promise<Trip> {
-  const res = await fetch(`/api/v1/trips/${tripId}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) throw new Error('Not found');
-  return res.json() as Promise<Trip>;
-}
-
-async function fetchTripInvites(tripId: string, accessToken: string): Promise<Invite[]> {
-  const res = await fetch(`/api/v1/trips/${tripId}/members/invites`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) return [];
-  return res.json() as Promise<Invite[]>;
-}
 
 export function TripSettingsScreen() {
   const { t } = useTranslation();
@@ -62,18 +48,12 @@ export function TripSettingsScreen() {
   }
 
   const updateMutation = useMutation({
-    mutationFn: async (data: { name?: string }) => {
-      const res = await fetch(`/api/v1/trips/${tripId}`, {
+    mutationFn: async (data: { name?: string }) =>
+      apiJson<Trip>(`/api/v1/trips/${tripId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error('Update failed');
-      return res.json() as Promise<Trip>;
-    },
+        token: accessToken!,
+        body: data,
+      }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['trips'] });
       void queryClient.invalidateQueries({ queryKey: ['trip', tripId] });
@@ -81,18 +61,12 @@ export function TripSettingsScreen() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: async (newStatus: TripStatus) => {
-      const res = await fetch(`/api/v1/trips/${tripId}/status`, {
+    mutationFn: async (newStatus: TripStatus) =>
+      apiJson<Trip>(`/api/v1/trips/${tripId}/status`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (!res.ok) throw new Error('Status update failed');
-      return res.json() as Promise<Trip>;
-    },
+        token: accessToken!,
+        body: { status: newStatus },
+      }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['trips'] });
       void queryClient.invalidateQueries({ queryKey: ['trip', tripId] });
@@ -101,11 +75,10 @@ export function TripSettingsScreen() {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/v1/trips/${tripId}`, {
+      await apiJson<void>(`/api/v1/trips/${tripId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${accessToken}` },
+        token: accessToken!,
       });
-      if (!res.ok) throw new Error('Delete failed');
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['trips'] });
@@ -114,18 +87,15 @@ export function TripSettingsScreen() {
   });
 
   const addMemberMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/v1/trips/${tripId}/members`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
+    mutationFn: async () =>
+      apiJson<{ type: 'added' | 'invite_created'; inviteLink?: string }>(
+        `/api/v1/trips/${tripId}/members`,
+        {
+          method: 'POST',
+          token: accessToken!,
+          body: { emailOrNickname: addMemberInput, tripRole: addMemberRole },
         },
-        body: JSON.stringify({ emailOrNickname: addMemberInput, tripRole: addMemberRole }),
-      });
-      if (!res.ok) throw new Error('Add member failed');
-      return res.json() as Promise<{ type: 'added' | 'invite_created'; inviteLink?: string }>;
-    },
+      ),
     onSuccess: (data) => {
       setAddMemberResult(data);
       setAddMemberInput('');
@@ -136,15 +106,11 @@ export function TripSettingsScreen() {
 
   const changeRoleMutation = useMutation({
     mutationFn: async ({ userId, tripRole }: { userId: string; tripRole: 'contributor' | 'follower' }) => {
-      const res = await fetch(`/api/v1/trips/${tripId}/members/${userId}/role`, {
+      await apiJson<void>(`/api/v1/trips/${tripId}/members/${userId}/role`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ tripRole }),
+        token: accessToken!,
+        body: { tripRole },
       });
-      if (!res.ok) throw new Error('Role change failed');
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['trip', tripId] });
@@ -153,11 +119,10 @@ export function TripSettingsScreen() {
 
   const removeMemberMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const res = await fetch(`/api/v1/trips/${tripId}/members/${userId}`, {
+      await apiJson<void>(`/api/v1/trips/${tripId}/members/${userId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${accessToken}` },
+        token: accessToken!,
       });
-      if (!res.ok) throw new Error('Remove failed');
     },
     onSuccess: () => {
       setMemberToRemove(null);
@@ -167,11 +132,10 @@ export function TripSettingsScreen() {
 
   const revokeInviteMutation = useMutation({
     mutationFn: async (inviteId: string) => {
-      const res = await fetch(`/api/v1/trips/${tripId}/members/invites/${inviteId}`, {
+      await apiJson<void>(`/api/v1/trips/${tripId}/members/invites/${inviteId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${accessToken}` },
+        token: accessToken!,
       });
-      if (!res.ok) throw new Error('Revoke failed');
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['trip-invites', tripId] });

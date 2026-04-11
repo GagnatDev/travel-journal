@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { PublicUser } from '@travel-journal/shared';
 
+import { apiJson } from '../api/client.js';
+
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
 interface AuthState {
@@ -31,12 +33,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Attempt silent refresh on mount
   useEffect(() => {
-    fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'include' })
-      .then(async (res) => {
-        if (!res.ok) throw new Error('refresh failed');
-        const data = (await res.json()) as { accessToken: string; user: PublicUser };
-        setAuthenticated(data.accessToken, data.user);
-      })
+    apiJson<{ accessToken: string; user: PublicUser }>('/api/v1/auth/refresh', {
+      method: 'POST',
+      credentials: 'include',
+    })
+      .then((data) => setAuthenticated(data.accessToken, data.user))
       .catch(() => {
         setState({ accessToken: null, user: null, status: 'unauthenticated' });
       });
@@ -44,19 +45,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string) => {
-      const res = await fetch('/api/v1/auth/login', {
+      const data = await apiJson<{ accessToken: string; user: PublicUser }>('/api/v1/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email, password }),
+        body: { email, password },
+        fallbackErrorMessage: 'Login failed',
       });
-
-      if (!res.ok) {
-        const data = (await res.json()) as { error: { message: string } };
-        throw new Error(data.error?.message ?? 'Login failed');
-      }
-
-      const data = (await res.json()) as { accessToken: string; user: PublicUser };
       setAuthenticated(data.accessToken, data.user);
     },
     [setAuthenticated],
@@ -71,10 +65,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     if (state.accessToken) {
-      await fetch('/api/v1/auth/logout', {
+      await apiJson<void>('/api/v1/auth/logout', {
         method: 'POST',
         credentials: 'include',
-        headers: { Authorization: `Bearer ${state.accessToken}` },
+        token: state.accessToken,
       }).catch(() => {
         // best effort
       });

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
+import { apiJson } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.js';
 
 export function LanguageSwitcher() {
@@ -15,13 +16,10 @@ export function LanguageSwitcher() {
 
     if (accessToken) {
       // Persist preference server-side when logged in (wired fully in Phase 4)
-      fetch('/api/v1/users/me', {
+      void apiJson('/api/v1/users/me', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ preferredLocale: nextLang }),
+        token: accessToken,
+        body: { preferredLocale: nextLang },
       }).catch(() => {
         // best effort
       });

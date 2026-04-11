@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { CreateEntryRequest, Entry, UpdateEntryRequest } from '@travel-journal/shared';
 
+import { createEntry, fetchEntry, updateEntry } from '../api/entries.js';
 import { useAuth } from '../context/AuthContext.js';
 
 interface EntryFormState {
@@ -13,53 +14,6 @@ interface EntryFormState {
   locationLat: number | null;
   locationLng: number | null;
   locationName: string;
-}
-
-async function fetchEntry(
-  tripId: string,
-  entryId: string,
-  accessToken: string,
-): Promise<Entry> {
-  const res = await fetch(`/api/v1/trips/${tripId}/entries/${entryId}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) throw new Error('Failed to fetch entry');
-  return res.json() as Promise<Entry>;
-}
-
-async function createEntryRequest(
-  tripId: string,
-  data: CreateEntryRequest,
-  accessToken: string,
-): Promise<Entry> {
-  const res = await fetch(`/api/v1/trips/${tripId}/entries`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error('Failed to create entry');
-  return res.json() as Promise<Entry>;
-}
-
-async function updateEntryRequest(
-  tripId: string,
-  entryId: string,
-  data: UpdateEntryRequest,
-  accessToken: string,
-): Promise<Entry> {
-  const res = await fetch(`/api/v1/trips/${tripId}/entries/${entryId}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error('Failed to update entry');
-  return res.json() as Promise<Entry>;
 }
 
 const EMPTY_FORM: EntryFormState = {
@@ -116,14 +70,13 @@ export function CreateEntryScreen() {
   }, [existingEntry?.id]);
 
   const createMutation = useMutation({
-    mutationFn: (data: CreateEntryRequest) =>
-      createEntryRequest(tripId!, data, accessToken!),
+    mutationFn: (data: CreateEntryRequest) => createEntry(tripId!, data, accessToken!),
     onSuccess: () => navigate(`/trips/${tripId}/timeline`),
   });
 
   const updateMutation = useMutation({
     mutationFn: (data: UpdateEntryRequest) =>
-      updateEntryRequest(tripId!, entryId!, data, accessToken!),
+      updateEntry(tripId!, entryId!, data, accessToken!),
     onSuccess: () => navigate(`/trips/${tripId}/timeline`),
   });
 

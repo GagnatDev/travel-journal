@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import type { Trip, CreateTripRequest } from '@travel-journal/shared';
 
+import { apiJson } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.js';
 
 interface CreateTripModalProps {
@@ -42,21 +43,11 @@ export function CreateTripModal({ onClose }: CreateTripModalProps) {
         ...(returnDate && { returnDate }),
       };
 
-      const res = await fetch('/api/v1/trips', {
+      const trip = await apiJson<Trip>('/api/v1/trips', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(body),
+        token: accessToken!,
+        body,
       });
-
-      if (!res.ok) {
-        const data = (await res.json()) as { error: { message: string } };
-        throw new Error(data.error?.message ?? t('common.error'));
-      }
-
-      const trip = (await res.json()) as Trip;
       await queryClient.invalidateQueries({ queryKey: ['trips'] });
       onClose();
       navigate(`/trips/${trip.id}/timeline`);
