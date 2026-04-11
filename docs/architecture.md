@@ -231,7 +231,7 @@ pnpm --filter @travel-journal/client dev   → Vite dev server (HMR)
 
 ```
 MONGODB_URI=mongodb://localhost:27017/travel-journal
-S3_ENDPOINT=http://localhost:9000
+S3_ENDPOINT=http://localhost:9100
 S3_BUCKET=travel-journal
 S3_ACCESS_KEY=minioadmin
 S3_SECRET_KEY=minioadmin

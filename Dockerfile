@@ -34,6 +34,6 @@ COPY --from=builder /app/packages/shared/dist packages/shared/dist
 COPY --from=builder /app/packages/server/dist packages/server/dist
 COPY --from=builder /app/packages/client/dist packages/server/dist/public
 
-EXPOSE 3000
+EXPOSE 3100
 
 CMD ["node", "packages/server/dist/index.js"]

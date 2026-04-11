@@ -57,8 +57,8 @@ jobs:
       minio:
         image: minio/minio
         ports:
-          - 9000:9000
-          - 9001:9001
+          - 9100:9000
+          - 9101:9001
         env:
           MINIO_ROOT_USER: minioadmin
           MINIO_ROOT_PASSWORD: minioadmin
@@ -84,7 +84,7 @@ jobs:
       - run: pnpm e2e
         env:
           MONGODB_URI: mongodb://localhost:27017/travel-journal-test
-          S3_ENDPOINT: http://localhost:9000
+          S3_ENDPOINT: http://localhost:9100
           S3_BUCKET: travel-journal
           S3_ACCESS_KEY: minioadmin
           S3_SECRET_KEY: minioadmin

@@ -3,13 +3,13 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 import { S3Client, CreateBucketCommand } from '@aws-sdk/client-s3';
 
-const S3_ENDPOINT = process.env['S3_ENDPOINT'] ?? 'http://localhost:9000';
+const S3_ENDPOINT = process.env['S3_ENDPOINT'] ?? 'http://localhost:9100';
 const S3_BUCKET = process.env['S3_BUCKET'] ?? 'travel-journal';
 const S3_ACCESS_KEY = process.env['S3_ACCESS_KEY'] ?? 'minioadmin';
 const S3_SECRET_KEY = process.env['S3_SECRET_KEY'] ?? 'minioadmin';
 const MONGODB_URI =
   process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-e2e';
-const SERVER_PORT = process.env['SERVER_PORT'] ?? '3001';
+const SERVER_PORT = process.env['SERVER_PORT'] ?? '3101';
 const HEALTHZ_URL = `http://localhost:${SERVER_PORT}/healthz`;
 
 let serverProcess: ChildProcess | null = null;
