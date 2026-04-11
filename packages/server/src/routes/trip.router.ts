@@ -1,15 +1,17 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import type { CreateTripRequest, UpdateTripRequest, TripStatus, AccessTokenPayload, Trip } from '@travel-journal/shared';
 
-import { requireAuth, requireAppRole } from '../middleware/auth.middleware.js';
+import { requireAppRole, requireAuth } from '../middleware/auth.middleware.js';
 import {
   createTrip,
+  deleteTrip,
   getTripById,
   listTripsForUser,
   updateTrip,
   updateTripStatus,
-  deleteTrip,
 } from '../services/trip.service.js';
+
+import { memberRouter } from './member.router.js';
 
 export const tripRouter: Router = Router();
 
@@ -121,6 +123,9 @@ tripRouter.patch(
     }
   },
 );
+
+// Mount member management sub-router
+tripRouter.use('/:id/members', memberRouter);
 
 // DELETE /:id — Delete trip (creator only, with constraints; admin can delete any)
 tripRouter.delete(

@@ -11,6 +11,7 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>;
+  loginWithToken: (accessToken: string, user: PublicUser) => void;
   logout: () => Promise<void>;
 }
 
@@ -61,6 +62,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [setAuthenticated],
   );
 
+  const loginWithToken = useCallback(
+    (accessToken: string, user: PublicUser) => {
+      setAuthenticated(accessToken, user);
+    },
+    [setAuthenticated],
+  );
+
   const logout = useCallback(async () => {
     if (state.accessToken) {
       await fetch('/api/v1/auth/logout', {
@@ -75,7 +83,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [state.accessToken]);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ ...state, login, loginWithToken, logout }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 

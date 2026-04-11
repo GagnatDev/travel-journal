@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import type { PublicUser } from '@travel-journal/shared';
+import type { Invite, PublicUser, Trip } from '@travel-journal/shared';
 
 export const mockUser: PublicUser = {
   id: 'user-1',
@@ -15,6 +15,29 @@ export const mockAdminUser: PublicUser = {
   displayName: 'Admin User',
   appRole: 'admin',
   preferredLocale: 'nb',
+};
+
+const mockTrip: Trip = {
+  id: 'trip-1',
+  name: 'Mock Trip',
+  status: 'planned',
+  createdBy: 'user-1',
+  members: [
+    { userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() },
+  ],
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
+
+const mockInvite: Invite = {
+  id: 'invite-1',
+  type: 'platform',
+  email: 'pending@example.com',
+  assignedAppRole: 'follower',
+  status: 'pending',
+  invitedBy: 'admin-1',
+  expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  createdAt: new Date().toISOString(),
 };
 
 export const handlers = [
@@ -69,42 +92,103 @@ export const handlers = [
   }),
 
   http.get('/api/v1/trips/:id', ({ params }) => {
-    return HttpResponse.json({
-      id: params['id'],
-      name: 'Mock Trip',
-      status: 'planned',
-      createdBy: 'user-1',
-      members: [{ userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() }],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
+    return HttpResponse.json({ ...mockTrip, id: params['id'] });
   }),
 
   http.patch('/api/v1/trips/:id', async ({ params, request }) => {
     const body = (await request.json()) as Record<string, string>;
     return HttpResponse.json({
+      ...mockTrip,
       id: params['id'],
       name: body['name'] ?? 'Mock Trip',
-      status: 'planned',
-      createdBy: 'user-1',
-      members: [{ userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() }],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     });
   }),
 
   http.patch('/api/v1/trips/:id/status', async ({ params, request }) => {
     const body = (await request.json()) as { status: string };
-    return HttpResponse.json({
-      id: params['id'],
-      name: 'Mock Trip',
-      status: body.status,
-      createdBy: 'user-1',
-      members: [{ userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() }],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
+    return HttpResponse.json({ ...mockTrip, id: params['id'], status: body.status });
   }),
 
   http.delete('/api/v1/trips/:id', () => new HttpResponse(null, { status: 204 })),
+
+  // Member management
+  http.get('/api/v1/trips/:id/members/invites', () => HttpResponse.json([])),
+
+  http.post('/api/v1/trips/:id/members', async ({ request }) => {
+    const body = (await request.json()) as { emailOrNickname: string };
+    if (body.emailOrNickname === 'unknown@example.com') {
+      return HttpResponse.json({ type: 'invite_created', inviteLink: '/invite/accept?token=mock-token-123' });
+    }
+    return HttpResponse.json({ type: 'added' });
+  }),
+
+  http.patch('/api/v1/trips/:id/members/:userId/role', () =>
+    HttpResponse.json({ success: true }),
+  ),
+
+  http.delete('/api/v1/trips/:id/members/:userId', () =>
+    new HttpResponse(null, { status: 204 }),
+  ),
+
+  http.delete('/api/v1/trips/:id/members/invites/:inviteId', () =>
+    new HttpResponse(null, { status: 204 }),
+  ),
+
+  // Invites
+  http.get('/api/v1/invites/:token/validate', ({ params }) => {
+    if (params['token'] === 'expired-token') {
+      return HttpResponse.json({ error: { message: 'Gone' } }, { status: 410 });
+    }
+    return HttpResponse.json({ email: 'invited@example.com', type: 'platform', assignedAppRole: 'creator' });
+  }),
+
+  http.post('/api/v1/invites/accept', async ({ request }) => {
+    const body = (await request.json()) as { token: string };
+    if (body.token === 'expired-token') {
+      return HttpResponse.json({ error: { message: 'Gone' } }, { status: 410 });
+    }
+    return HttpResponse.json(
+      { accessToken: 'new-token', user: { ...mockUser, email: 'invited@example.com' } },
+      { status: 201 },
+    );
+  }),
+
+  http.post('/api/v1/invites/platform', async ({ request }) => {
+    const body = (await request.json()) as { email: string; assignedAppRole: string };
+    return HttpResponse.json(
+      {
+        invite: { ...mockInvite, email: body.email, assignedAppRole: body.assignedAppRole },
+        inviteLink: '/invite/accept?token=new-mock-token',
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.get('/api/v1/invites/platform', () => HttpResponse.json([mockInvite])),
+
+  http.delete('/api/v1/invites/platform/:id', () => new HttpResponse(null, { status: 204 })),
+
+  // Users
+  http.get('/api/v1/users', () =>
+    HttpResponse.json([
+      mockAdminUser,
+      mockUser,
+      { ...mockUser, id: 'follower-1', email: 'follower@example.com', displayName: 'Follower User', appRole: 'follower' },
+    ]),
+  ),
+
+  http.patch('/api/v1/users/:id/promote', ({ params }) =>
+    HttpResponse.json({
+      id: params['id'],
+      email: 'follower@example.com',
+      displayName: 'Follower User',
+      appRole: 'creator',
+      preferredLocale: 'nb',
+    }),
+  ),
+
+  http.patch('/api/v1/users/me', async ({ request }) => {
+    const body = (await request.json()) as Partial<PublicUser>;
+    return HttpResponse.json({ ...mockUser, ...body });
+  }),
 ];

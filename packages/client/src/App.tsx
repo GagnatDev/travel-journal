@@ -1,7 +1,9 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { ProtectedRoute } from './components/ProtectedRoute.js';
+import { AdminPanelScreen } from './screens/AdminPanelScreen.js';
 import { AdminRegisterScreen } from './screens/AdminRegisterScreen.js';
+import { InviteAcceptScreen } from './screens/InviteAcceptScreen.js';
 import { LoginScreen } from './screens/LoginScreen.js';
 import { TripDashboardScreen } from './screens/TripDashboardScreen.js';
 import { TripSettingsScreen } from './screens/TripSettingsScreen.js';
@@ -9,7 +11,7 @@ import { TripSettingsScreen } from './screens/TripSettingsScreen.js';
 function TimelinePlaceholder() {
   return (
     <div className="min-h-screen bg-bg-primary flex items-center justify-center">
-      <p className="font-display text-heading text-xl">Timeline — coming in Phase 4</p>
+      <p className="font-display text-heading text-xl">Timeline — coming in Phase 5</p>
     </div>
   );
 }
@@ -19,6 +21,7 @@ export function App() {
     <Routes>
       <Route path="/register" element={<AdminRegisterScreen />} />
       <Route path="/login" element={<LoginScreen />} />
+      <Route path="/invite/accept" element={<InviteAcceptScreen />} />
       <Route
         path="/trips"
         element={
@@ -40,6 +43,14 @@ export function App() {
         element={
           <ProtectedRoute>
             <TripSettingsScreen />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <AdminPanelScreen />
           </ProtectedRoute>
         }
       />

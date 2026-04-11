@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import type { Trip, TripStatus } from '@travel-journal/shared';
+import type { Invite, Trip, TripStatus } from '@travel-journal/shared';
 
 import { useAuth } from '../context/AuthContext.js';
 
@@ -12,6 +12,14 @@ async function fetchTrip(tripId: string, accessToken: string): Promise<Trip> {
   });
   if (!res.ok) throw new Error('Not found');
   return res.json() as Promise<Trip>;
+}
+
+async function fetchTripInvites(tripId: string, accessToken: string): Promise<Invite[]> {
+  const res = await fetch(`/api/v1/trips/${tripId}/members/invites`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return [];
+  return res.json() as Promise<Invite[]>;
 }
 
 export function TripSettingsScreen() {
@@ -25,10 +33,26 @@ export function TripSettingsScreen() {
   const [name, setName] = useState('');
   const [hasLoadedName, setHasLoadedName] = useState(false);
 
+  // Member management state
+  const [addMemberInput, setAddMemberInput] = useState('');
+  const [addMemberRole, setAddMemberRole] = useState<'contributor' | 'follower'>('follower');
+  const [addMemberResult, setAddMemberResult] = useState<{
+    type: 'added' | 'invite_created';
+    inviteLink?: string;
+  } | null>(null);
+  const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
+
   const { data: trip, isLoading } = useQuery({
     queryKey: ['trip', tripId],
     queryFn: () => fetchTrip(tripId!, accessToken!),
     enabled: !!tripId && !!accessToken,
+  });
+
+  const { data: pendingInvites = [] } = useQuery({
+    queryKey: ['trip-invites', tripId],
+    queryFn: () => fetchTripInvites(tripId!, accessToken!),
+    enabled: !!tripId && !!accessToken && !!trip,
   });
 
   // Set name once on first load
@@ -89,6 +113,71 @@ export function TripSettingsScreen() {
     },
   });
 
+  const addMemberMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/v1/trips/${tripId}/members`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ emailOrNickname: addMemberInput, tripRole: addMemberRole }),
+      });
+      if (!res.ok) throw new Error('Add member failed');
+      return res.json() as Promise<{ type: 'added' | 'invite_created'; inviteLink?: string }>;
+    },
+    onSuccess: (data) => {
+      setAddMemberResult(data);
+      setAddMemberInput('');
+      void queryClient.invalidateQueries({ queryKey: ['trip', tripId] });
+      void queryClient.invalidateQueries({ queryKey: ['trip-invites', tripId] });
+    },
+  });
+
+  const changeRoleMutation = useMutation({
+    mutationFn: async ({ userId, tripRole }: { userId: string; tripRole: 'contributor' | 'follower' }) => {
+      const res = await fetch(`/api/v1/trips/${tripId}/members/${userId}/role`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ tripRole }),
+      });
+      if (!res.ok) throw new Error('Role change failed');
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['trip', tripId] });
+    },
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await fetch(`/api/v1/trips/${tripId}/members/${userId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) throw new Error('Remove failed');
+    },
+    onSuccess: () => {
+      setMemberToRemove(null);
+      void queryClient.invalidateQueries({ queryKey: ['trip', tripId] });
+    },
+  });
+
+  const revokeInviteMutation = useMutation({
+    mutationFn: async (inviteId: string) => {
+      const res = await fetch(`/api/v1/trips/${tripId}/members/invites/${inviteId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) throw new Error('Revoke failed');
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['trip-invites', tripId] });
+    },
+  });
+
   const myMember = trip?.members.find((m) => m.userId === user?.id);
   const isCreator = !!myMember && myMember.tripRole === 'creator';
 
@@ -104,6 +193,12 @@ export function TripSettingsScreen() {
 
   if (!isCreator) {
     return null;
+  }
+
+  async function copyInviteLink(link: string) {
+    await navigator.clipboard.writeText(window.location.origin + link);
+    setInviteLinkCopied(true);
+    setTimeout(() => setInviteLinkCopied(false), 2000);
   }
 
   return (
@@ -178,6 +273,168 @@ export function TripSettingsScreen() {
               </button>
             )}
           </div>
+        </section>
+
+        {/* Member Management */}
+        <section className="space-y-4">
+          <h2 className="font-ui text-sm font-semibold text-caption uppercase tracking-wide">
+            {t('trips.settings.membersTitle')}
+          </h2>
+
+          {/* Current members list */}
+          <ul className="space-y-2">
+            {trip.members.map((member) => (
+              <li
+                key={member.userId}
+                className="flex items-center justify-between p-3 bg-bg-secondary rounded-round-eight"
+              >
+                <div>
+                  <p className="font-ui text-sm font-medium text-body">{member.displayName}</p>
+                  <p className="font-ui text-xs text-caption">{t(`trips.role.${member.tripRole}`)}</p>
+                </div>
+                {member.tripRole !== 'creator' && (
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={member.tripRole}
+                      onChange={(e) =>
+                        changeRoleMutation.mutate({
+                          userId: member.userId,
+                          tripRole: e.target.value as 'contributor' | 'follower',
+                        })
+                      }
+                      aria-label={`${member.displayName} ${t('trips.settings.addMemberRoleLabel')}`}
+                      className="text-xs px-2 py-1 border border-caption rounded font-ui bg-bg-primary text-body"
+                    >
+                      <option value="contributor">{t('trips.role.contributor')}</option>
+                      <option value="follower">{t('trips.role.follower')}</option>
+                    </select>
+                    {memberToRemove === member.userId ? (
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => removeMemberMutation.mutate(member.userId)}
+                          disabled={removeMemberMutation.isPending}
+                          className="px-2 py-1 bg-accent text-white font-ui text-xs rounded"
+                        >
+                          {t('common.confirm')}
+                        </button>
+                        <button
+                          onClick={() => setMemberToRemove(null)}
+                          className="px-2 py-1 border border-caption text-caption font-ui text-xs rounded"
+                        >
+                          {t('common.cancel')}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setMemberToRemove(member.userId)}
+                        className="px-2 py-1 border border-accent text-accent font-ui text-xs font-semibold rounded hover:bg-accent hover:text-white transition-all"
+                      >
+                        {t('trips.settings.removeButton')}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          {/* Add member */}
+          <div className="space-y-2">
+            <h3 className="font-ui text-sm font-medium text-body">
+              {t('trips.settings.addMemberTitle')}
+            </h3>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                setAddMemberResult(null);
+                addMemberMutation.mutate();
+              }}
+              className="flex gap-2"
+            >
+              <input
+                type="text"
+                value={addMemberInput}
+                onChange={(e) => setAddMemberInput(e.target.value)}
+                placeholder={t('trips.settings.addMemberPlaceholder')}
+                required
+                className="flex-1 px-3 py-2 border border-caption rounded-round-eight font-ui text-sm text-body bg-bg-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+              />
+              <select
+                value={addMemberRole}
+                onChange={(e) => setAddMemberRole(e.target.value as 'contributor' | 'follower')}
+                className="px-2 py-2 border border-caption rounded-round-eight font-ui text-sm bg-bg-secondary text-body"
+              >
+                <option value="follower">{t('trips.role.follower')}</option>
+                <option value="contributor">{t('trips.role.contributor')}</option>
+              </select>
+              <button
+                type="submit"
+                disabled={addMemberMutation.isPending}
+                className="px-4 py-2 bg-accent text-white font-ui text-sm font-semibold rounded-round-eight hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+              >
+                {t('trips.settings.addMemberButton')}
+              </button>
+            </form>
+
+            {addMemberResult?.type === 'added' && (
+              <p className="font-ui text-sm text-green-600">{t('trips.settings.memberAdded')}</p>
+            )}
+
+            {addMemberResult?.type === 'invite_created' && addMemberResult.inviteLink && (
+              <div className="p-3 bg-bg-secondary rounded-round-eight space-y-2">
+                <p className="font-ui text-xs text-caption">
+                  {t('trips.settings.inviteLinkGenerated')}
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={window.location.origin + addMemberResult.inviteLink}
+                    readOnly
+                    className="flex-1 px-2 py-1 border border-caption rounded font-ui text-xs text-body bg-bg-primary"
+                  />
+                  <button
+                    onClick={() => copyInviteLink(addMemberResult.inviteLink!)}
+                    className="px-3 py-1 border border-accent text-accent font-ui text-xs font-semibold rounded hover:bg-accent hover:text-white transition-all"
+                  >
+                    {inviteLinkCopied
+                      ? t('trips.settings.linkCopied')
+                      : t('trips.settings.copyLink')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Pending trip invites */}
+          {pendingInvites.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="font-ui text-sm font-medium text-body">
+                {t('trips.settings.pendingInvitesTitle')}
+              </h3>
+              <ul className="space-y-2">
+                {pendingInvites.map((inv) => (
+                  <li
+                    key={inv.id}
+                    className="flex items-center justify-between p-2 bg-bg-secondary rounded-round-eight"
+                  >
+                    <div>
+                      <p className="font-ui text-xs font-medium text-body">{inv.email}</p>
+                      <p className="font-ui text-xs text-caption">
+                        {inv.tripRole} · {new Date(inv.expiresAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => revokeInviteMutation.mutate(inv.id)}
+                      disabled={revokeInviteMutation.isPending}
+                      className="px-2 py-1 border border-accent text-accent font-ui text-xs font-semibold rounded hover:bg-accent hover:text-white transition-all"
+                    >
+                      {t('trips.settings.revokeInviteButton')}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
 
         {/* Delete */}

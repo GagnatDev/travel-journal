@@ -4,7 +4,9 @@ import cookieParser from 'cookie-parser';
 import express, { Express, NextFunction, Request, Response } from 'express';
 
 import { authRouter } from './routes/auth.router.js';
+import { inviteRouter } from './routes/invite.router.js';
 import { tripRouter } from './routes/trip.router.js';
+import { userRouter } from './routes/user.router.js';
 import { logger } from './logger.js';
 
 export function createApp(): Express {
@@ -42,6 +44,8 @@ export function createApp(): Express {
   // API routes
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/trips', tripRouter);
+  app.use('/api/v1/invites', inviteRouter);
+  app.use('/api/v1/users', userRouter);
 
   // Error handler
   app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {

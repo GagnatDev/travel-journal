@@ -28,9 +28,39 @@
       "title": "Complete registration",
       "expiredError": "This invite has expired or already been used. Contact the person who sent it.",
       "displayNameLabel": "Display name",
+      "displayNamePlaceholder": "Your name",
       "passwordLabel": "Password",
       "submitButton": "Create account",
       "passwordMinLength": "Password must be at least 8 characters"
+    }
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "accessDenied": "Access denied. Admins only.",
+    "tabs": {
+      "users": "Users",
+      "invites": "Invites"
+    },
+    "invite": {
+      "emailLabel": "Email",
+      "roleLabel": "App Role",
+      "submitButton": "Create Invite",
+      "linkLabel": "Invite Link",
+      "copyButton": "Copy",
+      "linkCopied": "Copied!",
+      "pendingTitle": "Pending Invites",
+      "revokeButton": "Revoke",
+      "noInvites": "No pending invites.",
+      "roles": {
+        "creator": "Creator",
+        "follower": "Follower"
+      },
+      "expiry": "Expires"
+    },
+    "users": {
+      "title": "All Users",
+      "promoteButton": "Promote to Creator",
+      "noUsers": "No users found."
     }
   },
   "nav": {
@@ -43,7 +73,9 @@
     "save": "Save",
     "cancel": "Cancel",
     "delete": "Delete",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "copy": "Copy",
+    "copied": "Copied!"
   },
   "language": {
     "nb": "Norsk",
@@ -91,7 +123,20 @@
       "deleteButton": "Delete Trip",
       "deleteConfirmTitle": "Delete trip?",
       "deleteConfirmMessage": "This action cannot be undone.",
-      "notCreatorRedirect": "Only the trip creator can access settings."
+      "notCreatorRedirect": "Only the trip creator can access settings.",
+      "membersTitle": "Members",
+      "addMemberTitle": "Add Member",
+      "addMemberPlaceholder": "Email or nickname",
+      "addMemberButton": "Add",
+      "addMemberRoleLabel": "Trip Role",
+      "memberAdded": "Member added!",
+      "inviteLinkGenerated": "Invite link generated",
+      "copyLink": "Copy link",
+      "linkCopied": "Copied!",
+      "pendingInvitesTitle": "Pending Invites",
+      "revokeInviteButton": "Revoke",
+      "removeButton": "Remove",
+      "removeConfirmTitle": "Remove member?"
     },
     "nav": {
       "timeline": "Timeline",
