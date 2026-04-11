@@ -2,7 +2,11 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
 
 jobs:
   lint:
@@ -56,6 +60,7 @@ jobs:
           - 27017:27017
       minio:
         image: minio/minio
+        command: server /data --console-address ":9001"
         ports:
           - 9100:9000
           - 9101:9001

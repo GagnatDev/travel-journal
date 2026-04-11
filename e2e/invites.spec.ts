@@ -68,7 +68,7 @@ test.describe('Platform invites', () => {
     await newPage.goto(inviteLink);
 
     // Email should be pre-filled and read-only
-    await expect(newPage.getByDisplayValue('newuser@test.com')).toBeVisible();
+    await expect(newPage.getByLabel(/e-post|email/i)).toHaveValue('newuser@test.com');
 
     // Fill registration form
     await newPage.getByLabel(/visningsnavn|display name/i).fill('New User');
@@ -105,11 +105,12 @@ test.describe('Trip member invites', () => {
     // Skip if API call fails (e.g., no token); test the UI flow instead
     void registerRes;
 
-    // Go to trip settings
     await page.goto(`/trips/${tripId}/settings`);
+    await page.waitForURL(`**/trips/${tripId}/settings`);
+    const memberInput = page.getByPlaceholder(/e-post eller kallenavn|email or nickname/i);
+    await expect(memberInput).toBeVisible({ timeout: 15_000 });
 
-    // Add member by the registered email
-    await page.getByPlaceholder(/e-post eller kallenavn|email or nickname/i).fill('admin@localhost');
+    await memberInput.fill('admin@localhost');
     await page.getByRole('button', { name: /legg til|^add$/i }).click();
 
     // Since admin@localhost is already a member (creator), it would return a conflict
