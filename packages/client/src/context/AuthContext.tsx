@@ -11,13 +11,13 @@ interface AuthState {
   status: AuthStatus;
 }
 
-interface AuthContextValue extends AuthState {
+export interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   loginWithToken: (accessToken: string, user: PublicUser) => void;
   logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null);
+export const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({

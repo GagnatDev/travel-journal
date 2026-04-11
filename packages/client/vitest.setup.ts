@@ -5,6 +5,23 @@ import { initReactI18next } from 'react-i18next';
 
 import { server } from './src/__tests__/mocks/server.js';
 
+// jsdom has no Blob URL implementation; AuthenticatedImage uses createObjectURL after fetch.
+if (typeof URL.createObjectURL !== 'function') {
+  const blobRef = new Map<string, Blob>();
+  let seq = 0;
+  URL.createObjectURL = (obj: Blob | MediaSource) => {
+    if (!(obj instanceof Blob)) {
+      throw new TypeError('createObjectURL polyfill only supports Blob in tests');
+    }
+    const url = `blob:http://localhost:3000/test-blob-${++seq}`;
+    blobRef.set(url, obj);
+    return url;
+  };
+  URL.revokeObjectURL = (url: string) => {
+    blobRef.delete(url);
+  };
+}
+
 const nb = {
   auth: {
     login: {

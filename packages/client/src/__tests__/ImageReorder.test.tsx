@@ -1,9 +1,12 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { EntryImage } from '@travel-journal/shared';
 
 import { ImageReorder } from '../components/ImageReorder.js';
+import { AuthSessionProvider } from './AuthSessionProvider.js';
+
+import { mockUser } from './mocks/handlers.js';
 
 function makeImage(key: string, order: number): EntryImage {
   return { key, width: 100, height: 100, order, uploadedAt: new Date().toISOString() };
@@ -15,20 +18,23 @@ function renderReorder(
   onFileSelect = vi.fn(),
 ) {
   return render(
-    <ImageReorder
-      images={images}
-      onImagesChange={onImagesChange}
-      onFileSelect={onFileSelect}
-    />,
+    <AuthSessionProvider accessToken="mock-token" user={mockUser}>
+      <ImageReorder
+        images={images}
+        onImagesChange={onImagesChange}
+        onFileSelect={onFileSelect}
+      />
+    </AuthSessionProvider>,
   );
 }
 
 describe('ImageReorder', () => {
-  it('renders thumbnails for each image using the media proxy path', () => {
+  it('renders thumbnails for each image using the media proxy path', async () => {
     const { container } = renderReorder([makeImage('media/trip-1/a.jpg', 0), makeImage('media/trip-1/b.jpg', 1)]);
+    await waitFor(() => expect(container.querySelectorAll('img')).toHaveLength(2));
     const imgs = container.querySelectorAll('img');
-    expect(imgs).toHaveLength(2);
-    expect(imgs[0]).toHaveAttribute('src', '/api/v1/media/media/trip-1/a.jpg');
+    expect(imgs[0]?.src).toMatch(/^blob:/);
+    expect(imgs[1]?.src).toMatch(/^blob:/);
   });
 
   it('deleting an image calls onImagesChange with the image removed', async () => {
@@ -36,6 +42,9 @@ describe('ImageReorder', () => {
     renderReorder(
       [makeImage('media/trip-1/a.jpg', 0), makeImage('media/trip-1/b.jpg', 1)],
       onChange,
+    );
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: /×|remove|fjern/i })).toHaveLength(2),
     );
     const deleteButtons = screen.getAllByRole('button', { name: /×|remove|fjern/i });
     await userEvent.click(deleteButtons[0]!);

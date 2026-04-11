@@ -1,10 +1,13 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { Entry } from '@travel-journal/shared';
 
 import { EntryCard } from '../components/EntryCard.js';
+import { AuthSessionProvider } from './AuthSessionProvider.js';
+
+import { mockUser } from './mocks/handlers.js';
 
 function makeEntry(overrides: Partial<Entry> = {}): Entry {
   return {
@@ -25,23 +28,25 @@ function renderCard(
   entry: Entry,
   currentUserId: string,
   onDelete = vi.fn(),
-) {
+): ReturnType<typeof render> {
   return render(
     <MemoryRouter initialEntries={['/trips/trip-1/timeline']}>
-      <Routes>
-        <Route
-          path="/trips/:id/timeline"
-          element={
-            <EntryCard
-              entry={entry}
-              tripId="trip-1"
-              currentUserId={currentUserId}
-              onDelete={onDelete}
-            />
-          }
-        />
-        <Route path="/trips/:id/entries/:entryId/edit" element={<div>Edit screen</div>} />
-      </Routes>
+      <AuthSessionProvider accessToken="mock-token" user={mockUser}>
+        <Routes>
+          <Route
+            path="/trips/:id/timeline"
+            element={
+              <EntryCard
+                entry={entry}
+                tripId="trip-1"
+                currentUserId={currentUserId}
+                onDelete={onDelete}
+              />
+            }
+          />
+          <Route path="/trips/:id/entries/:entryId/edit" element={<div>Edit screen</div>} />
+        </Routes>
+      </AuthSessionProvider>
     </MemoryRouter>,
   );
 }
@@ -92,7 +97,7 @@ describe('EntryCard', () => {
     expect(onDelete).toHaveBeenCalledWith('entry-1');
   });
 
-  it('renders images using the media proxy path, not a raw S3 URL', () => {
+  it('renders images using the media proxy path, not a raw S3 URL', async () => {
     const entry = makeEntry({
       images: [
         { key: 'media/trip-1/abc.jpg', width: 800, height: 600, order: 0, uploadedAt: new Date().toISOString() },
@@ -100,20 +105,23 @@ describe('EntryCard', () => {
     });
     renderCard(entry, 'other-user');
 
-    const img = screen.getByRole('img') as HTMLImageElement;
-    expect(img.src).toContain('/api/v1/media/media/trip-1/abc.jpg');
-    expect(img.src).not.toMatch(/^https?:\/\/.*\.s3\./);
+    await waitFor(() => {
+      const img = screen.getByRole('img') as HTMLImageElement;
+      expect(img.src).toMatch(/^blob:/);
+      expect(img.src).not.toMatch(/\.s3\./);
+    });
   });
 
-  it('all images have loading="lazy" attribute', () => {
+  it('all images have loading="lazy" attribute', async () => {
     const entry = makeEntry({
       images: [
         { key: 'media/trip-1/a.jpg', width: 800, height: 600, order: 0, uploadedAt: new Date().toISOString() },
         { key: 'media/trip-1/b.jpg', width: 800, height: 600, order: 1, uploadedAt: new Date().toISOString() },
       ],
     });
-    renderCard(entry, 'other-user');
-    const imgs = screen.getAllByRole('img');
-    imgs.forEach((img) => expect(img).toHaveAttribute('loading', 'lazy'));
+    const { container } = renderCard(entry, 'other-user');
+    // Thumbnail images use alt="" (decorative); they are omitted from the a11y tree, so query DOM img nodes.
+    await waitFor(() => expect(container.querySelectorAll('img')).toHaveLength(2), { timeout: 5000 });
+    container.querySelectorAll('img').forEach((img) => expect(img).toHaveAttribute('loading', 'lazy'));
   });
 });
