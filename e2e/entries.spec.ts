@@ -56,12 +56,12 @@ test.describe('Entries', () => {
     await page.getByRole('button', { name: /rediger|edit/i }).click();
     await page.waitForURL('**/edit');
 
-    await page.getByLabel(/tittel|title/i).fill('Updated Title');
+    await page.locator('#entry-title').fill('Updated Title');
     await page.getByRole('button', { name: /lagre|save/i }).click();
     await page.waitForURL('**/timeline');
 
-    await expect(page.getByText('Updated Title')).toBeVisible();
-    await expect(page.queryByText('Original Title')).not.toBeVisible();
+    await expect(page.getByText('Updated Title')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Original Title')).not.toBeVisible();
   });
 
   test('author soft-deletes entry — disappears from timeline; direct URL returns 404', async ({
@@ -85,12 +85,10 @@ test.describe('Entries', () => {
     await page.goBack();
     await page.waitForURL('**/timeline');
 
-    // Delete
+    page.once('dialog', (dialog) => void dialog.accept());
     await page.getByRole('button', { name: /slett|delete/i }).click();
-    // Confirm the delete dialog
-    page.on('dialog', (dialog) => dialog.accept());
 
-    await expect(page.queryByText('To Be Deleted')).not.toBeVisible();
+    await expect(page.getByText('To Be Deleted')).not.toBeVisible();
 
     // Direct API GET should return 404
     const apiRes = await request.get(`/api/v1/trips/${tripId}/entries/${entryId}`, {

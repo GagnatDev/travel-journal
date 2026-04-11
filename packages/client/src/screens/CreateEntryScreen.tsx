@@ -101,19 +101,19 @@ export function CreateEntryScreen() {
   });
 
   useEffect(() => {
-    if (existingEntry) {
-      const loaded: EntryFormState = {
-        title: existingEntry.title,
-        content: existingEntry.content,
-        locationEnabled: !!existingEntry.location,
-        locationLat: existingEntry.location?.lat ?? null,
-        locationLng: existingEntry.location?.lng ?? null,
-        locationName: existingEntry.location?.name ?? '',
-      };
-      setForm(loaded);
-      setInitialForm(loaded);
-    }
-  }, [existingEntry]);
+    if (!existingEntry) return;
+    const loaded: EntryFormState = {
+      title: existingEntry.title,
+      content: existingEntry.content,
+      locationEnabled: !!existingEntry.location,
+      locationLat: existingEntry.location?.lat ?? null,
+      locationLng: existingEntry.location?.lng ?? null,
+      locationName: existingEntry.location?.name ?? '',
+    };
+    setForm(loaded);
+    setInitialForm(loaded);
+    // Depend on id only so React Query refetches (new object identity) do not wipe in-progress edits.
+  }, [existingEntry?.id]);
 
   const createMutation = useMutation({
     mutationFn: (data: CreateEntryRequest) =>

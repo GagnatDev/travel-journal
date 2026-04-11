@@ -164,12 +164,12 @@ describe('POST /api/v1/auth/refresh', () => {
 });
 
 describe('POST /api/v1/auth/logout', () => {
-  it('returns 401 without a valid access token', async () => {
+  it('returns 204 without credentials (idempotent)', async () => {
     const res = await request(app).post('/api/v1/auth/logout');
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(204);
   });
 
-  it('clears the session and cookie with valid token', async () => {
+  it('clears the session and cookie using refresh cookie', async () => {
     const user = await User.create({
       email: 'user@test.com',
       passwordHash: await hashPassword('password123'),
@@ -182,13 +182,9 @@ describe('POST /api/v1/auth/logout', () => {
       password: 'password123',
     });
 
-    const { accessToken } = loginRes.body as { accessToken: string };
     const cookies = loginRes.headers['set-cookie'] as unknown as string[];
 
-    const res = await request(app)
-      .post('/api/v1/auth/logout')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .set('Cookie', cookies);
+    const res = await request(app).post('/api/v1/auth/logout').set('Cookie', cookies);
 
     expect(res.status).toBe(204);
 
