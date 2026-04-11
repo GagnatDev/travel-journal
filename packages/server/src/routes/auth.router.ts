@@ -178,8 +178,8 @@ authRouter.post('/refresh', async (req: Request, res: Response) => {
   res.json({ accessToken, user: toPublicUser(user) });
 });
 
-// POST /api/v1/auth/logout
-authRouter.post('/logout', requireAuth, async (req: Request, res: Response) => {
+// POST /api/v1/auth/logout — cookie-based; no Bearer required (client may only have refresh cookie)
+authRouter.post('/logout', async (req: Request, res: Response) => {
   const rawToken = req.cookies[COOKIE_NAME] as string | undefined;
 
   if (rawToken) {

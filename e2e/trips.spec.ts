@@ -107,7 +107,7 @@ test.describe('Trip deletion', () => {
     await expect(page.getByText('To Delete')).not.toBeVisible();
   });
 
-  test('deleting an active trip shows an error', async ({ page }) => {
+  test('app admin can delete an active trip (non-admins get 409 from API)', async ({ page }) => {
     await registerAdmin(page);
     await page.goto('/trips');
     await createTrip(page, 'Active Trip');
@@ -117,16 +117,13 @@ test.describe('Trip deletion', () => {
     await page.waitForURL('**/timeline');
     await page.goto(page.url().replace('/timeline', '/settings'));
 
-    // Transition to active
     await page.getByRole('button', { name: /merk som aktiv|mark as active/i }).click();
     await page.waitForTimeout(500);
 
-    // Try to delete
     await page.getByRole('button', { name: /slett tur|delete trip/i }).click();
     await page.getByRole('button', { name: /^slett$|^delete$/i }).click();
-    await page.waitForTimeout(500);
+    await page.waitForURL('**/trips');
 
-    // Should still be on settings page (not redirected)
-    expect(page.url()).toContain('/settings');
+    await expect(page.getByText('Active Trip')).not.toBeVisible();
   });
 });

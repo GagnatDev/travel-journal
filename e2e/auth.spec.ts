@@ -70,15 +70,12 @@ test.describe('Logout & session', () => {
 
     // Logout via API
     await page.evaluate(async () => {
-      const token = (window as { __accessToken?: string }).__accessToken;
-      await fetch('/api/v1/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      await fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' });
     });
 
-    // Manually clear the cookie by navigating to login and checking
+    // Cookie is cleared server-side; reload so auth bootstrap does not reuse in-memory access token.
+    await page.reload();
+
     await page.goto('/trips');
     await page.waitForURL('**/login');
     expect(page.url()).toContain('/login');

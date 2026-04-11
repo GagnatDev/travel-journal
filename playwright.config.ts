@@ -24,5 +24,8 @@ export default defineConfig({
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env['CI'],
     timeout: 60_000,
+    env: {
+      E2E_DISABLE_RATE_LIMIT: '1',
+    },
   },
 });
