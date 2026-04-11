@@ -7,6 +7,7 @@ import { http, HttpResponse } from 'msw';
 import type { Trip } from '@travel-journal/shared';
 
 import { AuthProvider } from '../context/AuthContext.js';
+import { TimelineScreen } from '../screens/TimelineScreen.js';
 import { TripSettingsScreen } from '../screens/TripSettingsScreen.js';
 
 import { server } from './mocks/server.js';
@@ -81,6 +82,52 @@ describe('TripSettingsScreen', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Timeline')).toBeInTheDocument();
+    });
+  });
+
+  it('shows creator settings after timeline using one QueryClient (trip cache matches useQuery shape)', async () => {
+    vi.stubGlobal(
+      'IntersectionObserver',
+      vi.fn().mockImplementation(() => ({
+        observe: vi.fn(),
+        disconnect: vi.fn(),
+        unobserve: vi.fn(),
+      })),
+    );
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const trip = makeTrip('active');
+    server.use(
+      http.post('/api/v1/auth/refresh', () =>
+        HttpResponse.json({ accessToken: 'mock-token', user: mockUser }),
+      ),
+      http.get('/api/v1/trips/:id', () => HttpResponse.json(trip)),
+      http.get('/api/v1/trips/trip-1/entries', () =>
+        HttpResponse.json({ entries: [], total: 0 }),
+      ),
+    );
+
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={['/trips/trip-1/timeline']}>
+          <AuthProvider>
+            <Routes>
+              <Route path="/trips/:id/timeline" element={<TimelineScreen />} />
+              <Route path="/trips/:id/settings" element={<TripSettingsScreen />} />
+            </Routes>
+          </AuthProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('My Trip')).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /settings|innstillinger/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /merk som fullf|mark as completed/i })).toBeInTheDocument();
     });
   });
 });

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { Entry, Trip } from '@travel-journal/shared';
 
@@ -52,17 +52,11 @@ export function TimelineScreen() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
-  const {
-    data: tripData,
-  } = useInfiniteQuery({
+  const { data: trip = null } = useQuery({
     queryKey: ['trip', tripId],
     queryFn: () => fetchTrip(tripId!, accessToken!),
-    getNextPageParam: () => undefined,
     enabled: !!accessToken && !!tripId,
-    initialPageParam: 1,
   });
-
-  const trip = tripData?.pages[0] ?? null;
   const myMember = trip?.members.find((m) => m.userId === user?.id);
   const tripRole = myMember?.tripRole;
 
