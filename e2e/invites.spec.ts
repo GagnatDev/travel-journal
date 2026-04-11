@@ -39,6 +39,13 @@ test.describe('Platform invites', () => {
     await registerAdmin(page);
     await page.goto('/admin');
 
+    // Wait for admin shell and default Users tab content so tab bar is interactive (avoids hydration races)
+    await expect(page.getByRole('heading', { level: 1, name: /admin panel|adminpanel/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /all users|alle brukere/i })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText('Admin User')).toBeVisible({ timeout: 20_000 });
+
     // Switch to Invites tab
     await page.getByRole('button', { name: /invitasjoner|invites/i }).click();
 
