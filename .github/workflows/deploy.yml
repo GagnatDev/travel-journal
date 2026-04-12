@@ -62,7 +62,6 @@ jobs:
           secret_environment_variables: |
             [
               {"key":"NODE_ENV","value":"production"},
-              {"key":"PORT","value":"3100"},
               {"key":"MONGODB_URI","value":"${{ secrets.APP_MONGODB_URI }}"},
               {"key":"JWT_SECRET","value":"${{ secrets.APP_JWT_SECRET }}"},
               {"key":"ADMIN_EMAIL","value":"${{ secrets.APP_ADMIN_EMAIL }}"},
