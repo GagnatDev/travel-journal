@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 
+import { openEntryAuthorMenu } from './helpers/entryCard.js';
 import { resetCollections } from './helpers/resetCollections.js';
 
 const ADMIN_EMAIL = process.env['ADMIN_EMAIL'] ?? 'admin@localhost';
@@ -213,6 +214,7 @@ test.describe('Media', () => {
         res.request().method() === 'GET' &&
         res.ok(),
     );
+    await openEntryAuthorMenu(page);
     await page.getByRole('button', { name: /rediger|edit/i }).click();
     await page.waitForURL('**/edit');
     await entryJsonPromise;

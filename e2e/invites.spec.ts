@@ -107,6 +107,10 @@ test.describe('Trip member invites', () => {
 
     await page.goto(`/trips/${tripId}/settings`);
     await page.waitForURL(`**/trips/${tripId}/settings`);
+    await expect(page.getByRole('heading', { name: /trip settings|turinnstillinger/i })).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.getByRole('button', { name: /inviter nytt medlem|invite new member/i }).click();
     const memberInput = page.getByPlaceholder(/e-post eller kallenavn|email or nickname/i);
     await expect(memberInput).toBeVisible({ timeout: 15_000 });
 
@@ -132,6 +136,10 @@ test.describe('Trip member invites', () => {
     const tripId = tripUrl.split('/trips/')[1]!.split('/')[0];
 
     await page.goto(`/trips/${tripId}/settings`);
+    await expect(page.getByRole('heading', { name: /trip settings|turinnstillinger/i })).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.getByRole('button', { name: /inviter nytt medlem|invite new member/i }).click();
 
     // Add unknown email
     await page.getByPlaceholder(/e-post eller kallenavn|email or nickname/i).fill('stranger@example.com');
@@ -159,8 +167,8 @@ test.describe('Admin user management', () => {
     await page.goto('/admin');
     await expect(page.getByRole('heading', { name: /adminpanel|admin panel/i })).toBeVisible();
 
-    // Users tab should be active by default
-    await expect(page.getByText('Admin User')).toBeVisible();
+    // Users tab should be active by default (scope to main — nav also shows display name)
+    await expect(page.locator('main').getByText('Admin User')).toBeVisible();
 
     // Create a platform invite for a follower
     await page.getByRole('button', { name: /invitasjoner|invites/i }).click();

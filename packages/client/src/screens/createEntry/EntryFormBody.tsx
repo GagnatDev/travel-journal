@@ -108,6 +108,7 @@ export function EntryFormBody({
               <span className="font-ui text-sm text-caption">{t('entries.addPhotos')}</span>
               <input
                 id="entry-media-input"
+                data-testid="entry-media-file-input"
                 type="file"
                 accept="image/*"
                 multiple

@@ -6,7 +6,7 @@ const ADMIN_EMAIL = process.env['ADMIN_EMAIL'] ?? 'admin@localhost';
 const ADMIN_PASSWORD = 'Securepassword1!';
 
 test.beforeEach(async () => {
-  await resetCollections('users', 'sessions', 'trips');
+  await resetCollections('users', 'sessions', 'trips', 'invites');
 });
 
 async function registerAdmin(page: Page) {
@@ -43,16 +43,39 @@ test.describe('Trip dashboard', () => {
     await expect(page.getByText(/planlagte|planned/i)).toBeVisible();
   });
 
-  test('follower does not see Create Trip button', async ({ page }) => {
+  test('follower does not see Create Trip button', async ({ page, context }) => {
     await registerAdmin(page);
-    await page.goto('/trips');
+    await page.goto('/admin');
 
-    // Admin creates trip first
-    await createTrip(page, 'Admin Trip');
-    await page.goto('/trips');
+    await page.getByRole('button', { name: /invitasjoner|invites/i }).click();
+    await page.getByLabel(/e-post|email/i).fill('follower-e2e@localhost');
+    await page.getByLabel(/app-rolle|app role/i).selectOption('follower');
+    await page.getByRole('button', { name: /opprett invitasjon|create invite/i }).click();
 
-    // Verify admin sees the button
-    await expect(page.getByRole('button', { name: /opprett tur|create trip/i })).toBeVisible();
+    const inputs = page.locator('input[readonly]');
+    await expect(inputs.first()).toBeVisible({ timeout: 10_000 });
+    let inviteLink = '';
+    const count = await inputs.count();
+    for (let i = 0; i < count; i++) {
+      const val = await inputs.nth(i).inputValue();
+      if (val.includes('/invite/accept')) {
+        inviteLink = val;
+        break;
+      }
+    }
+    expect(inviteLink).toContain('/invite/accept');
+
+    const followerPage = await context.newPage();
+    await followerPage.goto(inviteLink);
+    await followerPage.getByLabel(/visningsnavn|display name/i).fill('Follower E2E');
+    await followerPage.getByLabel(/passord|password/i).fill('Followerpass1!');
+    await followerPage.getByRole('button', { name: /opprett konto|create account/i }).click();
+    await followerPage.waitForURL('**/trips');
+
+    await followerPage.goto('/trips');
+    await expect(
+      followerPage.getByRole('button', { name: /opprett tur|create trip/i }),
+    ).toHaveCount(0);
   });
 });
 

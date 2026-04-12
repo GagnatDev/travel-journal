@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 
+import { openEntryAuthorMenu } from './helpers/entryCard.js';
 import { resetCollections } from './helpers/resetCollections.js';
 
 const ADMIN_EMAIL = process.env['ADMIN_EMAIL'] ?? 'admin@localhost';
@@ -59,6 +60,7 @@ test.describe('Entries', () => {
         res.ok(),
     );
 
+    await openEntryAuthorMenu(page);
     await page.getByRole('button', { name: /rediger|edit/i }).click();
     await page.waitForURL('**/edit');
     await entryJsonPromise;
@@ -94,6 +96,7 @@ test.describe('Entries', () => {
     await createEntry(page, 'To Be Deleted', 'Delete me.');
 
     // Get the entry ID from the edit link
+    await openEntryAuthorMenu(page);
     const editLink = page.getByRole('button', { name: /rediger|edit/i });
     await editLink.click();
     await page.waitForURL('**/edit');
@@ -106,6 +109,7 @@ test.describe('Entries', () => {
     await page.waitForURL('**/timeline');
 
     page.once('dialog', (dialog) => void dialog.accept());
+    await openEntryAuthorMenu(page);
     await page.getByRole('button', { name: /slett|delete/i }).click();
 
     await expect(page.getByText('To Be Deleted')).not.toBeVisible();
@@ -128,7 +132,8 @@ test.describe('Entries', () => {
     await createTrip(page, 'Shared Trip');
     await createEntry(page, 'Admin Entry', 'Admin wrote this.');
 
-    // Admin IS the author, so controls are visible
+    // Admin IS the author, so controls are visible inside the overflow menu
+    await openEntryAuthorMenu(page);
     await expect(page.getByRole('button', { name: /rediger|edit/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /slett|delete/i })).toBeVisible();
   });
