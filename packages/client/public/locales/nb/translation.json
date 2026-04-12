@@ -159,6 +159,11 @@
     "synced": "Alle innlegg er synkronisert",
     "conflict": "Versjonen din ble ikke lagret — noen andre redigerte dette innlegget"
   },
+  "map": {
+    "title": "Kart",
+    "noLocations": "Ingen innlegg med plassering ennå. Legg til plassering når du oppretter et innlegg.",
+    "viewEntry": "Se innlegg"
+  },
   "entries": {
     "emptyState": "Ingen innlegg ennå. Vær den første til å poste!",
     "newTitle": "Nytt innlegg",

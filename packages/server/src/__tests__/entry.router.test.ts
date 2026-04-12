@@ -296,6 +296,77 @@ describe('PATCH /api/v1/trips/:id/entries/:entryId', () => {
   });
 });
 
+describe('GET /api/v1/trips/:id/entries/locations', () => {
+  it('returns only entries with a location field', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+
+    await createEntry(trip.id, String(creator._id), {
+      title: 'No Location',
+      content: 'content',
+    });
+    await createEntry(trip.id, String(creator._id), {
+      title: 'With Location',
+      content: 'content',
+      location: { lat: 48.8566, lng: 2.3522, name: 'Paris' },
+    });
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${trip.id}/entries/locations`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].title).toBe('With Location');
+    expect(res.body[0].lat).toBe(48.8566);
+    expect(res.body[0].lng).toBe(2.3522);
+    expect(res.body[0].name).toBe('Paris');
+    expect(res.body[0].entryId).toBeDefined();
+    expect(res.body[0].createdAt).toBeDefined();
+  });
+
+  it('excludes soft-deleted entries', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+
+    const entry = await createEntry(trip.id, String(creator._id), {
+      title: 'Deleted Pin',
+      content: 'content',
+      location: { lat: 10, lng: 20 },
+    });
+    await Entry.updateOne({ _id: entry.id }, { deletedAt: new Date() });
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${trip.id}/entries/locations`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(0);
+  });
+
+  it('returns empty array when no entries have locations', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+
+    await createEntry(trip.id, String(creator._id), { title: 'No Loc', content: 'x' });
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${trip.id}/entries/locations`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('non-member → 404', async () => {
+    const { trip } = await setupTripWithMember('creator');
+    const stranger = await makeUser('stranger2@test.com', 'creator');
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${trip.id}/entries/locations`)
+      .set('Authorization', authHeader(String(stranger._id), stranger.email, 'creator'));
+
+    expect(res.status).toBe(404);
+  });
+});
+
 describe('DELETE /api/v1/trips/:id/entries/:entryId', () => {
   it('author → 204; document has deletedAt set, not removed', async () => {
     const { creator, trip } = await setupTripWithMember('creator');

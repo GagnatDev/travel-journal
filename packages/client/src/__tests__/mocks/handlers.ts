@@ -193,6 +193,10 @@ export const handlers = [
   }),
 
   // Entries
+  http.get('/api/v1/trips/:id/entries/locations', () =>
+    HttpResponse.json([]),
+  ),
+
   http.get('/api/v1/trips/:id/entries', () =>
     HttpResponse.json({ entries: [], total: 0 }),
   ),

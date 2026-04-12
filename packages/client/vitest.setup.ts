@@ -147,6 +147,11 @@ const nb = {
     day: 'Dag',
     dayLabel: 'Dag {{number}} — {{date}}',
   },
+  map: {
+    title: 'Kart',
+    noLocations: 'Ingen innlegg med plassering ennå. Legg til plassering når du oppretter et innlegg.',
+    viewEntry: 'Se innlegg',
+  },
   offline: {
     banner: 'Du er frakoblet — innlegg synkroniseres når du er tilkoblet igjen',
     saved: 'Lagret frakoblet — synkroniseres når du er tilkoblet igjen',

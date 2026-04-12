@@ -35,18 +35,33 @@ export function BottomNavBar({ tripId, tripRole }: BottomNavBarProps) {
       <div className="max-w-lg mx-auto flex justify-center px-4 pt-1">
         <SyncStatus />
       </div>
-      <div className="max-w-lg mx-auto flex items-center justify-around px-4 py-2 relative">
+      <div className="max-w-lg mx-auto flex items-center px-4 py-2 relative">
         {tripId ? (
-          <>
-            {navItem(t('trips.nav.timeline'), `/trips/${tripId}/timeline`)}
-            {/* Map stub */}
-            {navItem(t('trips.nav.map'), `/trips/${tripId}/map`)}
-            {navItem(t('trips.nav.settings'), `/trips/${tripId}/settings`)}
-          </>
+          canAddEntry ? (
+            // FAB layout: Timeline | [FAB spacer] | Map + Settings
+            // The w-14 spacer sits at the horizontal centre so the absolute FAB lands over it
+            <>
+              <div className="flex-1 flex justify-center">
+                {navItem(t('trips.nav.timeline'), `/trips/${tripId}/timeline`)}
+              </div>
+              <div className="w-14 shrink-0" />
+              <div className="flex-1 flex justify-around">
+                {navItem(t('trips.nav.map'), `/trips/${tripId}/map`)}
+                {navItem(t('trips.nav.settings'), `/trips/${tripId}/settings`)}
+              </div>
+            </>
+          ) : (
+            // No FAB: evenly distribute all three items
+            <div className="flex-1 flex justify-around">
+              {navItem(t('trips.nav.timeline'), `/trips/${tripId}/timeline`)}
+              {navItem(t('trips.nav.map'), `/trips/${tripId}/map`)}
+              {navItem(t('trips.nav.settings'), `/trips/${tripId}/settings`)}
+            </div>
+          )
         ) : (
-          <>
+          <div className="flex-1 flex justify-around">
             {navItem(t('nav.trips'), '/trips')}
-          </>
+          </div>
         )}
 
         {/* Centered FAB — Add Entry */}

@@ -2,6 +2,15 @@ import type { CreateEntryRequest, Entry, UpdateEntryRequest } from '@travel-jour
 
 import { apiJson } from './client.js';
 
+export interface EntryLocationPin {
+  entryId: string;
+  title: string;
+  lat: number;
+  lng: number;
+  name?: string;
+  createdAt: string;
+}
+
 export interface EntriesPage {
   entries: Entry[];
   total: number;
@@ -25,6 +34,10 @@ export function createEntry(tripId: string, data: CreateEntryRequest, token: str
     token,
     body: data,
   });
+}
+
+export function fetchEntryLocations(tripId: string, token: string): Promise<EntryLocationPin[]> {
+  return apiJson<EntryLocationPin[]>(`/api/v1/trips/${tripId}/entries/locations`, { token });
 }
 
 export function updateEntry(

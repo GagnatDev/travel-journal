@@ -7,6 +7,7 @@ import {
   createEntry,
   getEntryById,
   listEntries,
+  listEntryLocations,
   softDeleteEntry,
   updateEntry,
 } from '../services/entry.service.js';
@@ -81,6 +82,17 @@ entryRouter.get('/', async (req: Request, res: Response, next: NextFunction): Pr
 
     const result = await listEntries(tripId, page, limit);
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /locations — Lightweight location pins for all entries with a location (any member)
+entryRouter.get('/locations', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const tripId = req.params['id']!;
+    const pins = await listEntryLocations(tripId);
+    res.json(pins);
   } catch (err) {
     next(err);
   }

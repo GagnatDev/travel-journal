@@ -10,6 +10,7 @@ import { AdminRegisterScreen } from './screens/AdminRegisterScreen.js';
 import { CreateEntryScreen } from './screens/CreateEntryScreen.js';
 import { InviteAcceptScreen } from './screens/InviteAcceptScreen.js';
 import { LoginScreen } from './screens/LoginScreen.js';
+import { MapScreen } from './screens/MapScreen.js';
 import { TimelineScreen } from './screens/TimelineScreen.js';
 import { TripDashboardScreen } from './screens/TripDashboardScreen.js';
 import { TripSettingsScreen } from './screens/TripSettingsScreen.js';
@@ -70,6 +71,14 @@ export function App() {
           element={
             <ProtectedRoute>
               <CreateEntryScreen />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trips/:id/map"
+          element={
+            <ProtectedRoute>
+              <MapScreen />
             </ProtectedRoute>
           }
         />

@@ -4,6 +4,15 @@ import type { CreateEntryRequest, Entry, EntryImage, UpdateEntryRequest } from '
 import { Entry as EntryModel, IEntry } from '../models/Entry.model.js';
 import { User } from '../models/User.model.js';
 
+export interface EntryLocationPin {
+  entryId: string;
+  title: string;
+  lat: number;
+  lng: number;
+  name?: string;
+  createdAt: string;
+}
+
 function createHttpError(message: string, status: number, code: string): Error {
   const err = new Error(message) as Error & { status: number; code: string };
   err.status = status;
@@ -156,6 +165,28 @@ export async function updateEntry(
   await doc.save();
 
   return toEntry(doc);
+}
+
+export async function listEntryLocations(tripId: string): Promise<EntryLocationPin[]> {
+  const docs = await EntryModel.find({
+    tripId: new mongoose.Types.ObjectId(tripId),
+    deletedAt: null,
+    location: { $exists: true },
+  })
+    .select('_id title location createdAt')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  return docs
+    .filter((doc) => doc.location)
+    .map((doc) => ({
+      entryId: String(doc._id),
+      title: doc.title,
+      lat: doc.location!.lat,
+      lng: doc.location!.lng,
+      ...(doc.location!.name !== undefined && { name: doc.location!.name }),
+      createdAt: doc.createdAt.toISOString(),
+    }));
 }
 
 export async function softDeleteEntry(
