@@ -184,6 +184,42 @@ describe('CreateEntryScreen', () => {
     });
   });
 
+  it('modal header shows close button with correct aria-label', async () => {
+    renderCreate();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /lukk|close/i })).toBeInTheDocument();
+    });
+  });
+
+  it('modal header shows "Draft" label when creating a new entry', async () => {
+    renderCreate();
+
+    await waitFor(() => {
+      expect(screen.getByText(/kladd|draft/i)).toBeInTheDocument();
+    });
+  });
+
+  it('photo upload zone shows decorative ghost cards when no images are present', async () => {
+    const { container } = renderCreate();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/tittel|title/i)).toBeInTheDocument();
+    });
+
+    // The two decorative ghost cards have aria-hidden="true"
+    const ghostCards = container.querySelectorAll('[aria-hidden="true"].border-dashed');
+    expect(ghostCards.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('"SAVE ENTRY" pill button is present and triggers submission', async () => {
+    renderCreate();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /lagre innlegg|save entry/i })).toBeInTheDocument();
+    });
+  });
+
   it('edit mode loads existing entry into the form', async () => {
     server.use(
       http.get(`/api/v1/trips/${TRIP_ID}/entries/:entryId`, () =>

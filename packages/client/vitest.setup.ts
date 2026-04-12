@@ -168,6 +168,7 @@ const nb = {
     sectionLabel: 'VÅR FELLES REISE',
     latestHeading: 'Siste fra veien',
     moreOptions: 'Flere valg',
+    saveEntry: 'LAGRE INNLEGG',
     titleLabel: 'Tittel',
     titlePlaceholder: 'Hva skjedde?',
     titleRequired: 'Tittel er påkrevd',
