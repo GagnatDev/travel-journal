@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const e2eServerPort = process.env['SERVER_PORT'] ?? '3101';
+
 export default defineConfig({
   testDir: 'e2e',
   fullyParallel: false,
@@ -20,12 +22,14 @@ export default defineConfig({
   globalSetup: './e2e/global-setup.ts',
   globalTeardown: './e2e/global-teardown.ts',
   webServer: {
-    command: 'pnpm dev',
+    // Client only: global-setup already runs the API on SERVER_PORT with the e2e MongoDB.
+    command: 'pnpm --filter @travel-journal/client dev',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env['CI'],
     timeout: 60_000,
     env: {
       E2E_DISABLE_RATE_LIMIT: '1',
+      E2E_API_ORIGIN: `http://localhost:${e2eServerPort}`,
     },
   },
 });
