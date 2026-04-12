@@ -1,17 +1,73 @@
 name: Deploy
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
 
-# TODO: configure registry and Scaleway deployment
+permissions:
+  contents: read
+
 jobs:
   deploy:
-    name: Build & Push Image
+    name: Deploy to Scaleway
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
+    concurrency:
+      group: scaleway-deploy
+      cancel-in-progress: false
+
     steps:
-      - uses: actions/checkout@v6
-      - name: Build image
-        run: docker build -t travel-journal:${{ github.sha }} .
-      # TODO: push to registry and trigger Scaleway redeployment
+      - name: Checkout (same commit as CI)
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Login to Scaleway Registry
+        id: login
+        uses: GagnatDev/scaleway-gh-action/registry-login@main
+        with:
+          secret_key: ${{ secrets.SCW_SECRET_KEY }}
+          registry_namespace: ${{ secrets.SCW_REGISTRY_NAMESPACE }}
+
+      - name: Build and push Docker image
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          IMAGE="${{ steps.login.outputs.registry }}/travel-journal"
+          docker build \
+            --build-arg VITE_MAPBOX_TOKEN="${{ secrets.APP_VITE_MAPBOX_TOKEN }}" \
+            -t "$IMAGE:$HEAD_SHA" -t "$IMAGE:latest" .
+          docker push "$IMAGE:$HEAD_SHA"
+          docker push "$IMAGE:latest"
+
+      - name: Deploy container (create or update)
+        id: deploy
+        uses: GagnatDev/scaleway-gh-action/container-manage@main
+        with:
+          action: ${{ secrets.SCW_CONTAINER_ID != '' && 'update' || 'create' }}
+          secret_key: ${{ secrets.SCW_SECRET_KEY }}
+          namespace_id: ${{ secrets.SCW_CONTAINER_NAMESPACE_ID }}
+          container_id: ${{ secrets.SCW_CONTAINER_ID }}
+          container_name: travel-journal
+          registry_image: ${{ steps.login.outputs.registry }}/travel-journal:${{ github.event.workflow_run.head_sha }}
+          port: '3100'
+          min_scale: '0'
+          max_scale: '1'
+          memory_limit: '1024'
+          cpu_limit: '560'
+          secret_environment_variables: |
+            [
+              {"key":"NODE_ENV","value":"production"},
+              {"key":"PORT","value":"3100"},
+              {"key":"MONGODB_URI","value":"${{ secrets.APP_MONGODB_URI }}"},
+              {"key":"JWT_SECRET","value":"${{ secrets.APP_JWT_SECRET }}"},
+              {"key":"ADMIN_EMAIL","value":"${{ secrets.APP_ADMIN_EMAIL }}"},
+              {"key":"S3_ENDPOINT","value":"${{ secrets.APP_S3_ENDPOINT }}"},
+              {"key":"S3_BUCKET","value":"${{ secrets.APP_S3_BUCKET }}"},
+              {"key":"S3_ACCESS_KEY","value":"${{ secrets.APP_S3_ACCESS_KEY }}"},
+              {"key":"S3_SECRET_KEY","value":"${{ secrets.APP_S3_SECRET_KEY }}"}
+            ]

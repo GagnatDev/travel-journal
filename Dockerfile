@@ -14,6 +14,10 @@ RUN pnpm install --frozen-lockfile
 COPY packages/ packages/
 COPY tsconfig.base.json ./
 
+# Vite embeds VITE_* at build time; pass via: docker build --build-arg VITE_MAPBOX_TOKEN=...
+ARG VITE_MAPBOX_TOKEN
+ENV VITE_MAPBOX_TOKEN=$VITE_MAPBOX_TOKEN
+
 RUN pnpm --filter @travel-journal/shared build
 RUN pnpm --filter @travel-journal/server build
 RUN pnpm --filter @travel-journal/client build
