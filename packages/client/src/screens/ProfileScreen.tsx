@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { PublicUser } from '@travel-journal/shared';
 
 import { apiJson } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.js';
-import type { PublicUser } from '@travel-journal/shared';
 
 function initials(name: string): string {
   return name
