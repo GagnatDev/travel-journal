@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 
+import { createEntry } from '../api/entries.js';
 import { saveOfflineEntry, getPendingCount, syncPendingEntries } from '../offline/entrySync.js';
 
 // ------------------------------------------------------------------
@@ -32,8 +33,6 @@ vi.mock('../api/media.js', () => ({
 vi.mock('../utils/compressImage.js', () => ({
   compressImage: vi.fn(() => Promise.resolve({ blob: new Blob(), width: 800, height: 600 })),
 }));
-
-import { createEntry } from '../api/entries.js';
 
 const baseEntry = {
   localId: 'local-1',

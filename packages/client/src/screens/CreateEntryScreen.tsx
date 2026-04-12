@@ -72,7 +72,6 @@ export function CreateEntryScreen() {
   // Object URLs for offline-queued files — cleaned up on unmount or file removal
   const localPreviews = useMemo(
     () => localFiles.map((f) => URL.createObjectURL(f)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [localFiles],
   );
 

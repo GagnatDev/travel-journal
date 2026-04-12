@@ -1,7 +1,8 @@
-import { getOfflineDB, type PendingEntry } from './db.js';
 import { createEntry } from '../api/entries.js';
 import { uploadMedia } from '../api/media.js';
 import { compressImage } from '../utils/compressImage.js';
+
+import { getOfflineDB, type PendingEntry } from './db.js';
 
 /** Dispatched whenever the pendingEntries store changes so UI can refresh counts. */
 const PENDING_CHANGED_EVENT = 'pendingEntriesChanged';
