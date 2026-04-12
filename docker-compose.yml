@@ -12,6 +12,8 @@ services:
     ports:
       - "9100:9000"
       - "9101:9001"
+    volumes:
+      - minio-data:/data
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
@@ -29,3 +31,4 @@ services:
 
 volumes:
   mongo-data:
+  minio-data:
