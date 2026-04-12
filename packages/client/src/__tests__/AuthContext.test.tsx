@@ -5,6 +5,7 @@ import { http, HttpResponse } from 'msw';
 import { BrowserRouter } from 'react-router-dom';
 
 import { AuthProvider, useAuth } from '../context/AuthContext.js';
+import { routerFutureV7 } from '../reactRouterFuture.js';
 
 import { server } from './mocks/server.js';
 import { mockUser } from './mocks/handlers.js';
@@ -34,7 +35,7 @@ function LogoutButton() {
 
 function renderWithAuth(ui: React.ReactNode) {
   return render(
-    <BrowserRouter>
+    <BrowserRouter future={routerFutureV7}>
       <AuthProvider>{ui}</AuthProvider>
     </BrowserRouter>,
   );

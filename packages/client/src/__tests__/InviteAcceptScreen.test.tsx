@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 
@@ -9,6 +9,7 @@ import { AuthProvider } from '../context/AuthContext.js';
 import { InviteAcceptScreen } from '../screens/InviteAcceptScreen.js';
 
 import { server } from './mocks/server.js';
+import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
 
 function renderScreen(token: string) {
@@ -20,14 +21,14 @@ function renderScreen(token: string) {
   );
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[`/invite/accept?token=${token}`]}>
+      <TestMemoryRouter initialEntries={[`/invite/accept?token=${token}`]}>
         <AuthProvider>
           <Routes>
             <Route path="/invite/accept" element={<InviteAcceptScreen />} />
             <Route path="/trips" element={<div>Dashboard</div>} />
           </Routes>
         </AuthProvider>
-      </MemoryRouter>
+      </TestMemoryRouter>
     </QueryClientProvider>,
   );
 }

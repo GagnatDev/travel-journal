@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import type { Trip } from '@travel-journal/shared';
@@ -10,6 +10,7 @@ import { AuthProvider } from '../context/AuthContext.js';
 import { CreateTripModal } from '../components/CreateTripModal.js';
 
 import { server } from './mocks/server.js';
+import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
 
 function makeTrip(name: string): Trip {
@@ -33,14 +34,14 @@ function renderModal(onClose = vi.fn()) {
   );
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={['/trips']}>
+      <TestMemoryRouter initialEntries={['/trips']}>
         <AuthProvider>
           <Routes>
             <Route path="/trips" element={<CreateTripModal onClose={onClose} />} />
             <Route path="/trips/:id/timeline" element={<div>Timeline</div>} />
           </Routes>
         </AuthProvider>
-      </MemoryRouter>
+      </TestMemoryRouter>
     </QueryClientProvider>,
   );
 }

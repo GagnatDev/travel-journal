@@ -1,13 +1,14 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Entry } from '@travel-journal/shared';
 
 import { EntryCard } from '../components/EntryCard.js';
 
 import { AuthSessionProvider } from './AuthSessionProvider.js';
+import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
 
 function makeEntry(overrides: Partial<Entry> = {}): Entry {
@@ -34,7 +35,7 @@ function renderCard(
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={['/trips/trip-1/timeline']}>
+      <TestMemoryRouter initialEntries={['/trips/trip-1/timeline']}>
         <AuthSessionProvider accessToken="mock-token" user={mockUser}>
           <Routes>
             <Route
@@ -51,7 +52,7 @@ function renderCard(
             <Route path="/trips/:id/entries/:entryId/edit" element={<div>Edit screen</div>} />
           </Routes>
         </AuthSessionProvider>
-      </MemoryRouter>
+      </TestMemoryRouter>
     </QueryClientProvider>,
   );
 }

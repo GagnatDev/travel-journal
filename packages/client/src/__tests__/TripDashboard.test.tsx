@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import type { Trip } from '@travel-journal/shared';
@@ -9,6 +9,7 @@ import { AuthProvider } from '../context/AuthContext.js';
 import { TripDashboardScreen } from '../screens/TripDashboardScreen.js';
 
 import { server } from './mocks/server.js';
+import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
 
 function makeTrip(overrides: Partial<Trip> = {}): Trip {
@@ -33,14 +34,14 @@ function renderDashboard(user = mockUser) {
   );
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={['/trips']}>
+      <TestMemoryRouter initialEntries={['/trips']}>
         <AuthProvider>
           <Routes>
             <Route path="/trips" element={<TripDashboardScreen />} />
             <Route path="/trips/:id/timeline" element={<div>Timeline</div>} />
           </Routes>
         </AuthProvider>
-      </MemoryRouter>
+      </TestMemoryRouter>
     </QueryClientProvider>,
   );
 }

@@ -8,6 +8,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AuthProvider } from './context/AuthContext.js';
+import { routerFutureV7 } from './reactRouterFuture.js';
 import { App } from './App.js';
 
 // Apply dark mode class based on system preference
@@ -24,7 +25,7 @@ if (!rootEl) throw new Error('Root element not found');
 
 ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter future={routerFutureV7}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <App />

@@ -1,27 +1,28 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 
 import { AuthProvider } from '../context/AuthContext.js';
 import { LoginScreen } from '../screens/LoginScreen.js';
 
 import { server } from './mocks/server.js';
+import { TestMemoryRouter } from './TestMemoryRouter.js';
 
 // Suppress auto-refresh for all tests in this file — we don't want auto-login
 const refresh401 = http.post('/api/v1/auth/refresh', () => new HttpResponse(null, { status: 401 }));
 
 function renderLoginScreen() {
   return render(
-    <MemoryRouter initialEntries={['/login']}>
+    <TestMemoryRouter initialEntries={['/login']}>
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginScreen />} />
           <Route path="/trips" element={<div>Trips page</div>} />
         </Routes>
       </AuthProvider>
-    </MemoryRouter>,
+    </TestMemoryRouter>,
   );
 }
 

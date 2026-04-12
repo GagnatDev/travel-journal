@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import type { Trip } from '@travel-journal/shared';
@@ -10,6 +10,7 @@ import { MapScreen } from '../screens/MapScreen.js';
 import type { EntryLocationPin } from '../api/entries.js';
 
 import { server } from './mocks/server.js';
+import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
 
 // Mock mapbox-gl — the real SDK requires a browser WebGL context and live network
@@ -107,14 +108,14 @@ function renderMap(user = mockUser) {
   );
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[`/trips/${TRIP_ID}/map`]}>
+      <TestMemoryRouter initialEntries={[`/trips/${TRIP_ID}/map`]}>
         <AuthProvider>
           <Routes>
             <Route path="/trips/:id/map" element={<MapScreen />} />
             <Route path="/trips/:id/timeline" element={<div>Timeline</div>} />
           </Routes>
         </AuthProvider>
-      </MemoryRouter>
+      </TestMemoryRouter>
     </QueryClientProvider>,
   );
 }

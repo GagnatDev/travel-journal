@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import type { Trip } from '@travel-journal/shared';
@@ -11,6 +11,7 @@ import { TimelineScreen } from '../screens/TimelineScreen.js';
 import { TripSettingsScreen } from '../screens/TripSettingsScreen.js';
 
 import { server } from './mocks/server.js';
+import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
 
 function makeTrip(status: Trip['status'] = 'active', role: Trip['members'][0]['tripRole'] = 'creator'): Trip {
@@ -35,7 +36,7 @@ function renderSettings(trip: Trip) {
   );
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={['/trips/trip-1/settings']}>
+      <TestMemoryRouter initialEntries={['/trips/trip-1/settings']}>
         <AuthProvider>
           <Routes>
             <Route path="/trips/:id/settings" element={<TripSettingsScreen />} />
@@ -43,7 +44,7 @@ function renderSettings(trip: Trip) {
             <Route path="/trips" element={<div>Dashboard</div>} />
           </Routes>
         </AuthProvider>
-      </MemoryRouter>
+      </TestMemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -109,14 +110,14 @@ describe('TripSettingsScreen', () => {
 
     render(
       <QueryClientProvider client={qc}>
-        <MemoryRouter initialEntries={['/trips/trip-1/timeline']}>
+        <TestMemoryRouter initialEntries={['/trips/trip-1/timeline']}>
           <AuthProvider>
             <Routes>
               <Route path="/trips/:id/timeline" element={<TimelineScreen />} />
               <Route path="/trips/:id/settings" element={<TripSettingsScreen />} />
             </Routes>
           </AuthProvider>
-        </MemoryRouter>
+        </TestMemoryRouter>
       </QueryClientProvider>,
     );
 

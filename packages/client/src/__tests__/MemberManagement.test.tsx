@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import type { Trip } from '@travel-journal/shared';
@@ -10,6 +10,7 @@ import { AuthProvider } from '../context/AuthContext.js';
 import { TripSettingsScreen } from '../screens/TripSettingsScreen.js';
 
 import { server } from './mocks/server.js';
+import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
 
 function makeTrip(extraMembers: Trip['members'] = []): Trip {
@@ -38,7 +39,7 @@ function renderSettings(trip: Trip) {
   );
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={['/trips/trip-1/settings']}>
+      <TestMemoryRouter initialEntries={['/trips/trip-1/settings']}>
         <AuthProvider>
           <Routes>
             <Route path="/trips/:id/settings" element={<TripSettingsScreen />} />
@@ -46,7 +47,7 @@ function renderSettings(trip: Trip) {
             <Route path="/trips" element={<div>Dashboard</div>} />
           </Routes>
         </AuthProvider>
-      </MemoryRouter>
+      </TestMemoryRouter>
     </QueryClientProvider>,
   );
 }

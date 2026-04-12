@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import type { Entry } from '@travel-journal/shared';
@@ -10,6 +10,7 @@ import { AuthProvider } from '../context/AuthContext.js';
 import { CreateEntryScreen } from '../screens/CreateEntryScreen.js';
 
 import { server } from './mocks/server.js';
+import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
 
 const TRIP_ID = 'trip-1';
@@ -36,7 +37,7 @@ function renderCreate(initialPath = `/trips/${TRIP_ID}/entries/new`) {
   );
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[initialPath]}>
+      <TestMemoryRouter initialEntries={[initialPath]}>
         <AuthProvider>
           <Routes>
             <Route path="/trips/:id/entries/new" element={<CreateEntryScreen />} />
@@ -44,7 +45,7 @@ function renderCreate(initialPath = `/trips/${TRIP_ID}/entries/new`) {
             <Route path="/trips/:id/timeline" element={<div data-testid="timeline">Timeline</div>} />
           </Routes>
         </AuthProvider>
-      </MemoryRouter>
+      </TestMemoryRouter>
     </QueryClientProvider>,
   );
 }
