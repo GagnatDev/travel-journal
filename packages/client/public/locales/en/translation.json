@@ -166,8 +166,10 @@
     "delete": "Delete",
     "deleteConfirm": "Delete this entry?",
     "discardConfirm": "Discard unsaved changes?",
+    "photosSection": "Photos",
     "addPhotos": "Add Photos",
     "uploadingImage": "Uploading...",
+    "uploadFailed": "Could not upload one or more photos. Try again.",
     "imageLimit": "Maximum 10 images",
     "removeImage": "Remove image"
   }

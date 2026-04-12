@@ -166,8 +166,10 @@
     "delete": "Slett",
     "deleteConfirm": "Slette dette innlegget?",
     "discardConfirm": "Forkaste ulagrede endringer?",
+    "photosSection": "Bilder",
     "addPhotos": "Legg til bilder",
     "uploadingImage": "Laster opp...",
+    "uploadFailed": "Kunne ikke laste opp ett eller flere bilder. Prøv igjen.",
     "imageLimit": "Maks 10 bilder",
     "removeImage": "Fjern bilde"
   }

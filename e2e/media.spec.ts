@@ -5,15 +5,20 @@ import { resetCollections } from './helpers/resetCollections.js';
 const ADMIN_EMAIL = process.env['ADMIN_EMAIL'] ?? 'admin@localhost';
 const ADMIN_PASSWORD = 'Securepassword1!';
 
-// Minimal valid 1×1 white JPEG (base64-encoded)
-const TINY_JPEG_BASE64 =
-  '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoH' +
-  'BwYIDAoMCwsKCwsNCxAQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUE' +
-  'BQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT' +
-  '/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAA' +
-  'AAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAA' +
-  'AAAAP/aAAwDAQACEQMRAD8AJQAB/9k=';
-const TINY_JPEG = Buffer.from(TINY_JPEG_BASE64, 'base64');
+// 1×1 PNG — minimal JPEG fixtures often fail to decode in headless Chromium before upload runs.
+const TINY_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+/**
+ * Timeline and entry cards load images via AuthenticatedImage: the app fetches
+ * `/api/v1/media/:key` and sets `img.src` to a `blob:` object URL. Assertions must not
+ * expect `/api/v1/media/` to appear in the DOM `src` attribute.
+ *
+ * Thumbnail loads use GET on the app proxy (often 302 to object storage); we assert that
+ * request, not `res.ok()` alone, which would reject redirects.
+ */
 
 test.beforeEach(async () => {
   await resetCollections('users', 'sessions', 'trips', 'entries');
@@ -47,23 +52,21 @@ test.describe('Media', () => {
     await page.getByLabel(/tittel|title/i).fill('Photo Entry');
     await page.getByLabel(/innhold|content/i).fill('Entry with image');
 
-    // Attach image
-    const fileInput = page.locator('input[type="file"]');
+    const fileInput = page.getByTestId('entry-media-file-input');
     await fileInput.setInputFiles({
-      name: 'test-image.jpg',
-      mimeType: 'image/jpeg',
-      buffer: TINY_JPEG,
+      name: 'test-image.png',
+      mimeType: 'image/png',
+      buffer: TINY_PNG,
     });
 
-    // Wait for upload to complete (uploading indicator disappears)
-    await expect(page.getByText(/laster opp|uploading/i)).toBeVisible({ timeout: 5000 }).catch(() => null);
-    await expect(page.getByText(/laster opp|uploading/i)).not.toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-key]')).toHaveCount(1, { timeout: 15_000 });
 
     await page.getByRole('button', { name: /lagre|save/i }).click();
     await page.waitForURL('**/timeline');
 
-    // Image should be visible in timeline
-    await expect(page.locator('img[src*="/api/v1/media/"]').first()).toBeVisible({ timeout: 10000 });
+    const hero = page.getByRole('img', { name: 'Photo Entry' });
+    await expect(hero).toBeVisible({ timeout: 15_000 });
+    await expect(hero).toHaveAttribute('src', /^blob:/);
   });
 
   test('media is served via proxy path, not direct S3 URL', async ({ page }) => {
@@ -77,27 +80,35 @@ test.describe('Media', () => {
     await page.getByLabel(/tittel|title/i).fill('Proxy Entry');
     await page.getByLabel(/innhold|content/i).fill('Content');
 
-    const fileInput = page.locator('input[type="file"]');
-    await fileInput.setInputFiles({
-      name: 'test-image.jpg',
-      mimeType: 'image/jpeg',
-      buffer: TINY_JPEG,
+    const mediaProxyGet = page.waitForResponse(
+      (res) =>
+        res.url().includes('/api/v1/media/') &&
+        res.request().method() === 'GET' &&
+        (res.status() === 200 || res.status() === 302),
+    );
+
+    await page.getByTestId('entry-media-file-input').setInputFiles({
+      name: 'test-image.png',
+      mimeType: 'image/png',
+      buffer: TINY_PNG,
     });
 
-    await expect(page.getByText(/laster opp|uploading/i)).not.toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-key]')).toHaveCount(1, { timeout: 15_000 });
+    await mediaProxyGet;
 
     await page.getByRole('button', { name: /lagre|save/i }).click();
     await page.waitForURL('**/timeline');
 
-    // All images should use the proxy path
+    const hero = page.getByRole('img', { name: 'Proxy Entry' });
+    await expect(hero).toBeVisible({ timeout: 15_000 });
+    const heroSrc = await hero.getAttribute('src');
+    expect(heroSrc).toMatch(/^blob:/);
+
     const images = await page.locator('img').all();
     for (const img of images) {
       const src = await img.getAttribute('src');
       if (src) {
         expect(src).not.toMatch(/^https?:\/\/.*\.s3\./);
-        if (src.includes('/api/v1/media/')) {
-          expect(src).toContain('/api/v1/media/');
-        }
       }
     }
   });
@@ -113,19 +124,17 @@ test.describe('Media', () => {
     await page.getByLabel(/tittel|title/i).fill('Image Limit Test');
     await page.getByLabel(/innhold|content/i).fill('Content');
 
-    const fileInput = page.locator('input[type="file"]');
+    const fileInput = page.getByTestId('entry-media-file-input');
 
-    // Upload 10 images one by one
     for (let i = 0; i < 10; i++) {
       await fileInput.setInputFiles({
-        name: `image-${i}.jpg`,
-        mimeType: 'image/jpeg',
-        buffer: TINY_JPEG,
+        name: `image-${i}.png`,
+        mimeType: 'image/png',
+        buffer: TINY_PNG,
       });
-      await expect(page.getByText(/laster opp|uploading/i)).not.toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(/laster opp|uploading/i)).not.toBeVisible({ timeout: 15_000 });
     }
 
-    // Add Photos button should now be gone
     await expect(
       page.getByRole('button', { name: /legg til bilder|add photos/i }),
     ).not.toBeVisible();
@@ -142,26 +151,22 @@ test.describe('Media', () => {
     await page.getByLabel(/tittel|title/i).fill('Multi Image Entry');
     await page.getByLabel(/innhold|content/i).fill('Content');
 
-    const fileInput = page.locator('input[type="file"]');
+    const fileInput = page.getByTestId('entry-media-file-input');
 
-    // Upload 2 images
     for (let i = 0; i < 2; i++) {
       await fileInput.setInputFiles({
-        name: `image-${i}.jpg`,
-        mimeType: 'image/jpeg',
-        buffer: TINY_JPEG,
+        name: `image-${i}.png`,
+        mimeType: 'image/png',
+        buffer: TINY_PNG,
       });
-      await expect(page.getByText(/laster opp|uploading/i)).not.toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(/laster opp|uploading/i)).not.toBeVisible({ timeout: 15_000 });
     }
 
-    // Should have 2 thumbnails
     await expect(page.locator('[data-key]')).toHaveCount(2);
 
-    // Remove first image
     const removeButtons = page.getByRole('button', { name: /fjern bilde|remove image/i });
     await removeButtons.first().click();
 
-    // Should now have 1 thumbnail
     await expect(page.locator('[data-key]')).toHaveCount(1);
   });
 
@@ -176,38 +181,32 @@ test.describe('Media', () => {
     await page.getByLabel(/tittel|title/i).fill('Reorder Entry');
     await page.getByLabel(/innhold|content/i).fill('Content');
 
-    const fileInput = page.locator('input[type="file"]');
+    const fileInput = page.getByTestId('entry-media-file-input');
 
-    // Upload 2 images
     for (let i = 0; i < 2; i++) {
       await fileInput.setInputFiles({
-        name: `image-${i}.jpg`,
-        mimeType: 'image/jpeg',
-        buffer: TINY_JPEG,
+        name: `image-${i}.png`,
+        mimeType: 'image/png',
+        buffer: TINY_PNG,
       });
-      await expect(page.getByText(/laster opp|uploading/i)).not.toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(/laster opp|uploading/i)).not.toBeVisible({ timeout: 15_000 });
     }
 
-    // Get initial keys
     const thumbs = page.locator('[data-key]');
     await expect(thumbs).toHaveCount(2);
 
     const key1Before = await thumbs.nth(0).getAttribute('data-key');
     const key2Before = await thumbs.nth(1).getAttribute('data-key');
 
-    // Drag first to second
     await thumbs.nth(0).dragTo(thumbs.nth(1));
 
     const key1After = await thumbs.nth(0).getAttribute('data-key');
 
-    // Order should have changed
     expect(key1After).toBe(key2Before);
 
-    // Save entry
     await page.getByRole('button', { name: /lagre|save/i }).click();
     await page.waitForURL('**/timeline');
 
-    // Navigate to edit to verify order was saved
     const entryJsonPromise = page.waitForResponse(
       (res) =>
         /\/api\/v1\/trips\/[^/]+\/entries\/[^/?]+$/.test(res.url()) &&
@@ -224,7 +223,6 @@ test.describe('Media', () => {
     const savedKey1 = await editThumbs.nth(0).getAttribute('data-key');
     expect(savedKey1).toBe(key2Before);
 
-    // Suppress unused variable warning
     void key1Before;
   });
 });

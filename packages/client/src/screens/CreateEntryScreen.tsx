@@ -61,6 +61,7 @@ export function CreateEntryScreen() {
   const [images, setImages] = useState<EntryImage[]>([]);
   const [initialImages, setInitialImages] = useState<EntryImage[]>([]);
   const [uploadingCount, setUploadingCount] = useState(0);
+  const [uploadError, setUploadError] = useState('');
 
   // Load existing entry when editing
   const { data: existingEntry } = useQuery({
@@ -100,6 +101,7 @@ export function CreateEntryScreen() {
 
   const handleFileSelect = useCallback(
     async (files: FileList) => {
+      setUploadError('');
       const remaining = 10 - images.length;
       const toProcess = Array.from(files).slice(0, remaining);
       setUploadingCount((prev) => prev + toProcess.length);
@@ -113,14 +115,14 @@ export function CreateEntryScreen() {
               { key: result.key, width, height, order: prev.length, uploadedAt: new Date().toISOString() },
             ]);
           } catch {
-            // silently ignore individual upload failures
+            setUploadError(t('entries.uploadFailed'));
           } finally {
             setUploadingCount((prev) => prev - 1);
           }
         }),
       );
     },
-    [images.length, tripId, accessToken],
+    [images.length, tripId, accessToken, t],
   );
 
   const handleLocationToggle = useCallback(() => {
@@ -243,8 +245,11 @@ export function CreateEntryScreen() {
 
         {/* Images */}
         <div>
-          <label className="block font-ui text-sm font-medium text-body mb-1">
-            {t('entries.addPhotos')}
+          <label
+            className="block font-ui text-sm font-medium text-body mb-1"
+            htmlFor="entry-media-input"
+          >
+            {t('entries.photosSection')}
           </label>
           <ImageReorder
             images={images}
@@ -252,6 +257,11 @@ export function CreateEntryScreen() {
             onFileSelect={handleFileSelect}
             isUploading={uploadingCount > 0}
           />
+          {uploadError && (
+            <p className="mt-2 font-ui text-xs text-red-500" role="alert">
+              {uploadError}
+            </p>
+          )}
         </div>
 
         {/* Location toggle */}

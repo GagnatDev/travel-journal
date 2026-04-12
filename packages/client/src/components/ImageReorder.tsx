@@ -83,12 +83,14 @@ export function ImageReorder({ images, onImagesChange, onFileSelect, isUploading
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="px-3 py-1.5 bg-bg-secondary border border-caption/30 rounded-round-eight font-ui text-sm text-body hover:border-accent/40 transition-all"
+            className="px-3 py-1.5 bg-bg-secondary border border-caption/30 rounded-round-eight font-ui text-sm text-body hover:border-accent/40 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary"
           >
             {t('entries.addPhotos')}
           </button>
           <input
+            id="entry-media-input"
             ref={fileInputRef}
+            data-testid="entry-media-file-input"
             type="file"
             multiple
             accept="image/*"
@@ -98,7 +100,7 @@ export function ImageReorder({ images, onImagesChange, onFileSelect, isUploading
                 e.target.value = '';
               }
             }}
-            className="hidden"
+            className="sr-only"
           />
         </>
       )}
