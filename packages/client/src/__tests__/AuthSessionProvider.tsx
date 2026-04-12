@@ -18,6 +18,7 @@ export function AuthSessionProvider({
 }) {
   const noop = useCallback(async () => {}, []);
   const loginWithToken = useCallback((_t: string, _u: PublicUser) => {}, []);
+  const setUser = useCallback((_u: PublicUser) => {}, []);
   const value = useMemo<AuthContextValue>(
     () => ({
       accessToken,
@@ -26,8 +27,9 @@ export function AuthSessionProvider({
       login: noop,
       loginWithToken,
       logout: noop,
+      setUser,
     }),
-    [accessToken, user, noop, loginWithToken],
+    [accessToken, user, noop, loginWithToken, setUser],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
