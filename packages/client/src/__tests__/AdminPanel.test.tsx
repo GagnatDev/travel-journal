@@ -120,6 +120,47 @@ describe('AdminPanelScreen', () => {
     });
   });
 
+  it('invite submit button renders as a pill-shaped button (rounded-full)', async () => {
+    server.use(
+      http.get('/api/v1/invites/platform', () => HttpResponse.json([])),
+    );
+
+    renderAdmin();
+
+    await waitFor(() => screen.getByRole('button', { name: /invitasjoner|invites/i }));
+    await userEvent.click(screen.getByRole('button', { name: /invitasjoner|invites/i }));
+
+    await waitFor(() => screen.getByRole('button', { name: /opprett invitasjon|create invite/i }));
+    expect(screen.getByRole('button', { name: /opprett invitasjon|create invite/i })).toHaveClass('rounded-full');
+  });
+
+  it('pending invites use dashed card layout', async () => {
+    const pending: Invite[] = [
+      {
+        id: 'inv-2',
+        type: 'platform',
+        email: 'dashed@example.com',
+        assignedAppRole: 'follower',
+        status: 'pending',
+        invitedBy: 'admin-1',
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ];
+
+    server.use(http.get('/api/v1/invites/platform', () => HttpResponse.json(pending)));
+
+    const { container } = renderAdmin();
+
+    await waitFor(() => screen.getByRole('button', { name: /invitasjoner|invites/i }));
+    await userEvent.click(screen.getByRole('button', { name: /invitasjoner|invites/i }));
+
+    await waitFor(() => screen.getByText('dashed@example.com'));
+
+    const dashedCards = container.querySelectorAll('.border-dashed');
+    expect(dashedCards.length).toBeGreaterThan(0);
+  });
+
   it('Promote button on a follower calls promote endpoint and updates displayed role', async () => {
     const follower: PublicUser = {
       id: 'follower-1',

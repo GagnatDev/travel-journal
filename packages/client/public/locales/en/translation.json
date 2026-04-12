@@ -138,7 +138,16 @@
       "pendingInvitesTitle": "Pending Invites",
       "revokeInviteButton": "Revoke",
       "removeButton": "Remove",
-      "removeConfirmTitle": "Remove member?"
+      "removeConfirmTitle": "Remove member?",
+      "circleTitle": "Circle of Explorers",
+      "inviteButton": "INVITE NEW MEMBER",
+      "membersCountSuffix": "TOTAL",
+      "privacyTitle": "PRIVACY CONTROLS",
+      "privacyPublic": "Entire Circle",
+      "privacyPrivate": "Private Journal",
+      "allowContributorInvites": "Allow contributors to invite others",
+      "collaborativeChaptersTitle": "Collaborative Chapters",
+      "collaborativeChaptersInfo": "Members can co-author entries and share memories together."
     },
     "nav": {
       "timeline": "Timeline",

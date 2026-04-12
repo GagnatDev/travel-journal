@@ -138,7 +138,16 @@
       "pendingInvitesTitle": "Ventende invitasjoner",
       "revokeInviteButton": "Trekk tilbake",
       "removeButton": "Fjern",
-      "removeConfirmTitle": "Fjerne medlemmet?"
+      "removeConfirmTitle": "Fjerne medlemmet?",
+      "circleTitle": "Utforskernes krets",
+      "inviteButton": "INVITER NYTT MEDLEM",
+      "membersCountSuffix": "TOTALT",
+      "privacyTitle": "PERSONVERNINNSTILLINGER",
+      "privacyPublic": "Hele kretsen",
+      "privacyPrivate": "Privat dagbok",
+      "allowContributorInvites": "La bidragsytere invitere andre",
+      "collaborativeChaptersTitle": "Samarbeidskapitler",
+      "collaborativeChaptersInfo": "Medlemmer kan skrive innlegg sammen og dele minner."
     },
     "nav": {
       "timeline": "Tidslinje",

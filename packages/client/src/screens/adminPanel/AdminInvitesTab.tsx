@@ -4,9 +4,10 @@ import { useTranslation } from 'react-i18next';
 import type { Invite } from '@travel-journal/shared';
 
 import { apiJson } from '../../api/client.js';
+import { HourglassIcon } from '../../components/icons/index.js';
 import { CopyableLinkField } from '../../components/CopyableLinkField.js';
+import { PillButton } from '../../components/ui/PillButton.js';
 import { TextField } from '../../components/ui/TextField.js';
-import { SettingsListRow } from '../../components/SettingsListRow.js';
 
 interface AdminInvitesTabProps {
   token: string;
@@ -81,13 +82,9 @@ export function AdminInvitesTab({ token }: AdminInvitesTabProps) {
               <option value="creator">{t('admin.invite.roles.creator')}</option>
             </select>
           </div>
-          <button
-            type="submit"
-            disabled={createInviteMutation.isPending}
-            className="px-4 py-2 bg-accent text-white font-ui text-sm font-semibold rounded-round-eight hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
-          >
+          <PillButton type="submit" disabled={createInviteMutation.isPending}>
             {t('admin.invite.submitButton')}
-          </button>
+          </PillButton>
         </form>
 
         {generatedLink ? (
@@ -112,27 +109,24 @@ export function AdminInvitesTab({ token }: AdminInvitesTabProps) {
           <ul className="space-y-2">
             {invites.map((inv) => (
               <li key={inv.id}>
-                <SettingsListRow
-                  main={
-                    <div>
-                      <p className="font-ui text-sm font-medium text-body">{inv.email}</p>
-                      <p className="font-ui text-xs text-caption">
-                        {inv.assignedAppRole} · {t('admin.invite.expiry')}{' '}
-                        {new Date(inv.expiresAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  }
-                  actions={
-                    <button
-                      type="button"
-                      onClick={() => revokeInviteMutation.mutate(inv.id)}
-                      disabled={revokeInviteMutation.isPending}
-                      className="px-3 py-1 border border-accent text-accent font-ui text-xs font-semibold rounded-round-eight hover:bg-accent hover:text-white transition-all disabled:opacity-50"
-                    >
-                      {t('admin.invite.revokeButton')}
-                    </button>
-                  }
-                />
+                <div className="border-2 border-dashed border-caption/40 rounded-card p-4 flex items-center gap-3">
+                  <HourglassIcon width={18} height={18} className="text-caption shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-ui text-sm font-medium text-body truncate">{inv.email}</p>
+                    <p className="font-ui text-xs text-caption">
+                      {inv.assignedAppRole} · {t('admin.invite.expiry')}{' '}
+                      {new Date(inv.expiresAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => revokeInviteMutation.mutate(inv.id)}
+                    disabled={revokeInviteMutation.isPending}
+                    className="font-ui text-xs font-semibold text-accent uppercase shrink-0 hover:opacity-70 disabled:opacity-50 transition-opacity"
+                  >
+                    {t('admin.invite.revokeButton')}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
