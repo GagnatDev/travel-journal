@@ -151,6 +151,14 @@
     "day": "Dag",
     "dayLabel": "Dag {{number}} — {{date}}"
   },
+  "offline": {
+    "banner": "Du er frakoblet — innlegg synkroniseres når du er tilkoblet igjen",
+    "saved": "Lagret frakoblet — synkroniseres når du er tilkoblet igjen",
+    "syncing": "{{count}} innlegg venter på synkronisering",
+    "syncFailed": "{{count}} innlegg kunne ikke synkroniseres",
+    "synced": "Alle innlegg er synkronisert",
+    "conflict": "Versjonen din ble ikke lagret — noen andre redigerte dette innlegget"
+  },
   "entries": {
     "emptyState": "Ingen innlegg ennå. Vær den første til å poste!",
     "newTitle": "Nytt innlegg",
@@ -158,6 +166,7 @@
     "titleLabel": "Tittel",
     "titlePlaceholder": "Hva skjedde?",
     "titleRequired": "Tittel er påkrevd",
+    "contentRequired": "Innhold er påkrevd",
     "contentLabel": "Innhold",
     "contentPlaceholder": "Fortell historien din...",
     "locationToggle": "Legg til plassering",

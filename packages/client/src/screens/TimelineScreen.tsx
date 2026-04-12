@@ -11,6 +11,9 @@ import { BottomNavBar } from '../components/BottomNavBar.js';
 import { EntryCard } from '../components/EntryCard.js';
 import { DayHeader } from '../components/DayHeader.js';
 import { groupEntriesByDay } from '../utils/groupEntriesByDay.js';
+import { getPendingEntriesForTrip } from '../offline/db.js';
+import { PENDING_CHANGED_EVENT } from '../offline/entrySync.js';
+import type { PendingEntry } from '../offline/db.js';
 
 export function TimelineScreen() {
   const { id: tripId } = useParams<{ id: string }>();
@@ -23,6 +26,7 @@ export function TimelineScreen() {
   const [storyMode, setStoryMode] = useState<boolean>(
     () => localStorage.getItem(storyModeKey) === 'true',
   );
+  const [pendingEntries, setPendingEntries] = useState<PendingEntry[]>([]);
 
   const toggleStoryMode = useCallback(() => {
     setStoryMode((prev) => {
@@ -31,6 +35,28 @@ export function TimelineScreen() {
       return next;
     });
   }, [storyModeKey]);
+
+  // Load pending offline entries for this trip and refresh on queue changes
+  useEffect(() => {
+    if (!tripId) return;
+    let cancelled = false;
+
+    async function refresh() {
+      try {
+        const entries = await getPendingEntriesForTrip(tripId!);
+        if (!cancelled) setPendingEntries(entries);
+      } catch {
+        // IDB unavailable — show nothing
+      }
+    }
+
+    void refresh();
+    window.addEventListener(PENDING_CHANGED_EVENT, refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(PENDING_CHANGED_EVENT, refresh);
+    };
+  }, [tripId]);
 
   const { data: trip = null } = useQuery({
     queryKey: ['trip', tripId],
@@ -134,7 +160,33 @@ export function TimelineScreen() {
       </header>
 
       <main className="px-4 space-y-4">
-        {allEntries.length === 0 ? (
+        {/* Pending offline entries shown at the top */}
+        {pendingEntries.map((pending) => (
+          <div
+            key={pending.localId}
+            className="opacity-60 relative"
+            aria-label={t('offline.saved')}
+          >
+            <div className="absolute top-2 right-2 z-10">
+              <span className="font-ui text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+                {t('offline.saved')}
+              </span>
+            </div>
+            <div className="bg-bg-secondary border border-caption/20 rounded-round-eight p-4 space-y-1">
+              <p className="font-display text-lg text-heading">{pending.payload.title}</p>
+              {pending.payload.content && (
+                <p className="font-ui text-sm text-body line-clamp-3">{pending.payload.content}</p>
+              )}
+              {pending.images.length > 0 && (
+                <p className="font-ui text-xs text-caption">
+                  {pending.images.length} {pending.images.length === 1 ? 'photo' : 'photos'} pending upload
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {allEntries.length === 0 && pendingEntries.length === 0 ? (
           <p className="font-ui text-body text-center py-12 text-caption">
             {t('entries.emptyState')}
           </p>

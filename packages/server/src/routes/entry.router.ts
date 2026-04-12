@@ -60,7 +60,7 @@ entryRouter.post('/', async (req: Request, res: Response, next: NextFunction): P
       res.status(400).json({ error: { message: 'title is required', code: 'VALIDATION_ERROR' } });
       return;
     }
-    if (body.content === undefined || body.content === null || typeof body.content !== 'string') {
+    if (body.content === undefined || body.content === null || typeof body.content !== 'string' || !body.content.trim()) {
       res.status(400).json({ error: { message: 'content is required', code: 'VALIDATION_ERROR' } });
       return;
     }

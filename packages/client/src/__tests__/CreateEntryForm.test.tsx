@@ -82,7 +82,7 @@ describe('CreateEntryScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: /lagre|save/i }));
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(screen.getAllByRole('alert').length).toBeGreaterThan(0);
     });
     expect(postSpy).not.toHaveBeenCalled();
   });

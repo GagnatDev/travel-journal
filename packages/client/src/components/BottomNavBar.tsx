@@ -2,6 +2,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TripRole } from '@travel-journal/shared';
 
+import { SyncStatus } from './SyncStatus.js';
+
 interface BottomNavBarProps {
   tripId?: string;
   tripRole?: TripRole;
@@ -30,6 +32,9 @@ export function BottomNavBar({ tripId, tripRole }: BottomNavBarProps) {
 
   return (
     <nav className="fixed bottom-0 inset-x-0 bg-bg-primary border-t border-caption/20 pb-safe">
+      <div className="max-w-lg mx-auto flex justify-center px-4 pt-1">
+        <SyncStatus />
+      </div>
       <div className="max-w-lg mx-auto flex items-center justify-around px-4 py-2 relative">
         {tripId ? (
           <>

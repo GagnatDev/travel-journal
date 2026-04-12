@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +9,7 @@ import { uploadMedia } from '../api/media.js';
 import { useAuth } from '../context/AuthContext.js';
 import { ImageReorder } from '../components/ImageReorder.js';
 import { compressImage } from '../utils/compressImage.js';
+import { saveOfflineEntry } from '../offline/entrySync.js';
 
 interface EntryFormState {
   title: string;
@@ -33,10 +34,12 @@ function formIsDirty(
   initial: EntryFormState,
   images: EntryImage[],
   initialImages: EntryImage[],
+  localFiles: File[],
 ): boolean {
   const imagesDirty =
     images.length !== initialImages.length ||
-    images.some((img, i) => img.key !== initialImages[i]?.key);
+    images.some((img, i) => img.key !== initialImages[i]?.key) ||
+    localFiles.length > 0;
   return (
     imagesDirty ||
     form.title !== initial.title ||
@@ -58,10 +61,26 @@ export function CreateEntryScreen() {
   const [form, setForm] = useState<EntryFormState>(EMPTY_FORM);
   const [initialForm, setInitialForm] = useState<EntryFormState>(EMPTY_FORM);
   const [titleError, setTitleError] = useState('');
+  const [contentError, setContentError] = useState('');
   const [images, setImages] = useState<EntryImage[]>([]);
   const [initialImages, setInitialImages] = useState<EntryImage[]>([]);
+  const [localFiles, setLocalFiles] = useState<File[]>([]);
   const [uploadingCount, setUploadingCount] = useState(0);
   const [uploadError, setUploadError] = useState('');
+  const [savedOffline, setSavedOffline] = useState(false);
+
+  // Object URLs for offline-queued files — cleaned up on unmount or file removal
+  const localPreviews = useMemo(
+    () => localFiles.map((f) => URL.createObjectURL(f)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [localFiles],
+  );
+
+  useEffect(() => {
+    return () => {
+      localPreviews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [localPreviews]);
 
   // Load existing entry when editing
   const { data: existingEntry } = useQuery({
@@ -102,8 +121,15 @@ export function CreateEntryScreen() {
   const handleFileSelect = useCallback(
     async (files: FileList) => {
       setUploadError('');
-      const remaining = 10 - images.length;
+      const remaining = 10 - images.length - localFiles.length;
       const toProcess = Array.from(files).slice(0, remaining);
+
+      if (navigator.onLine === false) {
+        // Queue raw files for upload during sync
+        setLocalFiles((prev) => [...prev, ...toProcess]);
+        return;
+      }
+
       setUploadingCount((prev) => prev + toProcess.length);
       await Promise.all(
         toProcess.map(async (file) => {
@@ -122,8 +148,12 @@ export function CreateEntryScreen() {
         }),
       );
     },
-    [images.length, tripId, accessToken, t],
+    [images.length, localFiles.length, tripId, accessToken, t],
   );
+
+  const handleRemoveLocalFile = useCallback((index: number) => {
+    setLocalFiles((prev) => prev.filter((_, i) => i !== index));
+  }, []);
 
   const handleLocationToggle = useCallback(() => {
     if (!form.locationEnabled) {
@@ -152,21 +182,33 @@ export function CreateEntryScreen() {
   }, [form.locationEnabled]);
 
   const handleDiscard = useCallback(() => {
-    if (formIsDirty(form, initialForm, images, initialImages)) {
+    if (formIsDirty(form, initialForm, images, initialImages, localFiles)) {
       if (!window.confirm(t('entries.discardConfirm'))) return;
     }
     navigate(`/trips/${tripId}/timeline`);
-  }, [form, initialForm, navigate, t, tripId]);
+  }, [form, initialForm, navigate, t, tripId, localFiles]);
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
 
+      let valid = true;
+
       if (!form.title.trim()) {
         setTitleError(t('entries.titleRequired'));
-        return;
+        valid = false;
+      } else {
+        setTitleError('');
       }
-      setTitleError('');
+
+      if (!form.content.trim()) {
+        setContentError(t('entries.contentRequired'));
+        valid = false;
+      } else {
+        setContentError('');
+      }
+
+      if (!valid) return;
 
       const location =
         form.locationEnabled && form.locationLat !== null && form.locationLng !== null
@@ -191,10 +233,25 @@ export function CreateEntryScreen() {
           images,
           ...(location !== undefined && { location }),
         };
+
+        if (navigator.onLine === false) {
+          void saveOfflineEntry({
+            localId: crypto.randomUUID(),
+            tripId: tripId!,
+            status: 'pending',
+            payload: createData,
+            images: localFiles,
+            createdAt: Date.now(),
+          });
+          setSavedOffline(true);
+          setTimeout(() => navigate(`/trips/${tripId}/timeline`), 1500);
+          return;
+        }
+
         createMutation.mutate(createData);
       }
     },
-    [form, isEdit, createMutation, updateMutation, t],
+    [form, isEdit, createMutation, updateMutation, t, tripId, navigate, localFiles],
   );
 
   const isPending = createMutation.isPending || updateMutation.isPending || uploadingCount > 0;
@@ -241,6 +298,11 @@ export function CreateEntryScreen() {
             className="w-full px-3 py-2 bg-bg-secondary border border-caption/30 rounded-round-eight font-ui text-body focus:outline-none focus:border-accent resize-none"
             placeholder={t('entries.contentPlaceholder')}
           />
+          {contentError && (
+            <p className="mt-1 font-ui text-xs text-red-500" role="alert">
+              {contentError}
+            </p>
+          )}
         </div>
 
         {/* Images */}
@@ -257,6 +319,31 @@ export function CreateEntryScreen() {
             onFileSelect={handleFileSelect}
             isUploading={uploadingCount > 0}
           />
+          {/* Offline-queued photos pending upload */}
+          {localPreviews.length > 0 && (
+            <div className="mt-2">
+              <p className="font-ui text-xs text-caption mb-1">{t('offline.saved')}</p>
+              <div className="flex flex-wrap gap-2">
+                {localPreviews.map((src, i) => (
+                  <div key={src} className="relative">
+                    <img
+                      src={src}
+                      alt=""
+                      className="w-16 h-16 object-cover rounded opacity-60"
+                    />
+                    <button
+                      type="button"
+                      aria-label={t('entries.removeImage')}
+                      onClick={() => handleRemoveLocalFile(i)}
+                      className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-xs flex items-center justify-center leading-none"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {uploadError && (
             <p className="mt-2 font-ui text-xs text-red-500" role="alert">
               {uploadError}
@@ -314,7 +401,12 @@ export function CreateEntryScreen() {
           </button>
         </div>
 
-        {(createMutation.isError || updateMutation.isError) && (
+        {savedOffline && (
+          <p className="font-ui text-xs text-green-600 text-center" role="status">
+            {t('offline.saved')}
+          </p>
+        )}
+        {!savedOffline && (createMutation.isError || updateMutation.isError) && (
           <p className="font-ui text-xs text-red-500 text-center">{t('common.error')}</p>
         )}
       </form>

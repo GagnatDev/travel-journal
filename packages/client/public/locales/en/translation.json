@@ -151,6 +151,14 @@
     "day": "Day",
     "dayLabel": "Day {{number}} — {{date}}"
   },
+  "offline": {
+    "banner": "You're offline — entries will sync when reconnected",
+    "saved": "Saved offline — will sync when reconnected",
+    "syncing": "{{count}} entries waiting to sync",
+    "syncFailed": "{{count}} entries failed to sync",
+    "synced": "All entries synced",
+    "conflict": "Your version was not saved — someone else edited this entry"
+  },
   "entries": {
     "emptyState": "No entries yet. Be the first to post!",
     "newTitle": "New Entry",
@@ -158,6 +166,7 @@
     "titleLabel": "Title",
     "titlePlaceholder": "What happened?",
     "titleRequired": "Title is required",
+    "contentRequired": "Content is required",
     "contentLabel": "Content",
     "contentPlaceholder": "Tell your story...",
     "locationToggle": "Add location",

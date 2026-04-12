@@ -142,6 +142,18 @@ const nb = {
     },
     nav: { timeline: 'Tidslinje', map: 'Kart', settings: 'Innstillinger', addEntry: 'Legg til innlegg' },
   },
+  storyMode: {
+    toggle: 'Slå på/av historiemodus',
+    day: 'Dag',
+    dayLabel: 'Dag {{number}} — {{date}}',
+  },
+  offline: {
+    banner: 'Du er frakoblet — innlegg synkroniseres når du er tilkoblet igjen',
+    saved: 'Lagret frakoblet — synkroniseres når du er tilkoblet igjen',
+    syncing: '{{count}} innlegg venter på synkronisering',
+    synced: 'Alle innlegg er synkronisert',
+    conflict: 'Versjonen din ble ikke lagret — noen andre redigerte dette innlegget',
+  },
   entries: {
     emptyState: 'Ingen innlegg ennå. Vær den første til å poste!',
     newTitle: 'Nytt innlegg',
