@@ -33,6 +33,18 @@ function LogoutButton() {
   );
 }
 
+function SetUserButton() {
+  const { user, setUser } = useAuth();
+  return (
+    <div>
+      <span data-testid="display-name">{user?.displayName ?? 'none'}</span>
+      <button onClick={() => setUser({ ...mockUser, displayName: 'New Name' })}>
+        Update Name
+      </button>
+    </div>
+  );
+}
+
 function renderWithAuth(ui: React.ReactNode) {
   return render(
     <BrowserRouter future={routerFutureV7}>
@@ -88,6 +100,24 @@ describe('AuthContext', () => {
     await waitFor(() => {
       expect(screen.getByTestId('status').textContent).toBe('unauthenticated');
     });
+  });
+
+  it('setUser updates the user in context without re-auth', async () => {
+    server.use(
+      http.post('/api/v1/auth/refresh', () =>
+        HttpResponse.json({ accessToken: 'mock-token', user: mockUser }),
+      ),
+    );
+
+    renderWithAuth(<SetUserButton />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('display-name').textContent).toBe(mockUser.displayName);
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /update name/i }));
+
+    expect(screen.getByTestId('display-name').textContent).toBe('New Name');
   });
 
   it('clears access token from state on logout', async () => {

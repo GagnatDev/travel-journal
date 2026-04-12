@@ -15,6 +15,7 @@ export interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   loginWithToken: (accessToken: string, user: PublicUser) => void;
   logout: () => Promise<void>;
+  setUser: (user: PublicUser) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -63,6 +64,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [setAuthenticated],
   );
 
+  const setUser = useCallback((user: PublicUser) => {
+    setState((prev) => ({ ...prev, user }));
+  }, []);
+
   const logout = useCallback(async () => {
     if (state.accessToken) {
       await apiJson<void>('/api/v1/auth/logout', {
@@ -77,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [state.accessToken]);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, loginWithToken, logout }}>
+    <AuthContext.Provider value={{ ...state, login, loginWithToken, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );
