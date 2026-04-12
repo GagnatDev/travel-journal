@@ -44,7 +44,7 @@ export function TripDashboardScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-primary pb-24">
+    <div className="min-h-screen bg-bg-primary pb-24 pt-14">
       <header className="px-4 pt-8 pb-4 flex items-center justify-between">
         <h1 className="font-display text-2xl text-heading">{t('trips.dashboard.title')}</h1>
         {canCreate && (
