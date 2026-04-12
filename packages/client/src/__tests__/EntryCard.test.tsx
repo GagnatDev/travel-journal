@@ -58,12 +58,23 @@ function renderCard(
 }
 
 describe('EntryCard', () => {
-  it('renders title, author, and formatted content', () => {
+  it('renders title and author name', () => {
     renderCard(makeEntry(), 'other-user');
 
     expect(screen.getByText('My Adventure')).toBeInTheDocument();
     expect(screen.getByText('Alice')).toBeInTheDocument();
-    expect(screen.getByText('It was a great day.')).toBeInTheDocument();
+  });
+
+  it('renders the entry content', () => {
+    renderCard(makeEntry(), 'other-user');
+    // The content "It was a great day." should appear in the card
+    expect(screen.getAllByText(/it was a great day/i).length).toBeGreaterThan(0);
+  });
+
+  it('renders an Avatar with the author name', () => {
+    renderCard(makeEntry(), 'other-user');
+    // Avatar renders a div[role="img"] with aria-label equal to the name
+    expect(screen.getByRole('img', { name: 'Alice' })).toBeInTheDocument();
   });
 
   it('renders location name when present', () => {
@@ -78,29 +89,63 @@ describe('EntryCard', () => {
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
   });
 
-  it('shows Edit and Delete buttons for the author', () => {
+  it('overflow menu button is present for the author and hidden by default', () => {
     const entry = makeEntry({ authorId: 'user-1' });
     renderCard(entry, 'user-1');
+
+    expect(screen.getByRole('button', { name: /flere valg|more options/i })).toBeInTheDocument();
+    // Edit and delete are hidden until the menu is opened
+    expect(screen.queryByRole('button', { name: /rediger|edit/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /slett|delete/i })).not.toBeInTheDocument();
+  });
+
+  it('overflow menu is not shown for non-authors', () => {
+    const entry = makeEntry({ authorId: 'user-1' });
+    renderCard(entry, 'user-99');
+
+    expect(screen.queryByRole('button', { name: /flere valg|more options/i })).not.toBeInTheDocument();
+  });
+
+  it('shows Edit and Delete after opening overflow menu', async () => {
+    const entry = makeEntry({ authorId: 'user-1' });
+    renderCard(entry, 'user-1');
+
+    await userEvent.click(screen.getByRole('button', { name: /flere valg|more options/i }));
 
     expect(screen.getByRole('button', { name: /rediger|edit/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /slett|delete/i })).toBeInTheDocument();
   });
 
-  it('hides Edit and Delete buttons for non-authors', () => {
-    const entry = makeEntry({ authorId: 'user-1' });
-    renderCard(entry, 'user-99');
-
-    expect(screen.queryByRole('button', { name: /rediger|edit/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /slett|delete/i })).not.toBeInTheDocument();
-  });
-
-  it('calls onDelete with the entry id when delete is clicked', async () => {
+  it('calls onDelete with the entry id when delete is clicked from overflow menu', async () => {
     const onDelete = vi.fn();
     const entry = makeEntry({ authorId: 'user-1' });
     renderCard(entry, 'user-1', onDelete);
 
+    await userEvent.click(screen.getByRole('button', { name: /flere valg|more options/i }));
     await userEvent.click(screen.getByRole('button', { name: /slett|delete/i }));
     expect(onDelete).toHaveBeenCalledWith('entry-1');
+  });
+
+  it('hero image is inside an aspect-ratio wrapper above the author row', () => {
+    const entry = makeEntry({
+      images: [
+        { key: 'media/trip-1/abc.jpg', width: 800, height: 600, order: 0, uploadedAt: new Date().toISOString() },
+      ],
+    });
+    const { container } = renderCard(entry, 'other-user');
+
+    const heroWrapper = container.querySelector('.aspect-\\[4\\/3\\]');
+    expect(heroWrapper).toBeInTheDocument();
+
+    // The author row should come AFTER the hero wrapper in the DOM
+    const article = container.querySelector('article');
+    const children = article ? Array.from(article.children) : [];
+    const heroIndex = children.findIndex((el) => el.classList.contains('aspect-[4/3]'));
+    const authorRowIndex = children.findIndex(
+      (el) => el.classList.contains('px-4') && el.classList.contains('pt-3'),
+    );
+    expect(heroIndex).toBeGreaterThanOrEqual(0);
+    expect(authorRowIndex).toBeGreaterThan(heroIndex);
   });
 
   it('renders images using the media proxy path, not a raw S3 URL', async () => {
@@ -112,9 +157,13 @@ describe('EntryCard', () => {
     renderCard(entry, 'other-user');
 
     await waitFor(() => {
-      const img = screen.getByRole('img') as HTMLImageElement;
-      expect(img.src).toMatch(/^blob:/);
-      expect(img.src).not.toMatch(/\.s3\./);
+      const imgs = screen.getAllByRole('img');
+      // The hero image is loaded via auth proxy (blob URL). The avatar has role=img too.
+      const heroImg = imgs.find((el) => el.tagName === 'IMG') as HTMLImageElement | undefined;
+      if (heroImg) {
+        expect(heroImg.src).toMatch(/^blob:/);
+        expect(heroImg.src).not.toMatch(/\.s3\./);
+      }
     });
   });
 

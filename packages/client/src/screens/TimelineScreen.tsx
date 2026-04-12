@@ -15,6 +15,7 @@ import { useAuth } from '../context/AuthContext.js';
 import { useInfiniteScrollSentinel } from '../hooks/useInfiniteScrollSentinel.js';
 import { usePendingEntriesForTrip } from '../hooks/usePendingEntriesForTrip.js';
 import { groupEntriesByDay } from '../utils/groupEntriesByDay.js';
+import { SectionLabel } from '../components/ui/SectionLabel.js';
 
 export function TimelineScreen() {
   const { id: tripId } = useParams<{ id: string }>();
@@ -103,7 +104,12 @@ export function TimelineScreen() {
         <StoryModeToggle storyMode={storyMode} onToggle={toggleStoryMode} t={t} />
       </div>
 
-      <main className="px-4 space-y-4">
+      <div className="px-4 pb-2">
+        <SectionLabel>{t('entries.sectionLabel')}</SectionLabel>
+        <h1 className="font-display text-3xl text-heading mt-1 mb-2">{t('entries.latestHeading')}</h1>
+      </div>
+
+      <main className="px-4 space-y-6">
         {tripId && <PendingEntryPreviewList tripId={tripId} pendingEntries={pendingEntries} t={t} />}
 
         {allEntries.length === 0 && pendingEntries.length === 0 ? (
