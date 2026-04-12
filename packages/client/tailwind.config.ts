@@ -12,6 +12,7 @@ export default {
         heading: 'var(--color-heading)',
         body: 'var(--color-body)',
         caption: 'var(--color-caption)',
+        'sage-bg': 'var(--color-sage-bg)',
       },
       fontFamily: {
         display: ['Noto Serif', 'Georgia', 'serif'],
@@ -19,6 +20,10 @@ export default {
       },
       borderRadius: {
         'round-eight': '8px',
+        card: '12px',
+      },
+      fontSize: {
+        'label-caps': ['0.6875rem', { lineHeight: '1', letterSpacing: '0.08em' }],
       },
     },
   },

@@ -5,6 +5,7 @@
   --color-heading: #1b1c1a;
   --color-body: #58624a;
   --color-caption: #70573f;
+  --color-sage-bg: #e8ede1;
 }
 
 .dark {
@@ -14,4 +15,5 @@
   --color-heading: #fbf9f5;
   --color-body: #d6d3d1;
   --color-caption: #a8a29e;
+  --color-sage-bg: #2d3328;
 }
