@@ -9,6 +9,7 @@ import {
   listEntries,
   listEntryLocations,
   softDeleteEntry,
+  tryParseClientCreatedAt,
   updateEntry,
 } from '../services/entry.service.js';
 import { toggleReaction } from '../services/reaction.service.js';
@@ -66,6 +67,18 @@ entryRouter.post('/', async (req: Request, res: Response, next: NextFunction): P
     if (body.content === undefined || body.content === null || typeof body.content !== 'string' || !body.content.trim()) {
       res.status(400).json({ error: { message: 'content is required', code: 'VALIDATION_ERROR' } });
       return;
+    }
+
+    const cc = body.clientCreatedAt;
+    if (cc !== undefined && cc !== null && String(cc).trim() !== '') {
+      if (typeof cc !== 'string') {
+        res.status(400).json({ error: { message: 'clientCreatedAt must be a string', code: 'VALIDATION_ERROR' } });
+        return;
+      }
+      if (!tryParseClientCreatedAt(cc.trim())) {
+        res.status(400).json({ error: { message: 'Invalid clientCreatedAt', code: 'VALIDATION_ERROR' } });
+        return;
+      }
     }
 
     const entry = await createEntry(tripId, auth.userId, body);

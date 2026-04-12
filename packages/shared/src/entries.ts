@@ -54,6 +54,8 @@ export interface CreateEntryRequest {
   content: string;
   images?: EntryImage[];
   location?: EntryLocation;
+  /** ISO 8601 — set when syncing an entry first saved offline so server createdAt matches. */
+  clientCreatedAt?: string;
 }
 
 export interface UpdateEntryRequest {

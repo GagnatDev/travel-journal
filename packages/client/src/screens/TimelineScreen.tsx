@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
@@ -162,14 +162,15 @@ export function TimelineScreen() {
       <main className="px-4 space-y-4">
         {/* Pending offline entries shown at the top */}
         {pendingEntries.map((pending) => (
-          <div
+          <Link
             key={pending.localId}
-            className="opacity-60 relative"
-            aria-label={t('offline.saved')}
+            to={`/trips/${tripId}/entries/pending/${pending.localId}/edit`}
+            className="block opacity-60 relative rounded-round-eight focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            aria-label={t('offline.editPending')}
           >
             <div className="absolute top-2 right-2 z-10">
               <span className="font-ui text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
-                {t('offline.saved')}
+                {pending.status === 'failed' ? t('offline.syncFailedShort') : t('offline.saved')}
               </span>
             </div>
             <div className="bg-bg-secondary border border-caption/20 rounded-round-eight p-4 space-y-1">
@@ -183,7 +184,7 @@ export function TimelineScreen() {
                 </p>
               )}
             </div>
-          </div>
+          </Link>
         ))}
 
         {allEntries.length === 0 && pendingEntries.length === 0 ? (

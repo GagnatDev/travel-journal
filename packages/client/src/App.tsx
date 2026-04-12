@@ -67,6 +67,14 @@ export function App() {
           }
         />
         <Route
+          path="/trips/:id/entries/pending/:localId/edit"
+          element={
+            <ProtectedRoute>
+              <CreateEntryScreen />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/trips/:id/entries/:entryId/edit"
           element={
             <ProtectedRoute>

@@ -154,6 +154,8 @@
   "offline": {
     "banner": "You're offline — entries will sync when reconnected",
     "saved": "Saved offline — will sync when reconnected",
+    "editPending": "Edit offline draft",
+    "syncFailedShort": "Sync failed",
     "syncing": "{{count}} entries waiting to sync",
     "syncFailed": "{{count}} entries failed to sync",
     "synced": "All entries synced",

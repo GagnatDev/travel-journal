@@ -13,6 +13,7 @@ import {
   listEntries,
   normalizeImageOrder,
   softDeleteEntry,
+  tryParseClientCreatedAt,
   updateEntry,
 } from '../services/entry.service.js';
 
@@ -116,6 +117,21 @@ describe('assertEntryAuthor', () => {
   });
 });
 
+describe('tryParseClientCreatedAt', () => {
+  it('accepts a recent past ISO string', () => {
+    const d = new Date(Date.now() - 60_000);
+    const parsed = tryParseClientCreatedAt(d.toISOString());
+    expect(parsed).not.toBeNull();
+    expect(parsed!.getTime()).toBe(d.getTime());
+  });
+
+  it('rejects invalid and out-of-range dates', () => {
+    expect(tryParseClientCreatedAt('not-a-date')).toBeNull();
+    expect(tryParseClientCreatedAt(new Date(Date.now() + 10 * 60_000).toISOString())).toBeNull();
+    expect(tryParseClientCreatedAt(new Date(Date.now() - 400 * 24 * 60 * 60_000).toISOString())).toBeNull();
+  });
+});
+
 describe('createEntry', () => {
   it('stores the entry with deletedAt null and returns it with authorName', async () => {
     const user = await makeUser('author@test.com');
@@ -135,6 +151,23 @@ describe('createEntry', () => {
     // Verify deletedAt is null in DB
     const doc = await Entry.findById(entry.id);
     expect(doc?.deletedAt).toBeNull();
+  });
+
+  it('honors clientCreatedAt for Mongo createdAt when provided', async () => {
+    const user = await makeUser('author2@test.com');
+    const trip = await makeTrip(String(user._id));
+    const clientAt = new Date(Date.now() - 3 * 24 * 60 * 60_000);
+
+    const entry = await createEntry(trip.id, String(user._id), {
+      title: 'Synced offline',
+      content: 'Body',
+      clientCreatedAt: clientAt.toISOString(),
+    });
+
+    const doc = await Entry.findById(entry.id).lean();
+    expect(doc?.createdAt).toBeDefined();
+    expect(new Date(doc!.createdAt).getTime()).toBe(clientAt.getTime());
+    expect(entry.createdAt).toBe(clientAt.toISOString());
   });
 });
 

@@ -70,24 +70,47 @@ export function assertEntryAuthor(entry: Entry, userId: string): void {
   }
 }
 
+/** Parses client-supplied creation time for offline sync; returns null if invalid or out of range. */
+export function tryParseClientCreatedAt(input: string): Date | null {
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return null;
+  const now = Date.now();
+  const maxFuture = now + 5 * 60 * 1000;
+  const minPast = now - 365 * 24 * 60 * 60 * 1000;
+  if (d.getTime() > maxFuture || d.getTime() < minPast) return null;
+  return d;
+}
+
 export async function createEntry(
   tripId: string,
   authorId: string,
   data: CreateEntryRequest,
 ): Promise<Entry> {
-  const normalizedImages = data.images ? normalizeImageOrder(data.images) : [];
+  const { clientCreatedAt: clientCreatedAtRaw, ...rest } = data;
+  const normalizedImages = rest.images ? normalizeImageOrder(rest.images) : [];
+
+  const now = new Date();
+  let createdAt: Date | undefined;
+  if (clientCreatedAtRaw !== undefined && clientCreatedAtRaw !== null && String(clientCreatedAtRaw).trim() !== '') {
+    const parsed = tryParseClientCreatedAt(String(clientCreatedAtRaw).trim());
+    if (!parsed) {
+      throw createHttpError('Invalid clientCreatedAt', 400, 'VALIDATION_ERROR');
+    }
+    createdAt = parsed;
+  }
 
   const doc = await EntryModel.create({
     tripId: new mongoose.Types.ObjectId(tripId),
     authorId: new mongoose.Types.ObjectId(authorId),
-    title: data.title.trim(),
-    content: data.content,
+    title: rest.title.trim(),
+    content: rest.content,
     images: normalizedImages.map((img) => ({
       ...img,
       uploadedAt: new Date(img.uploadedAt),
     })),
-    location: data.location,
+    location: rest.location,
     deletedAt: null,
+    ...(createdAt !== undefined && { createdAt, updatedAt: now }),
   });
 
   return toEntry(doc);
