@@ -7,6 +7,11 @@ import type { Trip, CreateTripRequest } from '@travel-journal/shared';
 import { apiJson } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.js';
 
+import { TextArea } from './ui/TextArea.js';
+import { TextField } from './ui/TextField.js';
+
+const fieldErrorClass = 'mt-1 text-xs text-accent font-ui';
+
 interface CreateTripModalProps {
   onClose: () => void;
 }
@@ -69,64 +74,43 @@ export function CreateTripModal({ onClose }: CreateTripModalProps) {
         <h2 className="font-display text-xl text-heading mb-4">{t('trips.create.title')}</h2>
 
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
-          <div>
-            <label htmlFor="trip-name" className="block font-ui text-sm font-medium text-body mb-1">
-              {t('trips.create.nameLabel')}
-            </label>
-            <input
-              id="trip-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t('trips.create.namePlaceholder')}
-              className="w-full px-3 py-2 border border-caption rounded-round-eight font-ui text-body bg-bg-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-            {nameError && (
-              <p role="alert" className="mt-1 text-xs text-accent font-ui">
-                {nameError}
-              </p>
-            )}
-          </div>
+          <TextField
+            label={t('trips.create.nameLabel')}
+            labelHtmlFor="trip-name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t('trips.create.namePlaceholder')}
+            error={nameError}
+            errorId="trip-name-error"
+            errorClassName={fieldErrorClass}
+          />
 
-          <div>
-            <label htmlFor="trip-description" className="block font-ui text-sm font-medium text-body mb-1">
-              {t('trips.create.descriptionLabel')}
-            </label>
-            <textarea
-              id="trip-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t('trips.create.descriptionPlaceholder')}
-              rows={2}
-              className="w-full px-3 py-2 border border-caption rounded-round-eight font-ui text-body bg-bg-secondary focus:outline-none focus:ring-2 focus:ring-accent resize-none"
-            />
-          </div>
+          <TextArea
+            label={t('trips.create.descriptionLabel')}
+            labelHtmlFor="trip-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={t('trips.create.descriptionPlaceholder')}
+            rows={2}
+            className="resize-none"
+          />
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="departure-date" className="block font-ui text-sm font-medium text-body mb-1">
-                {t('trips.create.departureDateLabel')}
-              </label>
-              <input
-                id="departure-date"
-                type="date"
-                value={departureDate}
-                onChange={(e) => setDepartureDate(e.target.value)}
-                className="w-full px-3 py-2 border border-caption rounded-round-eight font-ui text-body bg-bg-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-              />
-            </div>
-            <div>
-              <label htmlFor="return-date" className="block font-ui text-sm font-medium text-body mb-1">
-                {t('trips.create.returnDateLabel')}
-              </label>
-              <input
-                id="return-date"
-                type="date"
-                value={returnDate}
-                onChange={(e) => setReturnDate(e.target.value)}
-                className="w-full px-3 py-2 border border-caption rounded-round-eight font-ui text-body bg-bg-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-              />
-            </div>
+            <TextField
+              label={t('trips.create.departureDateLabel')}
+              labelHtmlFor="departure-date"
+              type="date"
+              value={departureDate}
+              onChange={(e) => setDepartureDate(e.target.value)}
+            />
+            <TextField
+              label={t('trips.create.returnDateLabel')}
+              labelHtmlFor="return-date"
+              type="date"
+              value={returnDate}
+              onChange={(e) => setReturnDate(e.target.value)}
+            />
           </div>
 
           <div className="flex gap-3 pt-2">

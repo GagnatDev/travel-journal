@@ -4,6 +4,7 @@ import type { Invite, Trip } from '@travel-journal/shared';
 
 import type { AddTripMemberResult } from '../../api/trips.js';
 import { CopyableLinkField } from '../../components/CopyableLinkField.js';
+import { standardTextControlClass } from '../../components/ui/fieldStyles.js';
 import { SettingsListRow } from '../../components/SettingsListRow.js';
 
 interface TripMembersSectionProps {
@@ -124,14 +125,14 @@ export function TripMembersSection({
           }}
           className="flex gap-2"
         >
-          <input
-            type="text"
-            value={addMemberInput}
-            onChange={(e) => setAddMemberInput(e.target.value)}
-            placeholder={t('trips.settings.addMemberPlaceholder')}
-            required
-            className="flex-1 px-3 py-2 border border-caption rounded-round-eight font-ui text-sm text-body bg-bg-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-          />
+              <input
+                type="text"
+                value={addMemberInput}
+                onChange={(e) => setAddMemberInput(e.target.value)}
+                placeholder={t('trips.settings.addMemberPlaceholder')}
+                required
+                className={`flex-1 min-w-0 text-sm ${standardTextControlClass}`}
+              />
           <select
             value={addMemberRole}
             onChange={(e) => setAddMemberRole(e.target.value as 'contributor' | 'follower')}

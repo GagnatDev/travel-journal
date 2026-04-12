@@ -2,11 +2,11 @@ import { useTranslation } from 'react-i18next';
 import type { EntryImage } from '@travel-journal/shared';
 
 import { ImageReorder } from '../../components/ImageReorder.js';
+import { entryTextControlClass } from '../../components/ui/fieldStyles.js';
+import { TextArea } from '../../components/ui/TextArea.js';
+import { TextField } from '../../components/ui/TextField.js';
 
 import type { EntryFormState } from './entryFormState.js';
-
-const entryInputClass =
-  'w-full px-3 py-2 bg-bg-secondary border border-caption/30 rounded-round-eight font-ui text-body focus:outline-none focus:border-accent';
 
 interface EntryFormBodyProps {
   form: EntryFormState;
@@ -53,43 +53,30 @@ export function EntryFormBody({
 
   return (
     <form onSubmit={handleSubmit} className="px-4 space-y-4">
-      <div>
-        <label className="block font-ui text-sm font-medium text-body mb-1" htmlFor="entry-title">
-          {t('entries.titleLabel')}
-        </label>
-        <input
-          id="entry-title"
-          type="text"
-          value={form.title}
-          onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-          className={entryInputClass}
-          placeholder={t('entries.titlePlaceholder')}
-        />
-        {titleError && (
-          <p className="mt-1 font-ui text-xs text-red-500" role="alert">
-            {titleError}
-          </p>
-        )}
-      </div>
+      <TextField
+        label={t('entries.titleLabel')}
+        labelHtmlFor="entry-title"
+        type="text"
+        value={form.title}
+        onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+        placeholder={t('entries.titlePlaceholder')}
+        variant="entry"
+        error={titleError}
+        errorId="entry-title-error"
+      />
 
-      <div>
-        <label className="block font-ui text-sm font-medium text-body mb-1" htmlFor="entry-content">
-          {t('entries.contentLabel')}
-        </label>
-        <textarea
-          id="entry-content"
-          value={form.content}
-          onChange={(e) => setForm((prev) => ({ ...prev, content: e.target.value }))}
-          rows={8}
-          className={`${entryInputClass} resize-none`}
-          placeholder={t('entries.contentPlaceholder')}
-        />
-        {contentError && (
-          <p className="mt-1 font-ui text-xs text-red-500" role="alert">
-            {contentError}
-          </p>
-        )}
-      </div>
+      <TextArea
+        label={t('entries.contentLabel')}
+        labelHtmlFor="entry-content"
+        value={form.content}
+        onChange={(e) => setForm((prev) => ({ ...prev, content: e.target.value }))}
+        rows={8}
+        placeholder={t('entries.contentPlaceholder')}
+        variant="entry"
+        className="resize-none"
+        error={contentError}
+        errorId="entry-content-error"
+      />
 
       <div>
         <label
@@ -150,10 +137,11 @@ export function EntryFormBody({
               </p>
             )}
             <input
+              id="entry-location-name"
               type="text"
               value={form.locationName}
               onChange={(e) => setForm((prev) => ({ ...prev, locationName: e.target.value }))}
-              className={`${entryInputClass} text-sm`}
+              className={`w-full text-sm ${entryTextControlClass}`}
               placeholder={t('entries.locationNamePlaceholder')}
             />
           </div>

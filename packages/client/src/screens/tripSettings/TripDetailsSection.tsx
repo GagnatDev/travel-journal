@@ -2,6 +2,8 @@ import type { UseMutationResult } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import type { Trip } from '@travel-journal/shared';
 
+import { TextField } from '../../components/ui/TextField.js';
+
 interface TripDetailsSectionProps {
   t: TFunction;
   name: string;
@@ -21,18 +23,13 @@ export function TripDetailsSection({
         {t('trips.settings.detailsTitle')}
       </h2>
       <div className="space-y-3">
-        <div>
-          <label htmlFor="settings-name" className="block font-ui text-sm font-medium text-body mb-1">
-            {t('trips.create.nameLabel')}
-          </label>
-          <input
-            id="settings-name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 border border-caption rounded-round-eight font-ui text-body bg-bg-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-          />
-        </div>
+        <TextField
+          label={t('trips.create.nameLabel')}
+          labelHtmlFor="settings-name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
         <button
           type="button"
           onClick={() => updateMutation.mutate({ name })}

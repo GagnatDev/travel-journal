@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { PublicUser } from '@travel-journal/shared';
 
 import { apiJson, apiJsonIfOk } from '../api/client.js';
+import { TextField } from '../components/ui/TextField.js';
 import { useAuth } from '../context/AuthContext.js';
 
 interface ValidateResponse {
@@ -103,52 +104,37 @@ export function InviteAcceptScreen() {
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block font-ui text-sm font-medium text-body mb-1">
-              {t('auth.login.emailLabel')}
-            </label>
-            <input
-              type="email"
-              value={email}
-              readOnly
-              aria-label={t('auth.login.emailLabel')}
-              className="w-full px-3 py-2 border border-caption rounded-round-eight font-ui text-body bg-bg-secondary opacity-60 cursor-not-allowed"
-            />
-          </div>
+          <TextField
+            label={t('auth.login.emailLabel')}
+            labelHtmlFor="invite-email-readonly"
+            type="email"
+            value={email}
+            readOnly
+            aria-label={t('auth.login.emailLabel')}
+            className="opacity-60 cursor-not-allowed"
+          />
 
-          <div>
-            <label htmlFor="invite-displayName" className="block font-ui text-sm font-medium text-body mb-1">
-              {t('invite.accept.displayNameLabel')}
-            </label>
-            <input
-              id="invite-displayName"
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder={t('auth.register.displayNamePlaceholder')}
-              required
-              className="w-full px-3 py-2 border border-caption rounded-round-eight font-ui text-body bg-bg-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
+          <TextField
+            label={t('invite.accept.displayNameLabel')}
+            labelHtmlFor="invite-displayName"
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder={t('auth.register.displayNamePlaceholder')}
+            required
+          />
 
-          <div>
-            <label htmlFor="invite-password" className="block font-ui text-sm font-medium text-body mb-1">
-              {t('invite.accept.passwordLabel')}
-            </label>
-            <input
-              id="invite-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-3 py-2 border border-caption rounded-round-eight font-ui text-body bg-bg-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-            {passwordError && (
-              <p role="alert" className="mt-1 font-ui text-sm text-red-500">
-                {passwordError}
-              </p>
-            )}
-          </div>
+          <TextField
+            label={t('invite.accept.passwordLabel')}
+            labelHtmlFor="invite-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            error={passwordError}
+            errorId="invite-password-error"
+            errorClassName="mt-1 font-ui text-sm text-red-500"
+          />
 
           {submitError && (
             <p role="alert" className="font-ui text-sm text-red-500">

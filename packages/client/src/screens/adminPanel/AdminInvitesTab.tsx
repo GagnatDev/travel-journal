@@ -5,6 +5,7 @@ import type { Invite } from '@travel-journal/shared';
 
 import { apiJson } from '../../api/client.js';
 import { CopyableLinkField } from '../../components/CopyableLinkField.js';
+import { TextField } from '../../components/ui/TextField.js';
 import { SettingsListRow } from '../../components/SettingsListRow.js';
 
 interface AdminInvitesTabProps {
@@ -58,19 +59,14 @@ export function AdminInvitesTab({ token }: AdminInvitesTabProps) {
           }}
           className="space-y-3"
         >
-          <div>
-            <label htmlFor="invite-email" className="block font-ui text-sm font-medium text-body mb-1">
-              {t('admin.invite.emailLabel')}
-            </label>
-            <input
-              id="invite-email"
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              required
-              className="w-full px-3 py-2 border border-caption rounded-round-eight font-ui text-body bg-bg-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
+          <TextField
+            label={t('admin.invite.emailLabel')}
+            labelHtmlFor="invite-email"
+            type="email"
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            required
+          />
           <div>
             <label htmlFor="invite-role" className="block font-ui text-sm font-medium text-body mb-1">
               {t('admin.invite.roleLabel')}

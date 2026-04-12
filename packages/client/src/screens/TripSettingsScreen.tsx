@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import type { Trip, TripStatus } from '@travel-journal/shared';
+import type { TripStatus } from '@travel-journal/shared';
 
 import {
   addTripMember,
@@ -16,6 +16,7 @@ import {
   revokeTripMemberInvite,
 } from '../api/trips.js';
 import { useAuth } from '../context/AuthContext.js';
+
 import { TripDeleteSection } from './tripSettings/TripDeleteSection.js';
 import { TripDetailsSection } from './tripSettings/TripDetailsSection.js';
 import { TripMembersSection } from './tripSettings/TripMembersSection.js';
