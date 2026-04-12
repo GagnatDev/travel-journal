@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { CreateEntryRequest, EntryImage, UpdateEntryRequest } from '@travel-journal/shared';
@@ -9,6 +9,7 @@ import { uploadMedia } from '../api/media.js';
 import { useAuth } from '../context/AuthContext.js';
 import { ImageReorder } from '../components/ImageReorder.js';
 import { compressImage } from '../utils/compressImage.js';
+import { getPendingEntry } from '../offline/db.js';
 import { saveOfflineEntry } from '../offline/entrySync.js';
 
 interface EntryFormState {
@@ -35,13 +36,20 @@ function formIsDirty(
   images: EntryImage[],
   initialImages: EntryImage[],
   localFiles: File[],
+  initialLocalFiles: File[],
 ): boolean {
   const imagesDirty =
     images.length !== initialImages.length ||
-    images.some((img, i) => img.key !== initialImages[i]?.key) ||
-    localFiles.length > 0;
+    images.some((img, i) => img.key !== initialImages[i]?.key);
+  const localFilesDirty =
+    localFiles.length !== initialLocalFiles.length ||
+    localFiles.some(
+      (f, i) =>
+        f.name !== initialLocalFiles[i]?.name || f.size !== initialLocalFiles[i]?.size,
+    );
   return (
     imagesDirty ||
+    localFilesDirty ||
     form.title !== initial.title ||
     form.content !== initial.content ||
     form.locationEnabled !== initial.locationEnabled ||
@@ -52,11 +60,17 @@ function formIsDirty(
 }
 
 export function CreateEntryScreen() {
-  const { id: tripId, entryId } = useParams<{ id: string; entryId?: string }>();
+  const { id: tripId, entryId, localId: pendingLocalId } = useParams<{
+    id: string;
+    entryId?: string;
+    localId?: string;
+  }>();
   const { accessToken } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const isEdit = !!entryId;
+  const location = useLocation();
+  const isPendingEdit = Boolean(pendingLocalId);
+  const isServerEdit = Boolean(entryId) && !isPendingEdit;
 
   const [form, setForm] = useState<EntryFormState>(EMPTY_FORM);
   const [initialForm, setInitialForm] = useState<EntryFormState>(EMPTY_FORM);
@@ -65,6 +79,11 @@ export function CreateEntryScreen() {
   const [images, setImages] = useState<EntryImage[]>([]);
   const [initialImages, setInitialImages] = useState<EntryImage[]>([]);
   const [localFiles, setLocalFiles] = useState<File[]>([]);
+  const [initialLocalFiles, setInitialLocalFiles] = useState<File[]>([]);
+  const [pendingOfflineMeta, setPendingOfflineMeta] = useState<{
+    localId: string;
+    createdAt: number;
+  } | null>(null);
   const [uploadingCount, setUploadingCount] = useState(0);
   const [uploadError, setUploadError] = useState('');
   const [savedOffline, setSavedOffline] = useState(false);
@@ -81,11 +100,24 @@ export function CreateEntryScreen() {
     };
   }, [localPreviews]);
 
-  // Load existing entry when editing
+  // Fresh form when opening "new entry" (avoids stale state when switching routes)
+  useEffect(() => {
+    if (!tripId || !location.pathname.endsWith('/entries/new')) return;
+    setPendingOfflineMeta(null);
+    setForm(EMPTY_FORM);
+    setInitialForm(EMPTY_FORM);
+    setImages([]);
+    setInitialImages([]);
+    setLocalFiles([]);
+    setInitialLocalFiles([]);
+    setSavedOffline(false);
+  }, [tripId, location.pathname]);
+
+  // Load existing entry when editing on server
   const { data: existingEntry } = useQuery({
     queryKey: ['entry', tripId, entryId],
     queryFn: () => fetchEntry(tripId!, entryId!, accessToken!),
-    enabled: isEdit && !!accessToken && !!tripId && !!entryId,
+    enabled: isServerEdit && !!accessToken && !!tripId && !!entryId,
   });
 
   useEffect(() => {
@@ -103,8 +135,45 @@ export function CreateEntryScreen() {
     const loadedImages = existingEntry.images ?? [];
     setImages(loadedImages);
     setInitialImages(loadedImages);
+    setLocalFiles([]);
+    setInitialLocalFiles([]);
     // Depend on id only so React Query refetches (new object identity) do not wipe in-progress edits.
   }, [existingEntry?.id]);
+
+  // Load pending offline entry for edit
+  useEffect(() => {
+    if (!isPendingEdit || !tripId || !pendingLocalId) return;
+    let cancelled = false;
+
+    void getPendingEntry(pendingLocalId).then((p) => {
+      if (cancelled) return;
+      if (!p || p.tripId !== tripId) {
+        navigate(`/trips/${tripId}/timeline`, { replace: true });
+        return;
+      }
+      setPendingOfflineMeta({ localId: p.localId, createdAt: p.createdAt });
+      const loaded: EntryFormState = {
+        title: p.payload.title,
+        content: p.payload.content,
+        locationEnabled: !!p.payload.location,
+        locationLat: p.payload.location?.lat ?? null,
+        locationLng: p.payload.location?.lng ?? null,
+        locationName: p.payload.location?.name ?? '',
+      };
+      setForm(loaded);
+      setInitialForm(loaded);
+      const loadedImages = p.payload.images ?? [];
+      setImages(loadedImages);
+      setInitialImages(loadedImages);
+      const files = [...p.images];
+      setLocalFiles(files);
+      setInitialLocalFiles(files);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isPendingEdit, tripId, pendingLocalId, navigate]);
 
   const createMutation = useMutation({
     mutationFn: (data: CreateEntryRequest) => createEntry(tripId!, data, accessToken!),
@@ -181,11 +250,11 @@ export function CreateEntryScreen() {
   }, [form.locationEnabled]);
 
   const handleDiscard = useCallback(() => {
-    if (formIsDirty(form, initialForm, images, initialImages, localFiles)) {
+    if (formIsDirty(form, initialForm, images, initialImages, localFiles, initialLocalFiles)) {
       if (!window.confirm(t('entries.discardConfirm'))) return;
     }
     navigate(`/trips/${tripId}/timeline`);
-  }, [form, initialForm, navigate, t, tripId, localFiles]);
+  }, [form, initialForm, images, initialImages, localFiles, initialLocalFiles, navigate, t, tripId]);
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -218,48 +287,80 @@ export function CreateEntryScreen() {
             }
           : undefined;
 
-      if (isEdit) {
+      const createData: CreateEntryRequest = {
+        title: form.title.trim(),
+        content: form.content,
+        images,
+        ...(location !== undefined && { location }),
+      };
+
+      if (isServerEdit) {
         updateMutation.mutate({
           title: form.title.trim(),
           content: form.content,
           images,
           location: form.locationEnabled ? (location ?? null) : null,
         });
-      } else {
-        const createData: CreateEntryRequest = {
-          title: form.title.trim(),
-          content: form.content,
-          images,
-          ...(location !== undefined && { location }),
-        };
-
-        if (navigator.onLine === false) {
-          void saveOfflineEntry({
-            localId: crypto.randomUUID(),
-            tripId: tripId!,
-            status: 'pending',
-            payload: createData,
-            images: localFiles,
-            createdAt: Date.now(),
-          });
-          setSavedOffline(true);
-          setTimeout(() => navigate(`/trips/${tripId}/timeline`), 1500);
-          return;
-        }
-
-        createMutation.mutate(createData);
+        return;
       }
+
+      if (isPendingEdit) {
+        if (!pendingOfflineMeta) return;
+        void saveOfflineEntry({
+          localId: pendingOfflineMeta.localId,
+          tripId: tripId!,
+          status: 'pending',
+          payload: createData,
+          images: localFiles,
+          createdAt: pendingOfflineMeta.createdAt,
+        });
+        setSavedOffline(true);
+        setTimeout(() => navigate(`/trips/${tripId}/timeline`), 1500);
+        return;
+      }
+
+      if (navigator.onLine === false) {
+        void saveOfflineEntry({
+          localId: crypto.randomUUID(),
+          tripId: tripId!,
+          status: 'pending',
+          payload: createData,
+          images: localFiles,
+          createdAt: Date.now(),
+        });
+        setSavedOffline(true);
+        setTimeout(() => navigate(`/trips/${tripId}/timeline`), 1500);
+        return;
+      }
+
+      createMutation.mutate(createData);
     },
-    [form, isEdit, createMutation, updateMutation, t, tripId, navigate, localFiles],
+    [
+      form,
+      isServerEdit,
+      isPendingEdit,
+      pendingOfflineMeta,
+      createMutation,
+      updateMutation,
+      t,
+      tripId,
+      navigate,
+      localFiles,
+      images,
+    ],
   );
 
-  const isPending = createMutation.isPending || updateMutation.isPending || uploadingCount > 0;
+  const isPending =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    uploadingCount > 0 ||
+    (isPendingEdit && !pendingOfflineMeta);
 
   return (
     <div className="min-h-screen bg-bg-primary pb-8">
       <header className="px-4 pt-8 pb-4 flex items-center justify-between">
         <h1 className="font-display text-2xl text-heading">
-          {isEdit ? t('entries.editTitle') : t('entries.newTitle')}
+          {isServerEdit || isPendingEdit ? t('entries.editTitle') : t('entries.newTitle')}
         </h1>
       </header>
 

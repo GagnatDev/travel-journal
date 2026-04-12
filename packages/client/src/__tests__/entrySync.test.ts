@@ -92,7 +92,10 @@ describe('syncPendingEntries', () => {
 
     expect(createEntry).toHaveBeenCalledWith(
       'trip-1',
-      expect.objectContaining({ title: 'Offline Entry' }),
+      expect.objectContaining({
+        title: 'Offline Entry',
+        clientCreatedAt: new Date(baseEntry.createdAt).toISOString(),
+      }),
       'token-abc',
     );
     expect(mockDb.delete).toHaveBeenCalledWith('pendingEntries', 'local-1');

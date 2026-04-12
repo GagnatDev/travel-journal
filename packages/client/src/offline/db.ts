@@ -27,6 +27,11 @@ export async function getPendingEntriesForTrip(tripId: string): Promise<PendingE
   return all.filter((e) => e.tripId === tripId);
 }
 
+export async function getPendingEntry(localId: string): Promise<PendingEntry | undefined> {
+  const db = await getOfflineDB();
+  return db.get('pendingEntries', localId);
+}
+
 export function getOfflineDB(): Promise<IDBPDatabase<OfflineDBSchema>> {
   if (!dbPromise) {
     dbPromise = openDB<OfflineDBSchema>('travel-journal-offline', 1, {

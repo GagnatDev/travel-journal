@@ -8,12 +8,31 @@ import type { Entry } from '@travel-journal/shared';
 
 import { AuthProvider } from '../context/AuthContext.js';
 import { CreateEntryScreen } from '../screens/CreateEntryScreen.js';
+import { getPendingEntry } from '../offline/db.js';
+import { saveOfflineEntry } from '../offline/entrySync.js';
 
 import { server } from './mocks/server.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
 
+vi.mock('../offline/db.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../offline/db.js')>();
+  return {
+    ...actual,
+    getPendingEntry: vi.fn(),
+  };
+});
+
+vi.mock('../offline/entrySync.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../offline/entrySync.js')>();
+  return {
+    ...actual,
+    saveOfflineEntry: vi.fn(() => Promise.resolve()),
+  };
+});
+
 const TRIP_ID = 'trip-1';
+const FIXED_CREATED_AT = 1_700_000_000_000;
 
 const mockEntry: Entry = {
   id: 'entry-1',
@@ -41,6 +60,7 @@ function renderCreate(initialPath = `/trips/${TRIP_ID}/entries/new`) {
         <AuthProvider>
           <Routes>
             <Route path="/trips/:id/entries/new" element={<CreateEntryScreen />} />
+            <Route path="/trips/:id/entries/pending/:localId/edit" element={<CreateEntryScreen />} />
             <Route path="/trips/:id/entries/:entryId/edit" element={<CreateEntryScreen />} />
             <Route path="/trips/:id/timeline" element={<div data-testid="timeline">Timeline</div>} />
           </Routes>
@@ -52,6 +72,7 @@ function renderCreate(initialPath = `/trips/${TRIP_ID}/entries/new`) {
 
 describe('CreateEntryScreen', () => {
   beforeEach(() => {
+    vi.mocked(getPendingEntry).mockReset();
     // Mock geolocation
     const mockGetCurrentPosition = vi.fn((success: PositionCallback) => {
       success({
@@ -175,6 +196,46 @@ describe('CreateEntryScreen', () => {
     await waitFor(() => {
       expect(screen.getByDisplayValue('Existing Entry')).toBeInTheDocument();
       expect(screen.getByDisplayValue('Existing content')).toBeInTheDocument();
+    });
+  });
+
+  it('pending edit loads from IDB and save keeps localId and createdAt', async () => {
+    vi.mocked(getPendingEntry).mockResolvedValue({
+      localId: 'local-pending-1',
+      tripId: TRIP_ID,
+      status: 'failed',
+      payload: {
+        title: 'Offline title',
+        content: 'Offline body',
+        images: [],
+      },
+      images: [],
+      createdAt: FIXED_CREATED_AT,
+      retryCount: 2,
+    });
+
+    renderCreate(`/trips/${TRIP_ID}/entries/pending/local-pending-1/edit`);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Offline title')).toBeInTheDocument();
+    });
+
+    await userEvent.clear(screen.getByLabelText(/tittel|title/i));
+    await userEvent.type(screen.getByLabelText(/tittel|title/i), 'Fixed title');
+    await userEvent.click(screen.getByRole('button', { name: /lagre|save/i }));
+
+    await waitFor(() => {
+      expect(saveOfflineEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          localId: 'local-pending-1',
+          createdAt: FIXED_CREATED_AT,
+          status: 'pending',
+          payload: expect.objectContaining({
+            title: 'Fixed title',
+            content: 'Offline body',
+          }),
+        }),
+      );
     });
   });
 });

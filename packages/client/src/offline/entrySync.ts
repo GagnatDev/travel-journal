@@ -61,6 +61,7 @@ export async function syncPendingEntries(
         {
           ...entry.payload,
           images: [...(entry.payload.images ?? []), ...uploadedImages],
+          clientCreatedAt: new Date(entry.createdAt).toISOString(),
         },
         token,
       );

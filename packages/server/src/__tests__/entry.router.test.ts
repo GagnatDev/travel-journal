@@ -135,6 +135,34 @@ describe('POST /api/v1/trips/:id/entries', () => {
     expect(res.body.title).toBe('Creator Entry');
   });
 
+  it('creator → 201 with clientCreatedAt preserves createdAt in response', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+    const clientAt = new Date(Date.now() - 2 * 24 * 60 * 60_000).toISOString();
+
+    const res = await request(app)
+      .post(`/api/v1/trips/${trip.id}/entries`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ title: 'From offline', content: 'Text', clientCreatedAt: clientAt });
+
+    expect(res.status).toBe(201);
+    expect(res.body.createdAt).toBe(clientAt);
+  });
+
+  it('returns 400 when clientCreatedAt is invalid', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+
+    const res = await request(app)
+      .post(`/api/v1/trips/${trip.id}/entries`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({
+        title: 'Bad date',
+        content: 'x',
+        clientCreatedAt: new Date(Date.now() + 24 * 60 * 60_000).toISOString(),
+      });
+
+    expect(res.status).toBe(400);
+  });
+
   it('returns 400 when title is missing', async () => {
     const { creator, trip } = await setupTripWithMember('creator');
 
