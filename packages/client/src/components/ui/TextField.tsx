@@ -17,7 +17,7 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   label: ReactNode;
   labelHtmlFor: string;
   /** Shown below the field when set. */
-  error?: string;
+  error?: string | undefined;
   errorId?: string;
   variant?: TextFieldVariant;
   /** Merged with the variant input classes (e.g. `flex-1`, `text-sm`). */

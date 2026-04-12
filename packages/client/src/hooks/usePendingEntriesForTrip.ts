@@ -10,11 +10,12 @@ export function usePendingEntriesForTrip(tripId: string | undefined): PendingEnt
 
   useEffect(() => {
     if (!tripId) return;
+    const id = tripId;
     let cancelled = false;
 
     async function refresh() {
       try {
-        const entries = await getPendingEntriesForTrip(tripId);
+        const entries = await getPendingEntriesForTrip(id);
         if (!cancelled) setPendingEntries(entries);
       } catch {
         // IDB unavailable — show nothing
