@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import type { Entry, Invite, PublicUser, Trip } from '@travel-journal/shared';
+import type { Comment, Entry, Invite, PublicUser, Reaction, Trip } from '@travel-journal/shared';
 
 export const mockUser: PublicUser = {
   id: 'user-1',
@@ -211,6 +211,7 @@ export const handlers = [
       title: body.title,
       content: body.content,
       images: [],
+      reactions: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -226,6 +227,7 @@ export const handlers = [
       title: 'Mock Entry',
       content: 'Mock content',
       images: [],
+      reactions: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }),
@@ -241,12 +243,48 @@ export const handlers = [
       title: body.title ?? 'Mock Entry',
       content: body.content ?? 'Mock content',
       images: [],
+      reactions: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
   }),
 
   http.delete('/api/v1/trips/:id/entries/:entryId', () =>
+    new HttpResponse(null, { status: 204 }),
+  ),
+
+  // Reactions
+  http.post('/api/v1/trips/:id/entries/:entryId/reactions', async ({ request }) => {
+    const body = (await request.json()) as { emoji: string };
+    const reaction: Reaction = {
+      emoji: body.emoji as Reaction['emoji'],
+      userId: 'user-1',
+      createdAt: new Date().toISOString(),
+    };
+    return HttpResponse.json({ reactions: [reaction] });
+  }),
+
+  // Comments
+  http.get('/api/v1/trips/:id/entries/:entryId/comments', () =>
+    HttpResponse.json([] as Comment[]),
+  ),
+
+  http.post('/api/v1/trips/:id/entries/:entryId/comments', async ({ params, request }) => {
+    const body = (await request.json()) as { content: string };
+    const comment: Comment = {
+      id: 'comment-1',
+      entryId: String(params['entryId']),
+      tripId: String(params['id']),
+      authorId: 'user-1',
+      authorName: 'Test User',
+      content: body.content,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    return HttpResponse.json(comment, { status: 201 });
+  }),
+
+  http.delete('/api/v1/trips/:id/entries/:entryId/comments/:commentId', () =>
     new HttpResponse(null, { status: 204 }),
   ),
 

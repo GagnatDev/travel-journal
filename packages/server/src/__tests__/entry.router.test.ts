@@ -6,6 +6,7 @@ import { createApp } from '../app.js';
 import { User } from '../models/User.model.js';
 import { Trip } from '../models/Trip.model.js';
 import { Entry } from '../models/Entry.model.js';
+import { Comment } from '../models/Comment.model.js';
 import { hashPassword, generateAccessToken } from '../services/auth.service.js';
 import { createTrip } from '../services/trip.service.js';
 import { createEntry } from '../services/entry.service.js';
@@ -22,6 +23,7 @@ beforeEach(async () => {
   await User.deleteMany({});
   await Trip.deleteMany({});
   await Entry.deleteMany({});
+  await Comment.deleteMany({});
 });
 
 afterAll(async () => {
@@ -435,5 +437,193 @@ describe('DELETE /api/v1/trips/:id/entries/:entryId', () => {
       .set('Authorization', authHeader(String(other._id), other.email, 'creator'));
 
     expect(res.status).toBe(403);
+  });
+});
+
+describe('POST /api/v1/trips/:id/entries/:entryId/reactions', () => {
+  it('adds a reaction and returns updated reactions array', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+    const entry = await createEntry(trip.id, String(creator._id), { title: 'E', content: 'c' });
+
+    const res = await request(app)
+      .post(`/api/v1/trips/${trip.id}/entries/${entry.id}/reactions`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ emoji: '❤️' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.reactions).toHaveLength(1);
+    expect(res.body.reactions[0].emoji).toBe('❤️');
+  });
+
+  it('toggles the reaction off when the same emoji is sent twice', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+    const entry = await createEntry(trip.id, String(creator._id), { title: 'E', content: 'c' });
+
+    await request(app)
+      .post(`/api/v1/trips/${trip.id}/entries/${entry.id}/reactions`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ emoji: '👍' });
+
+    const res = await request(app)
+      .post(`/api/v1/trips/${trip.id}/entries/${entry.id}/reactions`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ emoji: '👍' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.reactions).toHaveLength(0);
+  });
+
+  it('returns 400 for an invalid emoji', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+    const entry = await createEntry(trip.id, String(creator._id), { title: 'E', content: 'c' });
+
+    const res = await request(app)
+      .post(`/api/v1/trips/${trip.id}/entries/${entry.id}/reactions`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ emoji: '🚀' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('non-member → 404', async () => {
+    const { trip } = await setupTripWithMember('creator');
+    const stranger = await makeUser('stranger@test.com', 'creator');
+    await createEntry(trip.id, 'some-user-id', { title: 'E', content: 'c' }).catch(() => null);
+
+    // Use a fake entry id since stranger can't create one
+    const res = await request(app)
+      .post(`/api/v1/trips/${trip.id}/entries/${new mongoose.Types.ObjectId().toHexString()}/reactions`)
+      .set('Authorization', authHeader(String(stranger._id), stranger.email, 'creator'))
+      .send({ emoji: '❤️' });
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('GET /api/v1/trips/:id/entries/:entryId/comments', () => {
+  it('returns empty array when no comments exist', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+    const entry = await createEntry(trip.id, String(creator._id), { title: 'E', content: 'c' });
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${trip.id}/entries/${entry.id}/comments`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('returns comments sorted oldest first', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+    const entry = await createEntry(trip.id, String(creator._id), { title: 'E', content: 'c' });
+
+    await request(app)
+      .post(`/api/v1/trips/${trip.id}/entries/${entry.id}/comments`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ content: 'First' });
+
+    await request(app)
+      .post(`/api/v1/trips/${trip.id}/entries/${entry.id}/comments`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ content: 'Second' });
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${trip.id}/entries/${entry.id}/comments`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+    expect(res.body[0].content).toBe('First');
+    expect(res.body[1].content).toBe('Second');
+  });
+});
+
+describe('POST /api/v1/trips/:id/entries/:entryId/comments', () => {
+  it('any member (including follower) can add a comment', async () => {
+    const { trip } = await setupTripWithMember('creator');
+    const follower = await makeUser('follower@test.com', 'follower');
+
+    await Trip.updateOne(
+      { _id: trip.id },
+      { $push: { members: { userId: follower._id, tripRole: 'follower', addedAt: new Date() } } },
+    );
+
+    const creator2 = await makeUser('creator2@test.com', 'creator');
+    await Trip.updateOne(
+      { _id: trip.id },
+      { $push: { members: { userId: creator2._id, tripRole: 'creator', addedAt: new Date() } } },
+    );
+    const entry = await createEntry(trip.id, String(creator2._id), { title: 'E', content: 'c' });
+
+    const res = await request(app)
+      .post(`/api/v1/trips/${trip.id}/entries/${entry.id}/comments`)
+      .set('Authorization', authHeader(String(follower._id), follower.email, 'follower'))
+      .send({ content: 'Great post!' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.content).toBe('Great post!');
+  });
+
+  it('returns 400 for empty content', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+    const entry = await createEntry(trip.id, String(creator._id), { title: 'E', content: 'c' });
+
+    const res = await request(app)
+      .post(`/api/v1/trips/${trip.id}/entries/${entry.id}/comments`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ content: '   ' });
+
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('DELETE /api/v1/trips/:id/entries/:entryId/comments/:commentId', () => {
+  it('author can delete their own comment → 204', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+    const entry = await createEntry(trip.id, String(creator._id), { title: 'E', content: 'c' });
+
+    const addRes = await request(app)
+      .post(`/api/v1/trips/${trip.id}/entries/${entry.id}/comments`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ content: 'My comment' });
+
+    const commentId = addRes.body.id as string;
+
+    const delRes = await request(app)
+      .delete(`/api/v1/trips/${trip.id}/entries/${entry.id}/comments/${commentId}`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(delRes.status).toBe(204);
+
+    // Verify it no longer appears in list
+    const listRes = await request(app)
+      .get(`/api/v1/trips/${trip.id}/entries/${entry.id}/comments`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+    expect(listRes.body).toHaveLength(0);
+  });
+
+  it('non-author → 403', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+    const other = await makeUser('other@test.com', 'creator');
+
+    await Trip.updateOne(
+      { _id: trip.id },
+      { $push: { members: { userId: other._id, tripRole: 'contributor', addedAt: new Date() } } },
+    );
+
+    const entry = await createEntry(trip.id, String(creator._id), { title: 'E', content: 'c' });
+
+    const addRes = await request(app)
+      .post(`/api/v1/trips/${trip.id}/entries/${entry.id}/comments`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ content: 'My comment' });
+
+    const commentId = addRes.body.id as string;
+
+    const delRes = await request(app)
+      .delete(`/api/v1/trips/${trip.id}/entries/${entry.id}/comments/${commentId}`)
+      .set('Authorization', authHeader(String(other._id), other.email, 'creator'));
+
+    expect(delRes.status).toBe(403);
   });
 });

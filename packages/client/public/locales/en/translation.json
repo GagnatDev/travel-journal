@@ -186,5 +186,18 @@
     "uploadFailed": "Could not upload one or more photos. Try again.",
     "imageLimit": "Maximum 10 images",
     "removeImage": "Remove image"
+  },
+  "reactions": {
+    "label": "Reactions"
+  },
+  "comments": {
+    "add": "Post",
+    "placeholder": "Write a comment…",
+    "delete": "Delete",
+    "hide": "Hide comments",
+    "empty": "No comments yet.",
+    "count_one": "{{count}} comment",
+    "count_other": "{{count}} comments",
+    "count_zero": "Add a comment"
   }
 }

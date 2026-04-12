@@ -22,6 +22,7 @@ const mockEntry: Entry = {
   title: 'Existing Entry',
   content: 'Existing content',
   images: [],
+  reactions: [],
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };

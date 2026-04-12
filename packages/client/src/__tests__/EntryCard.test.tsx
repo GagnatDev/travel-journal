@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Entry } from '@travel-journal/shared';
 
 import { EntryCard } from '../components/EntryCard.js';
@@ -18,6 +19,7 @@ function makeEntry(overrides: Partial<Entry> = {}): Entry {
     title: 'My Adventure',
     content: 'It was a great day.',
     images: [],
+    reactions: [],
     createdAt: new Date('2024-06-15T10:00:00Z').toISOString(),
     updatedAt: new Date('2024-06-15T10:00:00Z').toISOString(),
     ...overrides,
@@ -29,25 +31,28 @@ function renderCard(
   currentUserId: string,
   onDelete = vi.fn(),
 ): ReturnType<typeof render> {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter initialEntries={['/trips/trip-1/timeline']}>
-      <AuthSessionProvider accessToken="mock-token" user={mockUser}>
-        <Routes>
-          <Route
-            path="/trips/:id/timeline"
-            element={
-              <EntryCard
-                entry={entry}
-                tripId="trip-1"
-                currentUserId={currentUserId}
-                onDelete={onDelete}
-              />
-            }
-          />
-          <Route path="/trips/:id/entries/:entryId/edit" element={<div>Edit screen</div>} />
-        </Routes>
-      </AuthSessionProvider>
-    </MemoryRouter>,
+    <QueryClientProvider client={qc}>
+      <MemoryRouter initialEntries={['/trips/trip-1/timeline']}>
+        <AuthSessionProvider accessToken="mock-token" user={mockUser}>
+          <Routes>
+            <Route
+              path="/trips/:id/timeline"
+              element={
+                <EntryCard
+                  entry={entry}
+                  tripId="trip-1"
+                  currentUserId={currentUserId}
+                  onDelete={onDelete}
+                />
+              }
+            />
+            <Route path="/trips/:id/entries/:entryId/edit" element={<div>Edit screen</div>} />
+          </Routes>
+        </AuthSessionProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

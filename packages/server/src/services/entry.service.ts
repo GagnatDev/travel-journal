@@ -38,6 +38,11 @@ async function toEntry(doc: IEntry): Promise<Entry> {
       order: img.order,
       uploadedAt: img.uploadedAt.toISOString(),
     })),
+    reactions: (doc.reactions ?? []).map((r) => ({
+      emoji: r.emoji,
+      userId: String(r.userId),
+      createdAt: r.createdAt.toISOString(),
+    })),
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
   };

@@ -179,6 +179,19 @@ const nb = {
     imageLimit: 'Maks 10 bilder',
     removeImage: 'Fjern bilde',
   },
+  reactions: {
+    label: 'Reaksjoner',
+  },
+  comments: {
+    add: 'Publiser',
+    placeholder: 'Skriv en kommentar…',
+    delete: 'Slett',
+    hide: 'Skjul kommentarer',
+    empty: 'Ingen kommentarer ennå.',
+    count_one: '{{count}} kommentar',
+    count_other: '{{count}} kommentarer',
+    count_zero: 'Legg til kommentar',
+  },
 };
 
 i18n.use(initReactI18next).init({

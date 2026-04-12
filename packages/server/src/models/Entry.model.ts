@@ -14,6 +14,14 @@ export interface IEntryLocation {
   name?: string;
 }
 
+export type ReactionEmoji = '❤️' | '👍' | '😂';
+
+export interface IReaction {
+  emoji: ReactionEmoji;
+  userId: Types.ObjectId;
+  createdAt: Date;
+}
+
 export interface IEntry extends Document {
   tripId: Types.ObjectId;
   authorId: Types.ObjectId;
@@ -25,6 +33,7 @@ export interface IEntry extends Document {
   syncVersion: number;
   editHistory?: Array<{ content: string; images: IEntryImage[]; savedAt: Date; savedBy: Types.ObjectId }>;
   promptUsed?: string;
+  reactions: IReaction[];
   createdAt: Date;
   deletedAt: Date | null;
   updatedAt: Date;
@@ -50,6 +59,15 @@ const entryLocationSchema = new Schema<IEntryLocation>(
   { _id: false },
 );
 
+const reactionSchema = new Schema<IReaction>(
+  {
+    emoji: { type: String, required: true, enum: ['❤️', '👍', '😂'] },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    createdAt: { type: Date, default: () => new Date() },
+  },
+  { _id: false },
+);
+
 const entrySchema = new Schema<IEntry>(
   {
     tripId: { type: Schema.Types.ObjectId, ref: 'Trip', required: true },
@@ -61,6 +79,7 @@ const entrySchema = new Schema<IEntry>(
     isFavorite: { type: Boolean, default: false },
     syncVersion: { type: Number, default: 0 },
     promptUsed: { type: String },
+    reactions: { type: [reactionSchema], default: [] },
     deletedAt: { type: Date, default: null },
   },
   { timestamps: true },

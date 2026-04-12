@@ -35,6 +35,7 @@ function makeEntry(overrides: Partial<Entry> = {}): Entry {
     title: 'Test Entry',
     content: 'Some content',
     images: [],
+    reactions: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...overrides,

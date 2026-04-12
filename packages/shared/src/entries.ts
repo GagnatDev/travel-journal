@@ -12,6 +12,25 @@ export interface EntryLocation {
   name?: string;
 }
 
+export type ReactionEmoji = '❤️' | '👍' | '😂';
+
+export interface Reaction {
+  emoji: ReactionEmoji;
+  userId: string;
+  createdAt: string;
+}
+
+export interface Comment {
+  id: string;
+  entryId: string;
+  tripId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Entry {
   id: string;
   tripId: string;
@@ -21,8 +40,13 @@ export interface Entry {
   content: string;
   images: EntryImage[];
   location?: EntryLocation;
+  reactions: Reaction[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AddCommentRequest {
+  content: string;
 }
 
 export interface CreateEntryRequest {

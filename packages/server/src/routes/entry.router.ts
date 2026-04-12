@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response, Router } from 'express';
-import type { AccessTokenPayload, CreateEntryRequest, UpdateEntryRequest } from '@travel-journal/shared';
+import type { AccessTokenPayload, AddCommentRequest, CreateEntryRequest, ReactionEmoji, UpdateEntryRequest } from '@travel-journal/shared';
 
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { getTripById } from '../services/trip.service.js';
@@ -11,6 +11,8 @@ import {
   softDeleteEntry,
   updateEntry,
 } from '../services/entry.service.js';
+import { toggleReaction } from '../services/reaction.service.js';
+import { addComment, deleteComment, listComments } from '../services/comment.service.js';
 
 export const entryRouter: Router = Router({ mergeParams: true });
 
@@ -134,6 +136,66 @@ entryRouter.delete('/:entryId', async (req: Request, res: Response, next: NextFu
     const entryId = req.params['entryId']!;
 
     await softDeleteEntry(tripId, entryId, auth.userId);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /:entryId/reactions — Toggle reaction (any member)
+entryRouter.post('/:entryId/reactions', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const auth = res.locals['auth'] as AccessTokenPayload;
+    const tripId = req.params['id']!;
+    const entryId = req.params['entryId']!;
+    const { emoji } = req.body as { emoji: ReactionEmoji };
+
+    const validEmojis: ReactionEmoji[] = ['❤️', '👍', '😂'];
+    if (!emoji || !validEmojis.includes(emoji)) {
+      res.status(400).json({ error: { message: 'Invalid emoji', code: 'VALIDATION_ERROR' } });
+      return;
+    }
+
+    const reactions = await toggleReaction(tripId, entryId, auth.userId, emoji);
+    res.json({ reactions });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /:entryId/comments — List comments (any member)
+entryRouter.get('/:entryId/comments', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const entryId = req.params['entryId']!;
+    const comments = await listComments(entryId);
+    res.json(comments);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /:entryId/comments — Add comment (any member)
+entryRouter.post('/:entryId/comments', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const auth = res.locals['auth'] as AccessTokenPayload;
+    const tripId = req.params['id']!;
+    const entryId = req.params['entryId']!;
+    const body = req.body as AddCommentRequest;
+
+    const comment = await addComment(tripId, entryId, auth.userId, body.content ?? '');
+    res.status(201).json(comment);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /:entryId/comments/:commentId — Delete comment (author only)
+entryRouter.delete('/:entryId/comments/:commentId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const auth = res.locals['auth'] as AccessTokenPayload;
+    const commentId = req.params['commentId']!;
+
+    await deleteComment(commentId, auth.userId);
     res.status(204).send();
   } catch (err) {
     next(err);

@@ -5,6 +5,8 @@ import type { Entry } from '@travel-journal/shared';
 import { formatEntryContent } from '../utils/formatEntryContent.js';
 
 import { AuthenticatedImage } from './AuthenticatedImage.js';
+import { ReactionBar } from './ReactionBar.js';
+import { CommentSection } from './CommentSection.js';
 
 interface EntryCardProps {
   entry: Entry;
@@ -99,6 +101,16 @@ export function EntryCard({ entry, tripId, currentUserId, onDelete }: EntryCardP
             ))}
           </div>
         )}
+
+        {/* Reactions */}
+        <ReactionBar
+          tripId={tripId}
+          entryId={entry.id}
+          reactions={entry.reactions}
+        />
+
+        {/* Comments */}
+        <CommentSection tripId={tripId} entryId={entry.id} />
       </div>
     </article>
   );
