@@ -44,7 +44,7 @@ export function ProfileScreen() {
     try {
       const updated = await apiJson<PublicUser>('/api/v1/users/me', {
         method: 'PATCH',
-        token: accessToken ?? undefined,
+        ...(accessToken != null ? { token: accessToken } : {}),
         body: { displayName: trimmed },
       });
       setUser(updated);
