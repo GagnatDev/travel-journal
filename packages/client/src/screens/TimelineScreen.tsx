@@ -1,19 +1,20 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useRef, useCallback, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import type { EntriesPage } from '../api/entries.js';
 import { deleteEntry, fetchEntriesPage } from '../api/entries.js';
 import { fetchTrip } from '../api/trips.js';
-import { useAuth } from '../context/AuthContext.js';
+import { PendingEntryPreviewList } from '../components/timeline/PendingEntryPreviewList.js';
+import { StoryModeToggle } from '../components/timeline/StoryModeToggle.js';
+import { TimelineEntryCardList } from '../components/timeline/TimelineEntryCardList.js';
 import { BottomNavBar } from '../components/BottomNavBar.js';
-import { EntryCard } from '../components/EntryCard.js';
 import { DayHeader } from '../components/DayHeader.js';
+import { useAuth } from '../context/AuthContext.js';
+import { useInfiniteScrollSentinel } from '../hooks/useInfiniteScrollSentinel.js';
+import { usePendingEntriesForTrip } from '../hooks/usePendingEntriesForTrip.js';
 import { groupEntriesByDay } from '../utils/groupEntriesByDay.js';
-import { getPendingEntriesForTrip } from '../offline/db.js';
-import { PENDING_CHANGED_EVENT } from '../offline/entrySync.js';
-import type { PendingEntry } from '../offline/db.js';
 
 export function TimelineScreen() {
   const { id: tripId } = useParams<{ id: string }>();
@@ -26,7 +27,7 @@ export function TimelineScreen() {
   const [storyMode, setStoryMode] = useState<boolean>(
     () => localStorage.getItem(storyModeKey) === 'true',
   );
-  const [pendingEntries, setPendingEntries] = useState<PendingEntry[]>([]);
+  const pendingEntries = usePendingEntriesForTrip(tripId);
 
   const toggleStoryMode = useCallback(() => {
     setStoryMode((prev) => {
@@ -35,28 +36,6 @@ export function TimelineScreen() {
       return next;
     });
   }, [storyModeKey]);
-
-  // Load pending offline entries for this trip and refresh on queue changes
-  useEffect(() => {
-    if (!tripId) return;
-    let cancelled = false;
-
-    async function refresh() {
-      try {
-        const entries = await getPendingEntriesForTrip(tripId!);
-        if (!cancelled) setPendingEntries(entries);
-      } catch {
-        // IDB unavailable — show nothing
-      }
-    }
-
-    void refresh();
-    window.addEventListener(PENDING_CHANGED_EVENT, refresh);
-    return () => {
-      cancelled = true;
-      window.removeEventListener(PENDING_CHANGED_EVENT, refresh);
-    };
-  }, [tripId]);
 
   const { data: trip = null } = useQuery({
     queryKey: ['trip', tripId],
@@ -101,23 +80,7 @@ export function TimelineScreen() {
     [deleteMutation, t],
   );
 
-  // IntersectionObserver for infinite scroll
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
-          void fetchNextPage();
-        }
-      },
-      { threshold: 0.1 },
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  useInfiniteScrollSentinel(sentinelRef, fetchNextPage, !!hasNextPage, isFetchingNextPage);
 
   if (isLoading) {
     return (
@@ -128,64 +91,21 @@ export function TimelineScreen() {
   }
 
   const dayGroups = storyMode ? groupEntriesByDay(allEntries, trip?.departureDate) : null;
+  const listProps = {
+    tripId: tripId!,
+    currentUserId: user?.id ?? '',
+    onDelete: handleDelete,
+  };
 
   return (
     <div className="min-h-screen bg-bg-primary pb-28">
       <header className="px-4 pt-8 pb-4 flex items-center justify-between">
         <h1 className="font-display text-2xl text-heading">{trip?.name ?? ''}</h1>
-        <button
-          onClick={toggleStoryMode}
-          aria-label={t('storyMode.toggle')}
-          aria-pressed={storyMode}
-          data-testid="story-mode-toggle"
-          className={`p-2 rounded-full transition-colors ${
-            storyMode ? 'bg-accent/10 text-accent' : 'text-caption hover:text-heading'
-          }`}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="w-5 h-5"
-            aria-hidden="true"
-          >
-            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-          </svg>
-        </button>
+        <StoryModeToggle storyMode={storyMode} onToggle={toggleStoryMode} t={t} />
       </header>
 
       <main className="px-4 space-y-4">
-        {/* Pending offline entries shown at the top */}
-        {pendingEntries.map((pending) => (
-          <Link
-            key={pending.localId}
-            to={`/trips/${tripId}/entries/pending/${pending.localId}/edit`}
-            className="block opacity-60 relative rounded-round-eight focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            aria-label={t('offline.editPending')}
-          >
-            <div className="absolute top-2 right-2 z-10">
-              <span className="font-ui text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
-                {pending.status === 'failed' ? t('offline.syncFailedShort') : t('offline.saved')}
-              </span>
-            </div>
-            <div className="bg-bg-secondary border border-caption/20 rounded-round-eight p-4 space-y-1">
-              <p className="font-display text-lg text-heading">{pending.payload.title}</p>
-              {pending.payload.content && (
-                <p className="font-ui text-sm text-body line-clamp-3">{pending.payload.content}</p>
-              )}
-              {pending.images.length > 0 && (
-                <p className="font-ui text-xs text-caption">
-                  {pending.images.length} {pending.images.length === 1 ? 'photo' : 'photos'} pending upload
-                </p>
-              )}
-            </div>
-          </Link>
-        ))}
+        {tripId && <PendingEntryPreviewList tripId={tripId} pendingEntries={pendingEntries} t={t} />}
 
         {allEntries.length === 0 && pendingEntries.length === 0 ? (
           <p className="font-ui text-body text-center py-12 text-caption">
@@ -202,31 +122,14 @@ export function TimelineScreen() {
                   : {})}
               />
               <div className="space-y-4 mt-4">
-                {group.entries.map((entry) => (
-                  <EntryCard
-                    key={entry.id}
-                    entry={entry}
-                    tripId={tripId!}
-                    currentUserId={user?.id ?? ''}
-                    onDelete={handleDelete}
-                  />
-                ))}
+                <TimelineEntryCardList entries={group.entries} {...listProps} />
               </div>
             </div>
           ))
         ) : (
-          allEntries.map((entry) => (
-            <EntryCard
-              key={entry.id}
-              entry={entry}
-              tripId={tripId!}
-              currentUserId={user?.id ?? ''}
-              onDelete={handleDelete}
-            />
-          ))
+          <TimelineEntryCardList entries={allEntries} {...listProps} />
         )}
 
-        {/* Infinite scroll sentinel */}
         <div ref={sentinelRef} className="h-1" aria-hidden="true" data-testid="scroll-sentinel" />
 
         {isFetchingNextPage && (
