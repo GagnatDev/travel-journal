@@ -35,7 +35,7 @@ describe('AppHeader', () => {
 
   it('renders the app name', () => {
     renderHeader();
-    expect(screen.getByText('The Digital Keepsake')).toBeInTheDocument();
+    expect(screen.getByText('Reisedagbok')).toBeInTheDocument();
   });
 
   it('renders notification bell button with correct aria-label', () => {

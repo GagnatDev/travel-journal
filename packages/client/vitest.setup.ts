@@ -40,6 +40,7 @@ if (typeof URL.createObjectURL !== 'function') {
 }
 
 const nb = {
+  app: { name: 'Reisedagbok' },
   auth: {
     login: {
       title: 'Logg inn',
@@ -201,8 +202,8 @@ const nb = {
     newTitle: 'Nytt innlegg',
     editTitle: 'Rediger innlegg',
     draft: 'Kladd',
-    sectionLabel: 'VÅR FELLES REISE',
-    latestHeading: 'Siste fra veien',
+    sectionLabel: 'Siste nytt fra reisen',
+    tripNameFallback: 'Reise',
     moreOptions: 'Flere valg',
     saveEntry: 'LAGRE INNLEGG',
     titleLabel: 'Tittel',

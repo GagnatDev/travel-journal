@@ -106,7 +106,9 @@ export function TimelineScreen() {
 
       <div className="px-4 pb-2">
         <SectionLabel>{t('entries.sectionLabel')}</SectionLabel>
-        <h1 className="font-display text-3xl text-heading mt-1 mb-2">{t('entries.latestHeading')}</h1>
+        <h1 className="font-display text-3xl text-heading mt-1 mb-2">
+          {trip?.name?.trim() ? trip.name.trim() : t('entries.tripNameFallback')}
+        </h1>
       </div>
 
       <main className="px-4 space-y-6">

@@ -1,4 +1,7 @@
 {
+  "app": {
+    "name": "Travel Journal"
+  },
   "auth": {
     "login": {
       "title": "Sign in",
@@ -195,8 +198,8 @@
     "newTitle": "New Entry",
     "editTitle": "Edit Entry",
     "draft": "Draft",
-    "sectionLabel": "OUR SHARED JOURNEY",
-    "latestHeading": "Latest from the Road",
+    "sectionLabel": "Latest from the Road",
+    "tripNameFallback": "Trip",
     "moreOptions": "More options",
     "saveEntry": "SAVE ENTRY",
     "titleLabel": "Title",
