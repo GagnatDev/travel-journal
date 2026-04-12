@@ -5,6 +5,23 @@ import { initReactI18next } from 'react-i18next';
 
 import { server } from './src/__tests__/mocks/server.js';
 
+// jsdom has no matchMedia implementation; polyfill it globally for all tests.
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+}
+
 // jsdom has no Blob URL implementation; AuthenticatedImage uses createObjectURL after fetch.
 if (typeof URL.createObjectURL !== 'function') {
   const blobRef = new Map<string, Blob>();
@@ -96,6 +113,16 @@ const nb = {
     copyFailed: 'Kunne ikke kopiere',
   },
   language: { nb: 'Norsk', en: 'English' },
+  menu: { theme: 'Mørk modus', language: 'Språk', profile: 'Profil' },
+  profile: {
+    title: 'Profil',
+    displayNameLabel: 'Kallenavn',
+    editButton: 'Rediger',
+    saveButton: 'Lagre',
+    cancelButton: 'Avbryt',
+    emailLabel: 'E-post',
+    logoutButton: 'Logg ut',
+  },
   trips: {
     dashboard: {
       title: 'Mine turer',

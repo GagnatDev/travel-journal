@@ -83,6 +83,11 @@
     "nb": "Norsk",
     "en": "English"
   },
+  "menu": {
+    "theme": "Mørk modus",
+    "language": "Språk",
+    "profile": "Profil"
+  },
   "trips": {
     "dashboard": {
       "title": "Mine turer",

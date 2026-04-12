@@ -83,6 +83,11 @@
     "nb": "Norsk",
     "en": "English"
   },
+  "menu": {
+    "theme": "Dark mode",
+    "language": "Language",
+    "profile": "Profile"
+  },
   "trips": {
     "dashboard": {
       "title": "My Trips",
