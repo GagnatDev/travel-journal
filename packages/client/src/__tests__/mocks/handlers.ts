@@ -5,6 +5,7 @@ import { mockAdminUser, mockUser } from './fixtures.js';
 import { inviteHandlers } from './inviteHandlers.js';
 import { mediaHandlers } from './mediaHandlers.js';
 import { tripHandlers } from './tripHandlers.js';
+import { userHandlers } from './userHandlers.js';
 
 export { mockAdminUser, mockUser };
 
@@ -15,4 +16,5 @@ export const handlers = [
   ...adminHandlers,
   ...entryHandlers,
   ...mediaHandlers,
+  ...userHandlers,
 ];

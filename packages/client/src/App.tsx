@@ -8,6 +8,7 @@ import { AppHeader } from './components/AppHeader.js';
 import { ProtectedRoute } from './components/ProtectedRoute.js';
 import { OfflineBanner } from './components/OfflineBanner.js';
 import { AdminPanelScreen } from './screens/AdminPanelScreen.js';
+import { ProfileScreen } from './screens/ProfileScreen.js';
 import { AdminRegisterScreen } from './screens/AdminRegisterScreen.js';
 import { CreateEntryScreen } from './screens/CreateEntryScreen.js';
 import { InviteAcceptScreen } from './screens/InviteAcceptScreen.js';
@@ -106,6 +107,14 @@ export function App() {
           element={
             <ProtectedRoute>
               <AdminPanelScreen />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfileScreen />
             </ProtectedRoute>
           }
         />

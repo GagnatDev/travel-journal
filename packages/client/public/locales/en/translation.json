@@ -88,6 +88,15 @@
     "language": "Language",
     "profile": "Profile"
   },
+  "profile": {
+    "title": "Profile",
+    "displayNameLabel": "Nickname",
+    "editButton": "Edit",
+    "saveButton": "Save",
+    "cancelButton": "Cancel",
+    "emailLabel": "Email",
+    "logoutButton": "Log out"
+  },
   "trips": {
     "dashboard": {
       "title": "My Trips",

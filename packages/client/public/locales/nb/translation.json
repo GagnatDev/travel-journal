@@ -88,6 +88,15 @@
     "language": "Språk",
     "profile": "Profil"
   },
+  "profile": {
+    "title": "Profil",
+    "displayNameLabel": "Kallenavn",
+    "editButton": "Rediger",
+    "saveButton": "Lagre",
+    "cancelButton": "Avbryt",
+    "emailLabel": "E-post",
+    "logoutButton": "Logg ut"
+  },
   "trips": {
     "dashboard": {
       "title": "Mine turer",
