@@ -5,9 +5,10 @@ import { createApp } from './app.js';
 import { connectDb } from './db.js';
 import { logger } from './logger.js';
 
-// Local dev uses packages/server/.env.local (gitignored). CI provides env via the workflow.
+// Local dev uses packages/server/.env.local (gitignored). E2E and CI set env explicitly;
+// skip .env.local under test so the API process is not mixed with dev-only variables.
 const envLocalPath = join(__dirname, '..', '.env.local');
-if (existsSync(envLocalPath)) {
+if (process.env['NODE_ENV'] !== 'test' && existsSync(envLocalPath)) {
   (process as NodeJS.Process & { loadEnvFile?: (path: string) => void }).loadEnvFile?.(
     envLocalPath,
   );

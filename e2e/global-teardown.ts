@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const MONGODB_URI =
-  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-e2e';
+  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-test';
 
 export default async function globalTeardown() {
   // Kill the server process
