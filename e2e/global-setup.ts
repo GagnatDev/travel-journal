@@ -8,7 +8,7 @@ const S3_BUCKET = process.env['S3_BUCKET'] ?? 'travel-journal';
 const S3_ACCESS_KEY = process.env['S3_ACCESS_KEY'] ?? 'minioadmin';
 const S3_SECRET_KEY = process.env['S3_SECRET_KEY'] ?? 'minioadmin';
 const MONGODB_URI =
-  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-e2e';
+  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-test';
 const SERVER_PORT = process.env['SERVER_PORT'] ?? '3101';
 const HEALTHZ_URL = `http://localhost:${SERVER_PORT}/healthz`;
 
@@ -46,7 +46,7 @@ async function startServer() {
         S3_BUCKET,
         S3_ACCESS_KEY,
         S3_SECRET_KEY,
-        JWT_SECRET: process.env['JWT_SECRET'] ?? 'e2e-test-secret',
+        JWT_SECRET: process.env['JWT_SECRET'] ?? 'ci-test-secret',
         ADMIN_EMAIL: process.env['ADMIN_EMAIL'] ?? 'admin@localhost',
       },
       stdio: 'pipe',
