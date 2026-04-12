@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Travel Journal">
+  <!-- Maskable-safe: motif within center ~80% -->
+  <rect width="512" height="512" rx="112" fill="#fbf9f5"/>
+  <circle
+    cx="256"
+    cy="256"
+    r="168"
+    fill="none"
+    stroke="#9b3f2b"
+    stroke-width="20"
+  />
+  <!-- Needle: north (terracotta) / south (muted) -->
+  <path fill="#9b3f2b" d="M256 124l40 132H216z"/>
+  <path fill="#c9a89e" d="M256 388l-32-100h64z"/>
+  <circle cx="256" cy="256" r="24" fill="#9b3f2b"/>
+</svg>

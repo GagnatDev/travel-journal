@@ -1,9 +1,38 @@
 {
   "name": "Travel Journal",
   "short_name": "TravelJournal",
+  "description": "Notes, photos, and memories from your trips.",
+  "lang": "nb",
+  "dir": "ltr",
+  "scope": "/",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#fbf9f5",
   "theme_color": "#9b3f2b",
-  "start_url": "/",
-  "icons": []
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ]
 }
