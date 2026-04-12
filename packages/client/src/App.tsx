@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from './context/AuthContext.js';
+import { ThemeProvider } from './context/ThemeContext.js';
 import { AppHeader } from './components/AppHeader.js';
 import { ProtectedRoute } from './components/ProtectedRoute.js';
 import { OfflineBanner } from './components/OfflineBanner.js';
@@ -37,7 +38,7 @@ export function App() {
   }, [status, accessToken, queryClient]);
 
   return (
-    <>
+    <ThemeProvider>
       <OfflineBanner />
       {status === 'authenticated' && <AppHeader />}
       <Routes>
@@ -110,6 +111,6 @@ export function App() {
         />
         <Route path="/" element={<Navigate to="/trips" replace />} />
       </Routes>
-    </>
+    </ThemeProvider>
   );
 }
