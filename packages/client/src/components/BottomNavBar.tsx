@@ -1,7 +1,9 @@
+import type { ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TripRole } from '@travel-journal/shared';
 
+import { HomeIcon, MapPinIcon, PeopleIcon, PlusIcon, TimelineIcon } from './icons/index.js';
 import { SyncStatus } from './SyncStatus.js';
 
 interface BottomNavBarProps {
@@ -16,7 +18,7 @@ export function BottomNavBar({ tripId, tripRole }: BottomNavBarProps) {
 
   const canAddEntry = tripRole === 'creator' || tripRole === 'contributor';
 
-  function navItem(label: string, path: string) {
+  function navItem(label: string, path: string, icon: ReactNode) {
     const isActive = location.pathname === path;
     return (
       <button
@@ -25,6 +27,7 @@ export function BottomNavBar({ tripId, tripRole }: BottomNavBarProps) {
           isActive ? 'text-accent' : 'text-caption'
         }`}
       >
+        {icon}
         <span>{label}</span>
       </button>
     );
@@ -38,29 +41,52 @@ export function BottomNavBar({ tripId, tripRole }: BottomNavBarProps) {
       <div className="max-w-lg mx-auto flex items-center px-4 py-2 relative">
         {tripId ? (
           canAddEntry ? (
-            // FAB layout: Timeline | [FAB spacer] | Map + Settings
-            // The w-14 spacer sits at the horizontal centre so the absolute FAB lands over it
+            // FAB layout: Timeline | Map | [FAB spacer] | Settings | People
             <>
-              <div className="flex-1 flex justify-center">
-                {navItem(t('trips.nav.timeline'), `/trips/${tripId}/timeline`)}
+              <div className="flex-1 flex justify-around">
+                {navItem(
+                  t('trips.nav.timeline'),
+                  `/trips/${tripId}/timeline`,
+                  <TimelineIcon width={20} height={20} aria-hidden="true" />,
+                )}
+                {navItem(
+                  t('trips.nav.map'),
+                  `/trips/${tripId}/map`,
+                  <MapPinIcon width={20} height={20} aria-hidden="true" />,
+                )}
               </div>
               <div className="w-14 shrink-0" />
               <div className="flex-1 flex justify-around">
-                {navItem(t('trips.nav.map'), `/trips/${tripId}/map`)}
-                {navItem(t('trips.nav.settings'), `/trips/${tripId}/settings`)}
+                {navItem(
+                  t('trips.nav.settings'),
+                  `/trips/${tripId}/settings`,
+                  <PeopleIcon width={20} height={20} aria-hidden="true" />,
+                )}
               </div>
             </>
           ) : (
-            // No FAB: evenly distribute all three items
+            // No FAB: evenly distribute all items
             <div className="flex-1 flex justify-around">
-              {navItem(t('trips.nav.timeline'), `/trips/${tripId}/timeline`)}
-              {navItem(t('trips.nav.map'), `/trips/${tripId}/map`)}
-              {navItem(t('trips.nav.settings'), `/trips/${tripId}/settings`)}
+              {navItem(
+                t('trips.nav.timeline'),
+                `/trips/${tripId}/timeline`,
+                <TimelineIcon width={20} height={20} aria-hidden="true" />,
+              )}
+              {navItem(
+                t('trips.nav.map'),
+                `/trips/${tripId}/map`,
+                <MapPinIcon width={20} height={20} aria-hidden="true" />,
+              )}
+              {navItem(
+                t('trips.nav.settings'),
+                `/trips/${tripId}/settings`,
+                <PeopleIcon width={20} height={20} aria-hidden="true" />,
+              )}
             </div>
           )
         ) : (
           <div className="flex-1 flex justify-around">
-            {navItem(t('nav.trips'), '/trips')}
+            {navItem(t('nav.trips'), '/trips', <HomeIcon width={20} height={20} aria-hidden="true" />)}
           </div>
         )}
 
@@ -69,10 +95,10 @@ export function BottomNavBar({ tripId, tripRole }: BottomNavBarProps) {
           <div className="absolute left-1/2 -translate-x-1/2 -top-6">
             <button
               onClick={() => navigate(`/trips/${tripId}/entries/new`)}
-              className="w-14 h-14 bg-accent text-white rounded-full flex items-center justify-center shadow-lg hover:opacity-90 active:scale-95 transition-all font-ui font-bold text-2xl"
+              className="w-14 h-14 bg-accent text-white rounded-full flex items-center justify-center shadow-lg hover:opacity-90 active:scale-95 transition-all"
               aria-label={t('trips.nav.addEntry')}
             >
-              +
+              <PlusIcon width={24} height={24} />
             </button>
           </div>
         )}

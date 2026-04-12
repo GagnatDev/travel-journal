@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 import { EntryFormBody } from './createEntry/EntryFormBody.js';
@@ -5,17 +6,32 @@ import { useCreateEntryScreen } from './createEntry/useCreateEntryScreen.js';
 
 export function CreateEntryScreen() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const form = useCreateEntryScreen();
+  const isEditing = form.isServerEdit || form.isPendingEdit;
 
   return (
-    <div className="min-h-screen bg-bg-primary pb-8">
-      <header className="px-4 pt-8 pb-4 flex items-center justify-between">
-        <h1 className="font-display text-2xl text-heading">
-          {form.isServerEdit || form.isPendingEdit ? t('entries.editTitle') : t('entries.newTitle')}
-        </h1>
+    <div className="fixed inset-0 z-50 bg-bg-primary flex flex-col">
+      <header className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-caption/10">
+        <button
+          type="button"
+          aria-label={t('common.close')}
+          onClick={() => navigate(-1)}
+          className="font-ui text-xl text-body hover:text-heading transition-colors leading-none"
+        >
+          ×
+        </button>
+        <span className="font-ui font-semibold text-heading">
+          {isEditing ? t('entries.editTitle') : t('entries.newTitle')}
+        </span>
+        {!isEditing && (
+          <span className="font-ui text-xs text-caption">{t('entries.draft')}</span>
+        )}
+        {isEditing && <span className="w-6" />}
       </header>
-
-      <EntryFormBody {...form} />
+      <div className="flex-1 overflow-y-auto">
+        <EntryFormBody {...form} />
+      </div>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from './context/AuthContext.js';
+import { AppHeader } from './components/AppHeader.js';
 import { ProtectedRoute } from './components/ProtectedRoute.js';
 import { OfflineBanner } from './components/OfflineBanner.js';
 import { AdminPanelScreen } from './screens/AdminPanelScreen.js';
@@ -38,6 +39,7 @@ export function App() {
   return (
     <>
       <OfflineBanner />
+      {status === 'authenticated' && <AppHeader />}
       <Routes>
         <Route path="/register" element={<AdminRegisterScreen />} />
         <Route path="/login" element={<LoginScreen />} />

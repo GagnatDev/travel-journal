@@ -122,9 +122,7 @@ describe('TimelineScreen', () => {
     // mockUser has tripRole 'creator' via the mockTrip members
     renderTimeline(mockUser);
 
-    // Entries and trip load in parallel; the FAB needs trip.members (see BottomNavBar
-    // canAddEntry). waitFor only on the button can time out when entries finish first.
-    await screen.findByRole('heading', { name: 'Adventure Trip' }, { timeout: 5000 });
+    // The FAB appears after the trip data (and its members) loads.
     expect(
       await screen.findByRole('button', { name: /legg til innlegg|add entry/i }, { timeout: 5000 }),
     ).toBeInTheDocument();
@@ -181,8 +179,9 @@ describe('TimelineScreen', () => {
 
     renderTimeline();
 
-    await screen.findByRole('heading', { name: 'Adventure Trip' });
-    expect(screen.getByTestId('story-mode-toggle')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('story-mode-toggle')).toBeInTheDocument();
+    });
   });
 
   it('shows day headers when Story Mode is toggled on', async () => {

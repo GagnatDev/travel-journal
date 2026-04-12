@@ -121,9 +121,8 @@ describe('TripSettingsScreen', () => {
       </QueryClientProvider>,
     );
 
-    await waitFor(() => {
-      expect(screen.getByText('My Trip')).toBeInTheDocument();
-    });
+    // Wait for the timeline to load (story-mode toggle is always rendered)
+    await screen.findByTestId('story-mode-toggle');
 
     await userEvent.click(screen.getByRole('button', { name: /settings|innstillinger/i }));
 

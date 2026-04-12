@@ -98,11 +98,10 @@ export function TimelineScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-bg-primary pb-28">
-      <header className="px-4 pt-8 pb-4 flex items-center justify-between">
-        <h1 className="font-display text-2xl text-heading">{trip?.name ?? ''}</h1>
+    <div className="min-h-screen bg-bg-primary pb-28 pt-14">
+      <div className="px-4 pt-4 pb-2 flex items-center justify-end">
         <StoryModeToggle storyMode={storyMode} onToggle={toggleStoryMode} t={t} />
-      </header>
+      </div>
 
       <main className="px-4 space-y-4">
         {tripId && <PendingEntryPreviewList tripId={tripId} pendingEntries={pendingEntries} t={t} />}
