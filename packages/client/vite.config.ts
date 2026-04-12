@@ -14,6 +14,8 @@ export default defineConfig({
       // Reuse the existing manifest.webmanifest in public/
       manifest: false,
       workbox: {
+        // Default Workbox cap is 2 MiB; the main bundle (e.g. Mapbox) is larger — precache it explicitly.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,woff2}'],
         runtimeCaching: [
           // i18n locale files — cache-first (rarely change)
