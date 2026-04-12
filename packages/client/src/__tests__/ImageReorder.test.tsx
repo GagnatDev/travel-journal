@@ -4,8 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { EntryImage } from '@travel-journal/shared';
 
 import { ImageReorder } from '../components/ImageReorder.js';
-import { AuthSessionProvider } from './AuthSessionProvider.js';
 
+import { AuthSessionProvider } from './AuthSessionProvider.js';
 import { mockUser } from './mocks/handlers.js';
 
 function makeImage(key: string, order: number): EntryImage {

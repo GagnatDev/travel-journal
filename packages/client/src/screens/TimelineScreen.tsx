@@ -144,7 +144,9 @@ export function TimelineScreen() {
               <DayHeader
                 date={group.date}
                 dayNumber={group.dayNumber}
-                locationSummary={group.locationSummary}
+                {...(group.locationSummary !== undefined
+                  ? { locationSummary: group.locationSummary }
+                  : {})}
               />
               <div className="space-y-4 mt-4">
                 {group.entries.map((entry) => (

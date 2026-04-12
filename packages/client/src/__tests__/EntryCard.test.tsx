@@ -5,8 +5,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { Entry } from '@travel-journal/shared';
 
 import { EntryCard } from '../components/EntryCard.js';
-import { AuthSessionProvider } from './AuthSessionProvider.js';
 
+import { AuthSessionProvider } from './AuthSessionProvider.js';
 import { mockUser } from './mocks/handlers.js';
 
 function makeEntry(overrides: Partial<Entry> = {}): Entry {
