@@ -4,9 +4,15 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '.scaleway/**'
+      - '.github/workflows/put-bucket-cors.yml'
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - '.scaleway/**'
+      - '.github/workflows/put-bucket-cors.yml'
 
 jobs:
   lint:

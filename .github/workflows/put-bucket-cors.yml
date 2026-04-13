@@ -1,0 +1,30 @@
+name: Set Scaleway Bucket CORS
+on: [workflow_dispatch]
+
+jobs:
+  update-cors:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.SCW_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.SCW_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.SCW_REGION }}
+
+      - name: Apply CORS configuration
+        working-directory: .scaleway
+        env:
+          S3_BUCKET: ${{ secrets.APP_S3_BUCKET }}
+          S3_ENDPOINT: ${{ secrets.APP_S3_ENDPOINT }}
+          PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
+        run: |
+          export PUBLIC_APP_URL
+          envsubst < template-bucket-cors.json > cors.json
+          aws s3api put-bucket-cors \
+            --bucket "$S3_BUCKET" \
+            --cors-configuration file://cors.json \
+            --endpoint-url "$S3_ENDPOINT"
