@@ -17,8 +17,8 @@ const TINY_PNG = Buffer.from(
  * `/api/v1/media/:key` and sets `img.src` to a `blob:` object URL. Assertions must not
  * expect `/api/v1/media/` to appear in the DOM `src` attribute.
  *
- * Thumbnail loads use GET on the app proxy (often 302 to object storage); we assert that
- * request, not `res.ok()` alone, which would reject redirects.
+ * Thumbnail loads use GET on the app proxy (streamed 200 from the API); we assert that
+ * request, not `res.ok()` alone.
  */
 
 test.beforeEach(async () => {
@@ -85,7 +85,7 @@ test.describe('Media', () => {
       (res) =>
         res.url().includes('/api/v1/media/') &&
         res.request().method() === 'GET' &&
-        (res.status() === 200 || res.status() === 302),
+        res.status() === 200,
     );
 
     await page.getByTestId('entry-media-file-input').setInputFiles({

@@ -1,3 +1,5 @@
+import { Readable } from 'node:stream';
+
 import { vi, describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import request from 'supertest';
 import mongoose from 'mongoose';
@@ -9,7 +11,17 @@ import { hashPassword, generateAccessToken } from '../services/auth.service.js';
 import { createTrip } from '../services/trip.service.js';
 
 vi.mock('@aws-sdk/client-s3', () => {
-  const mockSend = vi.fn().mockResolvedValue({});
+  const mockSend = vi.fn().mockImplementation(async (command: { input?: Record<string, unknown> }) => {
+    const input = command.input;
+    if (input && 'Body' in input) {
+      return {};
+    }
+    return {
+      ContentType: 'image/jpeg',
+      ContentLength: 9,
+      Body: Readable.from([Buffer.from('fake jpeg')]),
+    };
+  });
   const S3Client = vi.fn(() => ({ send: mockSend }));
   const PutObjectCommand = vi.fn();
   const GetObjectCommand = vi.fn();
@@ -144,28 +156,17 @@ describe('GET /api/v1/media/:key', () => {
     expect(res.status).toBe(403);
   });
 
-  it('member → 302 with Location header pointing to signed S3 URL', async () => {
+  it('member → 200 and streams image bytes from object storage', async () => {
     const creator = await makeUser('creator@test.com');
     const trip = await createTrip({ name: 'Test Trip' }, String(creator._id));
 
     const res = await request(app)
       .get(`/api/v1/media/media/${trip.id}/abc.jpg`)
-      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
-      .redirects(0);
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
 
-    expect(res.status).toBe(302);
-    expect(res.headers['location']).toBeDefined();
-  });
-
-  it('Location header is a signed S3 URL (contains s3.example.com)', async () => {
-    const creator = await makeUser('creator@test.com');
-    const trip = await createTrip({ name: 'Test Trip' }, String(creator._id));
-
-    const res = await request(app)
-      .get(`/api/v1/media/media/${trip.id}/abc.jpg`)
-      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
-      .redirects(0);
-
-    expect(res.headers['location']).toContain('s3.example.com');
+    expect(res.status).toBe(200);
+    expect(String(res.headers['content-type'])).toContain('image/jpeg');
+    expect(res.headers['location']).toBeUndefined();
+    expect(res.body).toEqual(Buffer.from('fake jpeg'));
   });
 });

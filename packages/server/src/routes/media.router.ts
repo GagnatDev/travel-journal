@@ -5,7 +5,7 @@ import type { AccessTokenPayload } from '@travel-journal/shared';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { createRateLimit } from '../middleware/rateLimit.js';
 import { getTripById } from '../services/trip.service.js';
-import { assertMediaAccess, generateSignedUrl, uploadMedia } from '../services/media.service.js';
+import { assertMediaAccess, streamMediaObject, uploadMedia } from '../services/media.service.js';
 
 export const mediaRouter: Router = Router();
 
@@ -74,7 +74,7 @@ mediaRouter.post(
   },
 );
 
-// GET * — Proxy media access via signed URL
+// GET * — Stream media from object storage (same-origin for the SPA; avoids bucket CORS on fetch)
 mediaRouter.get('/*', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const auth = res.locals['auth'] as AccessTokenPayload;
@@ -86,9 +86,12 @@ mediaRouter.get('/*', requireAuth, async (req: Request, res: Response, next: Nex
     }
 
     await assertMediaAccess(key, auth.userId);
-    const signedUrl = await generateSignedUrl(key);
-    res.redirect(302, signedUrl);
+    await streamMediaObject(key, res);
   } catch (err) {
-    next(err);
+    if (!res.headersSent) {
+      next(err);
+      return;
+    }
+    res.destroy(err instanceof Error ? err : undefined);
   }
 });

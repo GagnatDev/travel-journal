@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import { pipeline } from 'node:stream/promises';
+import type { Readable } from 'node:stream';
 
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import type { Response } from 'express';
 
 import { getTripById } from './trip.service.js';
 
@@ -69,6 +72,44 @@ export async function generateSignedUrl(key: string, ttlSeconds = 3600): Promise
   const client = createS3Client();
   const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
   return getSignedUrl(client, command, { expiresIn: ttlSeconds });
+}
+
+/**
+ * Stream object bytes to the client. Used for authenticated media reads so the browser
+ * never follows a cross-origin redirect to object storage (which would require bucket CORS).
+ */
+export async function streamMediaObject(key: string, res: Response): Promise<void> {
+  const client = createS3Client();
+  let out;
+  try {
+    out = await client.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+  } catch (err: unknown) {
+    const name = err && typeof err === 'object' && 'name' in err ? String((err as { name: string }).name) : '';
+    if (name === 'NoSuchKey' || name === 'NotFound') {
+      res.status(404).json({ error: { message: 'Media not found', code: 'NOT_FOUND' } });
+      return;
+    }
+    throw err;
+  }
+
+  const body = out.Body;
+  if (!body) {
+    res.status(404).json({ error: { message: 'Media not found', code: 'NOT_FOUND' } });
+    return;
+  }
+
+  const contentType = out.ContentType ?? 'application/octet-stream';
+  res.setHeader('Content-Type', contentType);
+  if (typeof out.ContentLength === 'number') {
+    res.setHeader('Content-Length', String(out.ContentLength));
+  }
+  if (out.ETag) {
+    res.setHeader('ETag', out.ETag);
+  }
+  res.setHeader('Cache-Control', 'private, max-age=300');
+
+  const readable = body as Readable;
+  await pipeline(readable, res);
 }
 
 export async function assertMediaAccess(key: string, userId: string): Promise<void> {

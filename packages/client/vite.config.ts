@@ -39,7 +39,7 @@ export default defineConfig({
             handler: 'NetworkFirst',
             options: { cacheName: 'api-trips' },
           },
-          // Media proxy — stale-while-revalidate (signed URLs expire)
+          // Media proxy — stale-while-revalidate (object bytes streamed from API)
           {
             urlPattern: /^\/api\/v1\/media\//,
             handler: 'StaleWhileRevalidate',
