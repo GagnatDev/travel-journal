@@ -1,4 +1,6 @@
 import crypto from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 
 import cookieParser from 'cookie-parser';
 import express, { Express, NextFunction, Request, Response } from 'express';
@@ -12,6 +14,8 @@ import { logger } from './logger.js';
 
 export function createApp(): Express {
   const app = express();
+  const publicDir = join(__dirname, 'public');
+  const indexHtmlPath = join(publicDir, 'index.html');
 
   app.use(express.json());
   app.use(cookieParser());
@@ -48,6 +52,19 @@ export function createApp(): Express {
   app.use('/api/v1/invites', inviteRouter);
   app.use('/api/v1/users', userRouter);
   app.use('/api/v1/media', mediaRouter);
+
+  if (existsSync(indexHtmlPath)) {
+    app.use(express.static(publicDir));
+
+    app.get('*', (req: Request, res: Response, next: NextFunction) => {
+      if (req.path.startsWith('/api/')) {
+        next();
+        return;
+      }
+
+      res.sendFile(indexHtmlPath);
+    });
+  }
 
   // Error handler
   app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
