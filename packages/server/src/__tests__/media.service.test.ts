@@ -7,6 +7,16 @@ import { hashPassword } from '../services/auth.service.js';
 import { createTrip } from '../services/trip.service.js';
 import { uploadMedia, generateSignedUrl, assertMediaAccess } from '../services/media.service.js';
 
+vi.mock('sharp', () => {
+  const chain = {
+    rotate: () => chain,
+    resize: () => chain,
+    webp: () => chain,
+    toBuffer: () => Promise.resolve(Buffer.from('thumb-webp')),
+  };
+  return { default: () => chain };
+});
+
 vi.mock('@aws-sdk/client-s3', () => {
   const mockSend = vi.fn().mockResolvedValue({});
   const S3Client = vi.fn(() => ({ send: mockSend }));
@@ -58,8 +68,9 @@ describe('uploadMedia', () => {
     const buffer = Buffer.from('fake jpeg content');
     const result = await uploadMedia(buffer, 'image/jpeg', 'trip-abc', 800, 600);
 
-    expect(__mockSend).toHaveBeenCalledTimes(1);
+    expect(__mockSend).toHaveBeenCalledTimes(2);
     expect(result.key).toMatch(/^media\/trip-abc\/.+\.jpg$/);
+    expect(result.thumbnailKey).toMatch(/^media\/trip-abc\/.+\.thumb\.webp$/);
     expect(result.width).toBe(800);
     expect(result.height).toBe(600);
   });

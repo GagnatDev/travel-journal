@@ -18,31 +18,31 @@ export function ReactionBar({ tripId, entryId, reactions }: ReactionBarProps) {
   const { t } = useTranslation();
   const { accessToken, user } = useAuth();
   const queryClient = useQueryClient();
-  const [localReactions, setLocalReactions] = useState<Reaction[]>(reactions);
+  const [optimistic, setOptimistic] = useState<Reaction[] | null>(null);
+  /** Last successful mutation result until props catch up (e.g. isolated tests). */
+  const [serverMirror, setServerMirror] = useState<Reaction[] | null>(null);
 
-  // Sync with incoming prop changes (e.g., parent re-fetch)
   useEffect(() => {
-    setLocalReactions(reactions);
+    setServerMirror(null);
   }, [reactions]);
+
+  const displayed = optimistic ?? serverMirror ?? reactions;
 
   const mutation = useMutation({
     mutationFn: (emoji: ReactionEmoji) =>
       toggleReaction(tripId, entryId, emoji, accessToken!),
     onMutate: async (emoji) => {
-      // Optimistic update
       const userId = user?.id ?? '';
-      const hasReacted = localReactions.some(
-        (r) => r.emoji === emoji && r.userId === userId,
-      );
-      const optimistic = hasReacted
-        ? localReactions.filter((r) => !(r.emoji === emoji && r.userId === userId))
-        : [...localReactions, { emoji, userId, createdAt: new Date().toISOString() }];
-      setLocalReactions(optimistic);
-      return { previous: localReactions };
+      const base = optimistic ?? serverMirror ?? reactions;
+      const hasReacted = base.some((r) => r.emoji === emoji && r.userId === userId);
+      const next = hasReacted
+        ? base.filter((r) => !(r.emoji === emoji && r.userId === userId))
+        : [...base, { emoji, userId, createdAt: new Date().toISOString() }];
+      setOptimistic(next);
     },
     onSuccess: (data) => {
-      setLocalReactions(data.reactions);
-      // Also update the entry in the infinite query cache
+      setOptimistic(null);
+      setServerMirror(data.reactions);
       queryClient.setQueriesData<{
         pages: Array<{ entries: Array<{ id: string; reactions: Reaction[] }> }>;
       }>(
@@ -61,22 +61,19 @@ export function ReactionBar({ tripId, entryId, reactions }: ReactionBarProps) {
         },
       );
     },
-    onError: (_err, _emoji, context) => {
-      // Rollback optimistic update
-      if (context?.previous) {
-        setLocalReactions(context.previous);
-      }
+    onError: () => {
+      setOptimistic(null);
     },
   });
 
   const currentUserId = user?.id;
 
   function countForEmoji(emoji: ReactionEmoji): number {
-    return localReactions.filter((r) => r.emoji === emoji).length;
+    return displayed.filter((r) => r.emoji === emoji).length;
   }
 
   function hasReacted(emoji: ReactionEmoji): boolean {
-    return localReactions.some((r) => r.emoji === emoji && r.userId === currentUserId);
+    return displayed.some((r) => r.emoji === emoji && r.userId === currentUserId);
   }
 
   return (

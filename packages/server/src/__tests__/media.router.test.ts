@@ -1,6 +1,16 @@
 import { Readable } from 'node:stream';
 
 import { vi, describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
+
+vi.mock('sharp', () => {
+  const chain = {
+    rotate: () => chain,
+    resize: () => chain,
+    webp: () => chain,
+    toBuffer: () => Promise.resolve(Buffer.from('thumb-webp')),
+  };
+  return { default: () => chain };
+});
 import request from 'supertest';
 import mongoose from 'mongoose';
 
@@ -11,21 +21,43 @@ import { hashPassword, generateAccessToken } from '../services/auth.service.js';
 import { createTrip } from '../services/trip.service.js';
 
 vi.mock('@aws-sdk/client-s3', () => {
-  const mockSend = vi.fn().mockImplementation(async (command: { input?: Record<string, unknown> }) => {
-    const input = command.input;
-    if (input && 'Body' in input) {
-      return {};
+  class PutObjectCommand {
+    input: Record<string, unknown>;
+    constructor(input: Record<string, unknown>) {
+      this.input = input;
     }
-    return {
-      ContentType: 'image/jpeg',
-      ContentLength: 9,
-      Body: Readable.from([Buffer.from('fake jpeg')]),
-    };
+  }
+  class HeadObjectCommand {
+    input: Record<string, unknown>;
+    constructor(input: Record<string, unknown>) {
+      this.input = input;
+    }
+  }
+  class GetObjectCommand {
+    input: Record<string, unknown>;
+    constructor(input: Record<string, unknown>) {
+      this.input = input;
+    }
+  }
+  const mockSend = vi.fn().mockImplementation(async (command: PutObjectCommand | HeadObjectCommand | GetObjectCommand) => {
+    if (command instanceof PutObjectCommand) return {};
+    if (command instanceof HeadObjectCommand) {
+      const key = String(command.input['Key'] ?? '');
+      const etag = key.includes('not-modified') ? '"match-etag"' : '"new-version"';
+      return { ETag: etag, ContentType: 'image/jpeg', ContentLength: 9 };
+    }
+    if (command instanceof GetObjectCommand) {
+      return {
+        ContentType: 'image/jpeg',
+        ContentLength: 9,
+        ETag: '"new-version"',
+        Body: Readable.from([Buffer.from('fake jpeg')]),
+      };
+    }
+    return {};
   });
   const S3Client = vi.fn(() => ({ send: mockSend }));
-  const PutObjectCommand = vi.fn();
-  const GetObjectCommand = vi.fn();
-  return { S3Client, PutObjectCommand, GetObjectCommand, __mockSend: mockSend };
+  return { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand };
 });
 vi.mock('@aws-sdk/s3-request-presigner', () => ({
   getSignedUrl: vi.fn().mockResolvedValue('https://s3.example.com/signed-url?X-Amz=abc'),
@@ -124,7 +156,7 @@ describe('POST /api/v1/media/upload', () => {
     expect(res.status).toBe(415);
   });
 
-  it('valid upload → 201 { key, url }', async () => {
+  it('valid upload → 201 { key, thumbnailKey?, url }', async () => {
     const creator = await makeUser('creator@test.com');
     const trip = await createTrip({ name: 'Test Trip' }, String(creator._id));
 
@@ -140,6 +172,8 @@ describe('POST /api/v1/media/upload', () => {
     expect(res.body).toHaveProperty('key');
     expect(res.body).toHaveProperty('url');
     expect(res.body.url).toBe(`/api/v1/media/${res.body.key}`);
+    expect(res.body.key).toMatch(/\.jpg$/);
+    expect(res.body.thumbnailKey).toMatch(/\.thumb\.webp$/);
   });
 });
 
@@ -167,6 +201,33 @@ describe('GET /api/v1/media/:key', () => {
     expect(res.status).toBe(200);
     expect(String(res.headers['content-type'])).toContain('image/jpeg');
     expect(res.headers['location']).toBeUndefined();
+    expect(String(res.headers['cache-control'])).toContain('immutable');
+    expect(res.body).toEqual(Buffer.from('fake jpeg'));
+  });
+
+  it('member with If-None-Match for unchanged object → 304', async () => {
+    const creator = await makeUser('creator@test.com');
+    const trip = await createTrip({ name: 'Test Trip' }, String(creator._id));
+
+    const res = await request(app)
+      .get(`/api/v1/media/media/${trip.id}/not-modified.jpg`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .set('If-None-Match', '"match-etag"');
+
+    expect(res.status).toBe(304);
+    expect(String(res.headers['cache-control'])).toContain('immutable');
+  });
+
+  it('member with stale If-None-Match → 200 and body', async () => {
+    const creator = await makeUser('creator@test.com');
+    const trip = await createTrip({ name: 'Test Trip' }, String(creator._id));
+
+    const res = await request(app)
+      .get(`/api/v1/media/media/${trip.id}/abc.jpg`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .set('If-None-Match', '"stale-etag"');
+
+    expect(res.status).toBe(200);
     expect(res.body).toEqual(Buffer.from('fake jpeg'));
   });
 });

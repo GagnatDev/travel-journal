@@ -156,6 +156,7 @@ export function useCreateEntryScreen() {
               ...prev,
               {
                 key: result.key,
+                ...(result.thumbnailKey !== undefined && { thumbnailKey: result.thumbnailKey }),
                 width,
                 height,
                 order: prev.length,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Entry } from '@travel-journal/shared';
@@ -35,18 +35,24 @@ function getRelativeTime(dateStr: string, language: string): string {
   return date.toLocaleDateString(language, { month: 'short', day: 'numeric' });
 }
 
-export function EntryCard({ entry, tripId, currentUserId, onDelete }: EntryCardProps) {
+export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId, onDelete }: EntryCardProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [overflowOpen, setOverflowOpen] = useState(false);
 
   const isAuthor = entry.authorId === currentUserId;
 
-  const relativeTime = getRelativeTime(entry.createdAt, i18n.language);
+  const relativeTime = useMemo(
+    () => getRelativeTime(entry.createdAt, i18n.language),
+    [entry.createdAt, i18n.language],
+  );
 
-  const [heroImage, ...moreImages] = entry.images
-    .slice()
-    .sort((a, b) => a.order - b.order);
+  const sortedImages = useMemo(
+    () => [...entry.images].sort((a, b) => a.order - b.order),
+    [entry.images],
+  );
+
+  const [heroImage, ...moreImages] = sortedImages;
 
   return (
     <article className="bg-bg-secondary rounded-card border border-caption/10 overflow-hidden">
@@ -124,7 +130,7 @@ export function EntryCard({ entry, tripId, currentUserId, onDelete }: EntryCardP
           {moreImages.map((img) => (
             <AuthenticatedImage
               key={img.key}
-              mediaKey={img.key}
+              mediaKey={img.thumbnailKey ?? img.key}
               alt=""
               loading="lazy"
               className="h-20 w-20 object-cover rounded"
@@ -141,13 +147,9 @@ export function EntryCard({ entry, tripId, currentUserId, onDelete }: EntryCardP
 
       {/* Reactions and Comments */}
       <div className="px-4 pb-4 mt-2 space-y-2">
-        <ReactionBar
-          tripId={tripId}
-          entryId={entry.id}
-          reactions={entry.reactions}
-        />
+        <ReactionBar tripId={tripId} entryId={entry.id} reactions={entry.reactions} />
         <CommentSection tripId={tripId} entryId={entry.id} />
       </div>
     </article>
   );
-}
+});

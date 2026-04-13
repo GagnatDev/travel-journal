@@ -1,5 +1,7 @@
 export interface EntryImage {
   key: string;
+  /** Smaller derivative in object storage; omit on legacy entries. */
+  thumbnailKey?: string;
   width: number;
   height: number;
   order: number;

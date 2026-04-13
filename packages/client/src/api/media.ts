@@ -4,7 +4,7 @@ export async function uploadMedia(
   width: number,
   height: number,
   token: string,
-): Promise<{ key: string; url: string }> {
+): Promise<{ key: string; thumbnailKey?: string; url: string }> {
   const formData = new FormData();
   formData.append('file', blob, 'image.jpg');
   formData.append('tripId', tripId);
@@ -22,5 +22,5 @@ export async function uploadMedia(
     throw new Error((body as { error?: { message?: string } })?.error?.message ?? 'Upload failed');
   }
 
-  return res.json() as Promise<{ key: string; url: string }>;
+  return res.json() as Promise<{ key: string; thumbnailKey?: string; url: string }>;
 }

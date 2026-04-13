@@ -48,6 +48,7 @@ export async function syncPendingEntries(
           const result = await uploadMedia(entry.tripId, blob, width, height, token);
           return {
             key: result.key,
+            ...(result.thumbnailKey !== undefined && { thumbnailKey: result.thumbnailKey }),
             width,
             height,
             order: (entry.payload.images?.length ?? 0) + i,

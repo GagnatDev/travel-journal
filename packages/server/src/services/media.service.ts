@@ -2,9 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { pipeline } from 'node:stream/promises';
 import type { Readable } from 'node:stream';
 
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { Response } from 'express';
+import sharp from 'sharp';
 
 import { getTripById } from './trip.service.js';
 
@@ -15,6 +16,9 @@ const ALLOWED_MIME_TYPES: Record<string, string> = {
 };
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
+/** Authenticated media: immutable object keys — safe for long browser cache. */
+const MEDIA_CACHE_CONTROL = 'private, max-age=86400, immutable';
 
 function createHttpError(message: string, status: number, code: string): Error {
   const err = new Error(message) as Error & { status: number; code: string };
@@ -37,13 +41,25 @@ function createS3Client(): S3Client {
 
 const BUCKET = process.env['S3_BUCKET'] ?? 'travel-journal';
 
+/** Compare client `If-None-Match` (possibly list) to a single strong ETag from storage. */
+function ifNoneMatchIncludesServerEtag(ifNoneMatchHeader: string, serverEtag: string | undefined): boolean {
+  if (!serverEtag) return false;
+  const normalize = (t: string) => t.trim().replace(/^W\//i, '').replaceAll('"', '');
+  const server = normalize(serverEtag);
+  return ifNoneMatchHeader.split(',').some((p) => normalize(p) === server);
+}
+
+function s3ErrorName(err: unknown): string {
+  return err && typeof err === 'object' && 'name' in err ? String((err as { name: string }).name) : '';
+}
+
 export async function uploadMedia(
   fileBuffer: Buffer,
   mimeType: string,
   tripId: string,
   width: number,
   height: number,
-): Promise<{ key: string; width: number; height: number }> {
+): Promise<{ key: string; thumbnailKey?: string; width: number; height: number }> {
   const ext = ALLOWED_MIME_TYPES[mimeType];
   if (!ext) {
     throw createHttpError('Unsupported media type', 415, 'UNSUPPORTED_MEDIA_TYPE');
@@ -53,7 +69,9 @@ export async function uploadMedia(
     throw createHttpError('File too large', 413, 'FILE_TOO_LARGE');
   }
 
-  const key = `media/${tripId}/${randomUUID()}.${ext}`;
+  const id = randomUUID();
+  const key = `media/${tripId}/${id}.${ext}`;
+  const thumbnailKey = `media/${tripId}/${id}.thumb.webp`;
   const client = createS3Client();
 
   await client.send(
@@ -65,7 +83,33 @@ export async function uploadMedia(
     }),
   );
 
-  return { key, width, height };
+  let thumbnailKeyOut: string | undefined;
+  try {
+    const thumbBuf = await sharp(fileBuffer)
+      .rotate()
+      .resize(480, 480, { fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 82 })
+      .toBuffer();
+
+    await client.send(
+      new PutObjectCommand({
+        Bucket: BUCKET,
+        Key: thumbnailKey,
+        Body: thumbBuf,
+        ContentType: 'image/webp',
+      }),
+    );
+    thumbnailKeyOut = thumbnailKey;
+  } catch {
+    // Original is stored; timeline can fall back to full key for thumbnails.
+  }
+
+  return {
+    key,
+    width,
+    height,
+    ...(thumbnailKeyOut !== undefined && { thumbnailKey: thumbnailKeyOut }),
+  };
 }
 
 export async function generateSignedUrl(key: string, ttlSeconds = 3600): Promise<string> {
@@ -77,14 +121,47 @@ export async function generateSignedUrl(key: string, ttlSeconds = 3600): Promise
 /**
  * Stream object bytes to the client. Used for authenticated media reads so the browser
  * never follows a cross-origin redirect to object storage (which would require bucket CORS).
+ *
+ * @param ifNoneMatch - raw `If-None-Match` header; when set, uses S3 conditional HEAD to return 304 without a body.
  */
-export async function streamMediaObject(key: string, res: Response): Promise<void> {
+export async function streamMediaObject(
+  key: string,
+  res: Response,
+  ifNoneMatch?: string | null,
+): Promise<void> {
   const client = createS3Client();
+
+  const inm = ifNoneMatch?.trim();
+  if (inm && inm !== '*') {
+    let headOut;
+    try {
+      headOut = await client.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
+    } catch (err: unknown) {
+      const name = s3ErrorName(err);
+      const http404 =
+        err && typeof err === 'object' && '$metadata' in err
+          ? (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404
+          : false;
+      if (name === 'NoSuchKey' || name === 'NotFound' || http404) {
+        res.status(404).json({ error: { message: 'Media not found', code: 'NOT_FOUND' } });
+        return;
+      }
+      throw err;
+    }
+    if (ifNoneMatchIncludesServerEtag(inm, headOut.ETag)) {
+      res.status(304);
+      res.setHeader('Cache-Control', MEDIA_CACHE_CONTROL);
+      res.setHeader('ETag', headOut.ETag ?? inm);
+      res.end();
+      return;
+    }
+  }
+
   let out;
   try {
     out = await client.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
   } catch (err: unknown) {
-    const name = err && typeof err === 'object' && 'name' in err ? String((err as { name: string }).name) : '';
+    const name = s3ErrorName(err);
     if (name === 'NoSuchKey' || name === 'NotFound') {
       res.status(404).json({ error: { message: 'Media not found', code: 'NOT_FOUND' } });
       return;
@@ -106,7 +183,7 @@ export async function streamMediaObject(key: string, res: Response): Promise<voi
   if (out.ETag) {
     res.setHeader('ETag', out.ETag);
   }
-  res.setHeader('Cache-Control', 'private, max-age=300');
+  res.setHeader('Cache-Control', MEDIA_CACHE_CONTROL);
 
   const readable = body as Readable;
   await pipeline(readable, res);

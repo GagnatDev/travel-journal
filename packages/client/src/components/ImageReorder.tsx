@@ -58,7 +58,7 @@ export function ImageReorder({ images, onImagesChange, onFileSelect, isUploading
               className={`relative ${dragOverIndex === index ? 'opacity-50' : ''}`}
             >
               <AuthenticatedImage
-                mediaKey={img.key}
+                mediaKey={img.thumbnailKey ?? img.key}
                 alt=""
                 loading="lazy"
                 className="h-20 w-20 object-cover rounded"

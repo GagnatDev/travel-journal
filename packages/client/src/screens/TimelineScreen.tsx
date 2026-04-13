@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -83,6 +83,16 @@ export function TimelineScreen() {
 
   useInfiniteScrollSentinel(sentinelRef, fetchNextPage, !!hasNextPage, isFetchingNextPage);
 
+  const dayGroups = storyMode ? groupEntriesByDay(allEntries, trip?.departureDate) : null;
+  const listProps = useMemo(
+    () => ({
+      tripId: tripId!,
+      currentUserId: user?.id ?? '',
+      onDelete: handleDelete,
+    }),
+    [tripId, user?.id, handleDelete],
+  );
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-bg-primary flex items-center justify-center">
@@ -90,13 +100,6 @@ export function TimelineScreen() {
       </div>
     );
   }
-
-  const dayGroups = storyMode ? groupEntriesByDay(allEntries, trip?.departureDate) : null;
-  const listProps = {
-    tripId: tripId!,
-    currentUserId: user?.id ?? '',
-    onDelete: handleDelete,
-  };
 
   return (
     <div className="min-h-screen bg-bg-primary pb-28 pt-14">

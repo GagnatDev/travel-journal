@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { useAuth } from '../context/AuthContext.js';
+import { acquireMediaObjectUrl, releaseMediaObjectUrl } from '../lib/mediaBlobCache.js';
 
 interface AuthenticatedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   mediaKey: string;
@@ -13,28 +14,28 @@ export function AuthenticatedImage({ mediaKey, ...props }: AuthenticatedImagePro
   useEffect(() => {
     if (!accessToken) return;
 
-    let objectUrl: string | null = null;
+    const cacheKey = `${accessToken}:${mediaKey}`;
     let cancelled = false;
 
-    fetch(`/api/v1/media/${mediaKey}`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-      .then((res) => {
+    void acquireMediaObjectUrl(cacheKey, () =>
+      fetch(`/api/v1/media/${mediaKey}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }).then((res) => {
         if (!res.ok) throw new Error(`Failed to load media: ${res.status}`);
         return res.blob();
-      })
-      .then((blob) => {
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setBlobUrl(objectUrl);
+      }),
+    )
+      .then((url) => {
+        if (!cancelled) setBlobUrl(url);
       })
       .catch(() => {
-        // leave blobUrl as null — broken image will not render
+        if (!cancelled) setBlobUrl(null);
       });
 
     return () => {
       cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      releaseMediaObjectUrl(cacheKey);
+      setBlobUrl(null);
     };
   }, [mediaKey, accessToken]);
 

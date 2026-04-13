@@ -67,7 +67,11 @@ mediaRouter.post(
         parsedHeight,
       );
 
-      res.status(201).json({ key: result.key, url: `/api/v1/media/${result.key}` });
+      res.status(201).json({
+        key: result.key,
+        ...(result.thumbnailKey !== undefined && { thumbnailKey: result.thumbnailKey }),
+        url: `/api/v1/media/${result.key}`,
+      });
     } catch (err) {
       next(err);
     }
@@ -86,7 +90,7 @@ mediaRouter.get('/*', requireAuth, async (req: Request, res: Response, next: Nex
     }
 
     await assertMediaAccess(key, auth.userId);
-    await streamMediaObject(key, res);
+    await streamMediaObject(key, res, req.get('if-none-match'));
   } catch (err) {
     if (!res.headersSent) {
       next(err);

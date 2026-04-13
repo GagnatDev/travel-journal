@@ -2,6 +2,7 @@ import mongoose, { Document, Schema, Types } from 'mongoose';
 
 export interface IEntryImage {
   key: string;
+  thumbnailKey?: string;
   width: number;
   height: number;
   order: number;
@@ -42,6 +43,7 @@ export interface IEntry extends Document {
 const entryImageSchema = new Schema<IEntryImage>(
   {
     key: { type: String, required: true },
+    thumbnailKey: { type: String },
     width: { type: Number, required: true },
     height: { type: Number, required: true },
     order: { type: Number, required: true },

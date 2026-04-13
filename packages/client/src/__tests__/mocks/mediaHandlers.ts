@@ -11,7 +11,11 @@ export const mediaHandlers = [
 
   http.post('/api/v1/media/upload', async () => {
     return HttpResponse.json(
-      { key: 'media/trip-1/mock-uuid.jpg', url: '/api/v1/media/media/trip-1/mock-uuid.jpg' },
+      {
+        key: 'media/trip-1/mock-uuid.jpg',
+        thumbnailKey: 'media/trip-1/mock-uuid.thumb.webp',
+        url: '/api/v1/media/media/trip-1/mock-uuid.jpg',
+      },
       { status: 201 },
     );
   }),

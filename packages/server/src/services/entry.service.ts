@@ -33,6 +33,7 @@ async function toEntry(doc: IEntry): Promise<Entry> {
     content: doc.content,
     images: doc.images.map((img) => ({
       key: img.key,
+      ...(img.thumbnailKey !== undefined && { thumbnailKey: img.thumbnailKey }),
       width: img.width,
       height: img.height,
       order: img.order,
