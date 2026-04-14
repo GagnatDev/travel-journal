@@ -105,8 +105,15 @@ test.describe('Trip member invites', () => {
     // Skip if API call fails (e.g., no token); test the UI flow instead
     void registerRes;
 
+    const tripLoaded = page.waitForResponse(
+      (res) =>
+        res.request().method() === 'GET' &&
+        new URL(res.url()).pathname === `/api/v1/trips/${tripId}` &&
+        res.ok(),
+    );
     await page.goto(`/trips/${tripId}/settings`);
     await page.waitForURL(`**/trips/${tripId}/settings`);
+    await tripLoaded;
     await expect(page.getByRole('heading', { name: /trip settings|turinnstillinger/i })).toBeVisible({
       timeout: 15_000,
     });
@@ -135,7 +142,14 @@ test.describe('Trip member invites', () => {
     const tripUrl = page.url();
     const tripId = tripUrl.split('/trips/')[1]!.split('/')[0];
 
+    const tripLoadedInvite = page.waitForResponse(
+      (res) =>
+        res.request().method() === 'GET' &&
+        new URL(res.url()).pathname === `/api/v1/trips/${tripId}` &&
+        res.ok(),
+    );
     await page.goto(`/trips/${tripId}/settings`);
+    await tripLoadedInvite;
     await expect(page.getByRole('heading', { name: /trip settings|turinnstillinger/i })).toBeVisible({
       timeout: 15_000,
     });

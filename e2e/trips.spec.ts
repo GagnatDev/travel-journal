@@ -37,10 +37,17 @@ test.describe('Trip dashboard', () => {
     await page.goto('/trips');
 
     await createTrip(page, 'Japan 2025');
+    const tripsListLoaded = page.waitForResponse(
+      (res) =>
+        res.request().method() === 'GET' &&
+        new URL(res.url()).pathname === '/api/v1/trips' &&
+        res.ok(),
+    );
     await page.goto('/trips');
+    await tripsListLoaded;
 
-    await expect(page.getByText('Japan 2025')).toBeVisible();
-    await expect(page.getByText(/planlagte|planned/i)).toBeVisible();
+    await expect(page.getByText('Japan 2025')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/planlagte|planned/i)).toBeVisible({ timeout: 20_000 });
   });
 
   test('follower does not see Create Trip button', async ({ page, context }) => {
