@@ -116,7 +116,7 @@ describe('MemberManagement (inside TripSettingsScreen)', () => {
       screen.getByPlaceholderText(/e-post eller kallenavn|email or nickname/i),
       'existing@example.com',
     );
-    await userEvent.click(screen.getByRole('button', { name: /legg til|add$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^(Legg til|Add)$/ }));
 
     await waitFor(() => {
       expect(screen.getByText(/medlem lagt til|member added/i)).toBeInTheDocument();
@@ -142,7 +142,7 @@ describe('MemberManagement (inside TripSettingsScreen)', () => {
       screen.getByPlaceholderText(/e-post eller kallenavn|email or nickname/i),
       'unknown@example.com',
     );
-    await userEvent.click(screen.getByRole('button', { name: /legg til|add$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^(Legg til|Add)$/ }));
 
     await waitFor(() => {
       expect(screen.getByDisplayValue(/\/invite\/accept\?token=abc/)).toBeInTheDocument();

@@ -68,7 +68,8 @@
   },
   "nav": {
     "trips": "Trips",
-    "admin": "Admin"
+    "admin": "Admin",
+    "back": "Go back"
   },
   "common": {
     "loading": "Loading...",
@@ -87,6 +88,7 @@
     "en": "English"
   },
   "menu": {
+    "openMenu": "Open menu",
     "theme": "Dark mode",
     "language": "Language",
     "profile": "Profile"

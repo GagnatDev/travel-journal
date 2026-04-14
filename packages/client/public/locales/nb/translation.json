@@ -68,7 +68,8 @@
   },
   "nav": {
     "trips": "Turer",
-    "admin": "Admin"
+    "admin": "Admin",
+    "back": "Gå tilbake"
   },
   "common": {
     "loading": "Laster...",
@@ -87,6 +88,7 @@
     "en": "English"
   },
   "menu": {
+    "openMenu": "Åpne meny",
     "theme": "Mørk modus",
     "language": "Språk",
     "profile": "Profil"

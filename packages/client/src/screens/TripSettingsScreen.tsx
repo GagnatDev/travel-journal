@@ -16,6 +16,7 @@ import {
   revokeTripMemberInvite,
 } from '../api/trips.js';
 import { useAuth } from '../context/AuthContext.js';
+import { BottomNavBar } from '../components/BottomNavBar.js';
 
 import { TripDeleteSection } from './tripSettings/TripDeleteSection.js';
 import { TripDetailsSection } from './tripSettings/TripDetailsSection.js';
@@ -137,11 +138,8 @@ export function TripSettingsScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-primary pb-24">
-      <header className="px-4 pt-8 pb-4">
-        <button type="button" onClick={() => navigate(-1)} className="font-ui text-sm text-caption mb-2">
-          ← Back
-        </button>
+    <div className="min-h-screen bg-bg-primary pt-14 pb-28">
+      <header className="px-4 pt-4 pb-4">
         <h1 className="font-display text-2xl text-heading">{t('trips.settings.title')}</h1>
       </header>
 
@@ -172,6 +170,8 @@ export function TripSettingsScreen() {
           deleteMutation={deleteMutation}
         />
       </main>
+
+      {tripId !== undefined && <BottomNavBar tripId={tripId} tripRole="creator" />}
     </div>
   );
 }

@@ -18,7 +18,7 @@ function renderHeader() {
     ),
   );
   return render(
-    <TestMemoryRouter>
+    <TestMemoryRouter initialEntries={['/trips']}>
       <AuthProvider>
         <ThemeProvider>
           <AppHeader />
@@ -31,7 +31,7 @@ function renderHeader() {
 describe('AppHeader', () => {
   it('renders hamburger button with correct aria-label', () => {
     renderHeader();
-    expect(screen.getByRole('button', { name: 'Open menu' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Åpne meny|Open menu|menu\.openMenu/ })).toBeInTheDocument();
   });
 
   it('renders the app name', () => {
@@ -49,7 +49,7 @@ describe('AppHeader', () => {
     const dialog = screen.getByRole('dialog', { hidden: true });
     expect(dialog.className).toContain('-translate-x-full');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+    await userEvent.click(screen.getByRole('button', { name: /Åpne meny|Open menu|menu\.openMenu/ }));
 
     expect(dialog.className).toContain('translate-x-0');
     expect(dialog.className).not.toContain('-translate-x-full');
@@ -57,7 +57,7 @@ describe('AppHeader', () => {
 
   it('closes the MenuDrawer when close button is clicked', async () => {
     renderHeader();
-    await userEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+    await userEvent.click(screen.getByRole('button', { name: /Åpne meny|Open menu|menu\.openMenu/ }));
 
     const dialog = screen.getByRole('dialog');
     expect(dialog.className).toContain('translate-x-0');
