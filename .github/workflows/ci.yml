@@ -92,4 +92,4 @@ jobs:
       - run: pnpm --filter @travel-journal/server build
       - run: pnpm --filter @travel-journal/client build
       - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm e2e
+      - run: pnpm e2e:ci

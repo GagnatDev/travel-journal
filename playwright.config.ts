@@ -9,7 +9,7 @@ const e2eEnvPath = resolve(process.cwd(), '.env.e2e');
 if (existsSync(e2eEnvPath)) {
   const parsed = parseEnv(readFileSync(e2eEnvPath, 'utf8'));
   for (const [key, value] of Object.entries(parsed)) {
-    if (value !== undefined) {
+    if (value !== undefined && process.env[key] === undefined) {
       process.env[key] = value;
     }
   }
@@ -42,7 +42,7 @@ export default defineConfig({
     // Client only: global-setup already runs the API on SERVER_PORT with the e2e MongoDB.
     command: `pnpm --filter @travel-journal/client exec vite --port ${e2eClientPort}`,
     url: clientOrigin,
-    reuseExistingServer: !process.env['CI'],
+    reuseExistingServer: process.env['E2E_REUSE_EXISTING_SERVER'] === '1',
     timeout: 60_000,
     env: {
       E2E_DISABLE_RATE_LIMIT: '1',
