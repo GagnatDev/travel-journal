@@ -7,6 +7,7 @@
     "lint": "eslint packages --ext .ts,.tsx && tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/client/tsconfig.json",
     "test": "pnpm --filter @travel-journal/server test && pnpm --filter @travel-journal/client test",
     "e2e": "node e2e/run-e2e.mjs",
+    "e2e:ui": "node e2e/run-e2e.mjs --ui",
     "e2e:ci": "E2E_ENV_FILE=.env.ci node e2e/run-e2e.mjs",
     "typecheck": "tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/client/tsconfig.json"
   },
