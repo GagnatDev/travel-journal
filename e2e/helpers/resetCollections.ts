@@ -9,10 +9,10 @@ type E2ERuntimeState = {
 };
 
 function resolveMongoUri(): string {
-  if (process.env['MONGODB_URI']) {
-    return process.env['MONGODB_URI'];
-  }
-
+  // Prefer the URI global-setup wrote: the API server always uses that database.
+  // A shell-level MONGODB_URI (e.g. for day-to-day dev) must not override it, or
+  // resets hit the wrong DB while tests talk to the isolated e2e server (CI is fine
+  // because e2e:ci sets MONGODB_URI to the same DB the server uses).
   try {
     const content = readFileSync(RUNTIME_STATE_PATH, 'utf8');
     const runtimeState = JSON.parse(content) as E2ERuntimeState;
@@ -20,10 +20,14 @@ function resolveMongoUri(): string {
       return runtimeState.mongodbUri;
     }
   } catch {
-    // Fall back to legacy default when runtime state is unavailable.
+    // Fall back when global-setup has not run or the file is missing.
   }
 
-  return 'mongodb://localhost:27017/travel-journal-test';
+  if (process.env['MONGODB_URI']) {
+    return process.env['MONGODB_URI'];
+  }
+
+  return 'mongodb://127.0.0.1:27017/travel-journal-test';
 }
 
 export async function resetCollections(...names: string[]): Promise<void> {

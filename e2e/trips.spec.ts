@@ -27,7 +27,11 @@ async function createTrip(page: Page, name: string) {
 
 /** Trip settings renders nothing until the trip query resolves; wait for real UI before acting. */
 async function goToTripSettings(page: Page) {
-  await page.goto(page.url().replace('/timeline', '/settings'));
+  const tripIdMatch = page.url().match(/\/trips\/([^/]+)/);
+  if (!tripIdMatch) {
+    throw new Error(`Expected a /trips/:id URL before opening settings, got: ${page.url()}`);
+  }
+  await page.goto(`/trips/${tripIdMatch[1]}/settings`);
   await expect(page.getByRole('heading', { name: /trip settings|turinnstillinger/i })).toBeVisible();
 }
 

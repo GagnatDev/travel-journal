@@ -130,7 +130,7 @@ describe('MapScreen', () => {
     vi.unstubAllEnvs();
   });
 
-  it('renders the Map page header', async () => {
+  it('renders the map view with bottom navigation', async () => {
     server.use(
       http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, () =>
         HttpResponse.json(mockPins),
@@ -140,8 +140,9 @@ describe('MapScreen', () => {
     renderMap();
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Kart' })).toBeInTheDocument();
+      expect(screen.getByRole('navigation')).toBeInTheDocument();
     });
+    expect(screen.getByRole('button', { name: /kart|map/i })).toBeInTheDocument();
   });
 
   it('shows loading state while fetching locations', async () => {

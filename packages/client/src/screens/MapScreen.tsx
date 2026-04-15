@@ -121,14 +121,9 @@ export function MapScreen() {
   const tripRole = trip?.members.find((m) => m.userId === user?.id)?.tripRole;
 
   return (
-    <div className="flex flex-col h-screen bg-bg-primary">
-      {/* Header */}
-      <header className="flex items-center px-4 pt-safe-top pb-3 border-b border-caption/20 bg-bg-primary">
-        <h1 className="font-ui font-semibold text-lg text-primary">{t('map.title')}</h1>
-      </header>
-
-      {/* Map area */}
-      <div className="flex-1 relative overflow-hidden">
+    <div className="flex flex-col min-h-screen bg-bg-primary pt-14 pb-28">
+      {/* Map area — title lives in AppHeader; reserve space for fixed bottom nav */}
+      <div className="flex-1 min-h-0 relative overflow-hidden">
         <div
           ref={mapContainerRef}
           className="!absolute inset-0 [&_.mapboxgl-ctrl-bottom-left]:bottom-[4.5rem] [&_.mapboxgl-ctrl-bottom-right]:bottom-[4.5rem]"

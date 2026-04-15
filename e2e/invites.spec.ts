@@ -122,7 +122,8 @@ test.describe('Trip member invites', () => {
     await expect(memberInput).toBeVisible({ timeout: 15_000 });
 
     await memberInput.fill('admin@localhost');
-    await page.getByRole('button', { name: /legg til|^add$/i }).click();
+    // Exact label — do not match the timeline FAB ("Legg til innlegg" / "Add entry")
+    await page.getByRole('button', { name: /^(Legg til|Add)$/ }).click();
 
     // Since admin@localhost is already a member (creator), it would return a conflict
     // Instead test with a known existing user: use nickname
@@ -157,7 +158,7 @@ test.describe('Trip member invites', () => {
 
     // Add unknown email
     await page.getByPlaceholder(/e-post eller kallenavn|email or nickname/i).fill('stranger@example.com');
-    await page.getByRole('button', { name: /legg til|^add$/i }).click();
+    await page.getByRole('button', { name: /^(Legg til|Add)$/ }).click();
 
     // Invite link should appear
     await expect(
