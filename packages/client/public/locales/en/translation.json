@@ -166,6 +166,10 @@
       "privacyPublic": "Entire Circle",
       "privacyPrivate": "Private Journal",
       "allowContributorInvites": "Allow contributors to invite others",
+      "notificationsNewEntriesToggle": "Notify me when new entries are posted in this trip",
+      "notificationsUnsupported": "This browser does not support push notifications.",
+      "notificationsDenied": "Push notifications are blocked. Enable notifications in browser settings to turn this on.",
+      "notificationsPermissionRequired": "Please allow browser notifications to enable this setting.",
       "collaborativeChaptersTitle": "Collaborative Chapters",
       "collaborativeChaptersInfo": "Members can co-author entries and share memories together."
     },

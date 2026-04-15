@@ -105,3 +105,30 @@ describe('DELETE /api/v1/notifications/subscriptions', () => {
     expect(remaining).toBeNull();
   });
 });
+
+describe('GET /api/v1/notifications/vapid-public-key', () => {
+  it('returns 503 when push is not configured', async () => {
+    const user = await makeUser('user@test.com');
+    const previous = process.env['WEB_PUSH_VAPID_PUBLIC_KEY'];
+    delete process.env['WEB_PUSH_VAPID_PUBLIC_KEY'];
+
+    const res = await request(app)
+      .get('/api/v1/notifications/vapid-public-key')
+      .set('Authorization', authHeader(String(user._id), user.email, user.appRole));
+
+    expect(res.status).toBe(503);
+    process.env['WEB_PUSH_VAPID_PUBLIC_KEY'] = previous;
+  });
+
+  it('returns VAPID key when configured', async () => {
+    const user = await makeUser('user@test.com');
+    process.env['WEB_PUSH_VAPID_PUBLIC_KEY'] = 'public-key';
+
+    const res = await request(app)
+      .get('/api/v1/notifications/vapid-public-key')
+      .set('Authorization', authHeader(String(user._id), user.email, user.appRole));
+
+    expect(res.status).toBe(200);
+    expect(res.body.publicKey).toBe('public-key');
+  });
+});

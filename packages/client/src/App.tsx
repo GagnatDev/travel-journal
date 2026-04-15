@@ -18,6 +18,7 @@ import { TimelineScreen } from './screens/TimelineScreen.js';
 import { TripDashboardScreen } from './screens/TripDashboardScreen.js';
 import { TripSettingsScreen } from './screens/TripSettingsScreen.js';
 import { syncPendingEntries } from './offline/entrySync.js';
+import { syncPushSubscriptionIfPermitted } from './notifications/push.js';
 
 export function App() {
   const { accessToken, status } = useAuth();
@@ -37,6 +38,11 @@ export function App() {
     window.addEventListener('online', runSync);
     return () => window.removeEventListener('online', runSync);
   }, [status, accessToken, queryClient]);
+
+  useEffect(() => {
+    if (status !== 'authenticated' || !accessToken) return;
+    void syncPushSubscriptionIfPermitted(accessToken);
+  }, [status, accessToken]);
 
   return (
     <ThemeProvider>

@@ -1,4 +1,9 @@
-import type { Invite, Trip, TripStatus } from '@travel-journal/shared';
+import type {
+  Invite,
+  Trip,
+  TripStatus,
+  UpdateTripMemberNotificationPreferencesRequest,
+} from '@travel-journal/shared';
 
 import { apiJson, apiJsonIfOk } from './client.js';
 
@@ -82,5 +87,17 @@ export function revokeTripMemberInvite(
   return apiJson<void>(`/api/v1/trips/${tripId}/members/invites/${inviteId}`, {
     method: 'DELETE',
     token,
+  });
+}
+
+export function patchMyTripNotificationPreferences(
+  tripId: string,
+  body: UpdateTripMemberNotificationPreferencesRequest,
+  token: string,
+): Promise<Trip> {
+  return apiJson<Trip>(`/api/v1/trips/${tripId}/members/me/notification-preferences`, {
+    method: 'PATCH',
+    token,
+    body,
   });
 }

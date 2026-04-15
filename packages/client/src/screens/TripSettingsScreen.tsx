@@ -9,6 +9,7 @@ import {
   deleteTrip,
   fetchTrip,
   fetchTripInvites,
+  patchMyTripNotificationPreferences,
   patchTrip,
   patchTripMemberRole,
   patchTripStatus,
@@ -17,6 +18,7 @@ import {
 } from '../api/trips.js';
 import { useAuth } from '../context/AuthContext.js';
 import { BottomNavBar } from '../components/BottomNavBar.js';
+import { ensurePushSubscription, getPushPermissionState } from '../notifications/push.js';
 
 import { TripDeleteSection } from './tripSettings/TripDeleteSection.js';
 import { TripDetailsSection } from './tripSettings/TripDetailsSection.js';
@@ -40,6 +42,7 @@ export function TripSettingsScreen() {
     inviteLink?: string;
   } | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
+  const [pushPermissionState, setPushPermissionState] = useState(getPushPermissionState());
 
   const { data: trip, isLoading } = useQuery({
     queryKey: ['trip', tripId],
@@ -57,6 +60,14 @@ export function TripSettingsScreen() {
     if (!trip) return;
     setName(trip.name);
   }, [trip?.id]);
+
+  useEffect(() => {
+    function refreshPermission() {
+      setPushPermissionState(getPushPermissionState());
+    }
+    window.addEventListener('focus', refreshPermission);
+    return () => window.removeEventListener('focus', refreshPermission);
+  }, []);
 
   const updateMutation = useMutation({
     mutationFn: (data: { name?: string }) => patchTrip(tripId!, data, accessToken!),
@@ -120,6 +131,26 @@ export function TripSettingsScreen() {
     },
   });
 
+  const updateMyNotificationPreferencesMutation = useMutation({
+    mutationFn: async (newEntriesPushEnabled: boolean) => {
+      if (newEntriesPushEnabled) {
+        const permission = await ensurePushSubscription(accessToken!);
+        setPushPermissionState(permission);
+        if (permission !== 'granted') {
+          throw new Error(t('trips.settings.notificationsPermissionRequired'));
+        }
+      }
+      return patchMyTripNotificationPreferences(
+        tripId!,
+        { newEntriesPushEnabled },
+        accessToken!,
+      );
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['trip', tripId] });
+    },
+  });
+
   const myMember = trip?.members.find((m) => m.userId === user?.id);
   const isCreator = !!myMember && myMember.tripRole === 'creator';
 
@@ -162,6 +193,9 @@ export function TripSettingsScreen() {
           changeRoleMutation={changeRoleMutation}
           removeMemberMutation={removeMemberMutation}
           revokeInviteMutation={revokeInviteMutation}
+          myMember={myMember}
+          pushPermissionState={pushPermissionState}
+          updateMyNotificationPreferencesMutation={updateMyNotificationPreferencesMutation}
         />
         <TripDeleteSection
           t={t}
