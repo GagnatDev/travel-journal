@@ -1,6 +1,14 @@
 import { Readable } from 'node:stream';
 
 import { vi, describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
+import request from 'supertest';
+import mongoose from 'mongoose';
+
+import { createApp } from '../app.js';
+import { User } from '../models/User.model.js';
+import { Trip } from '../models/Trip.model.js';
+import { hashPassword, generateAccessToken } from '../services/auth.service.js';
+import { createTrip } from '../services/trip.service.js';
 
 vi.mock('sharp', () => {
   const chain = {
@@ -11,14 +19,6 @@ vi.mock('sharp', () => {
   };
   return { default: () => chain };
 });
-import request from 'supertest';
-import mongoose from 'mongoose';
-
-import { createApp } from '../app.js';
-import { User } from '../models/User.model.js';
-import { Trip } from '../models/Trip.model.js';
-import { hashPassword, generateAccessToken } from '../services/auth.service.js';
-import { createTrip } from '../services/trip.service.js';
 
 vi.mock('@aws-sdk/client-s3', () => {
   class PutObjectCommand {
