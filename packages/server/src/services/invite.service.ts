@@ -142,7 +142,18 @@ export async function acceptInvite(
   if (doc.type === 'trip' && doc.tripId && doc.tripRole) {
     await Trip.updateOne(
       { _id: doc.tripId },
-      { $push: { members: { userId: user._id, tripRole: doc.tripRole, addedAt: new Date() } } },
+      {
+        $push: {
+          members: {
+            userId: user._id,
+            tripRole: doc.tripRole,
+            addedAt: new Date(),
+            notificationPreferences: {
+              newEntriesPushEnabled: true,
+            },
+          },
+        },
+      },
     );
   }
 
@@ -208,7 +219,18 @@ export async function addTripMember(
 
     await Trip.updateOne(
       { _id: new mongoose.Types.ObjectId(tripId) },
-      { $push: { members: { userId: user._id, tripRole, addedAt: new Date() } } },
+      {
+        $push: {
+          members: {
+            userId: user._id,
+            tripRole,
+            addedAt: new Date(),
+            notificationPreferences: {
+              newEntriesPushEnabled: true,
+            },
+          },
+        },
+      },
     );
     return { type: 'added' };
   }
