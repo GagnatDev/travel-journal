@@ -61,6 +61,20 @@ notificationRouter.post(
   },
 );
 
+notificationRouter.get(
+  '/vapid-public-key',
+  async (_req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    const publicKey = process.env['WEB_PUSH_VAPID_PUBLIC_KEY'];
+    if (!publicKey) {
+      res.status(503).json({
+        error: { message: 'Push notifications are unavailable', code: 'PUSH_UNAVAILABLE' },
+      });
+      return;
+    }
+    res.json({ publicKey });
+  },
+);
+
 notificationRouter.delete(
   '/subscriptions',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {

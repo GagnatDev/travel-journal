@@ -2,7 +2,10 @@ import mongoose from 'mongoose';
 import type { CreateEntryRequest, Entry, EntryImage, UpdateEntryRequest } from '@travel-journal/shared';
 
 import { Entry as EntryModel, IEntry } from '../models/Entry.model.js';
+import { logger } from '../logger.js';
 import { User } from '../models/User.model.js';
+
+import { dispatchNewEntryNotification } from './notification.service.js';
 
 export interface EntryLocationPin {
   entryId: string;
@@ -114,7 +117,11 @@ export async function createEntry(
     ...(createdAt !== undefined && { createdAt, updatedAt: now }),
   });
 
-  return toEntry(doc);
+  const entry = await toEntry(doc);
+  void dispatchNewEntryNotification(entry).catch((err: unknown) => {
+    logger.warn({ err, entryId: entry.id }, 'Failed to dispatch new-entry notifications');
+  });
+  return entry;
 }
 
 export async function listEntries(
