@@ -98,7 +98,7 @@ authRouter.post('/register', authRateLimit, async (req: Request, res: Response) 
 
     const response: LoginResponse = { accessToken, user: toPublicUser(user) };
     res.status(201).json(response);
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: { message: 'Internal server error', code: 'INTERNAL_ERROR' } });
   }
 });
