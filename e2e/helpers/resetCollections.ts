@@ -27,7 +27,7 @@ function resolveMongoUri(): string {
     return process.env['MONGODB_URI'];
   }
 
-  return 'mongodb://localhost:27017/travel-journal-test';
+  return 'mongodb://127.0.0.1:27017/travel-journal-test';
 }
 
 export async function resetCollections(...names: string[]): Promise<void> {
