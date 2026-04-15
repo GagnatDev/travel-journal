@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 import { TextField } from '../components/ui/TextField.js';
@@ -11,6 +11,8 @@ export function LoginScreen() {
   const { t } = useTranslation();
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const sessionExpired = (location.state as { sessionExpired?: boolean } | null)?.sessionExpired === true;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -48,6 +50,12 @@ export function LoginScreen() {
         <h1 className="font-display text-3xl text-heading mb-8 text-center">
           {t('auth.login.title')}
         </h1>
+
+        {sessionExpired && (
+          <p role="alert" className="mb-4 text-sm text-center font-ui text-accent">
+            {t('auth.login.sessionExpired')}
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <TextField

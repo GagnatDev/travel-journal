@@ -138,4 +138,24 @@ describe('AuthContext', () => {
 
     expect(screen.getByTestId('has-token').textContent).toBe('no');
   });
+
+  it('becomes unauthenticated when auth:session-expired event is fired', async () => {
+    server.use(
+      http.post('/api/v1/auth/refresh', () =>
+        HttpResponse.json({ accessToken: 'mock-token', user: mockUser }),
+      ),
+    );
+
+    renderWithAuth(<AuthStatus />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('status').textContent).toBe('authenticated');
+    });
+
+    window.dispatchEvent(new CustomEvent('auth:session-expired'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('status').textContent).toBe('unauthenticated');
+    });
+  });
 });

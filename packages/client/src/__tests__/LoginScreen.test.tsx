@@ -13,9 +13,12 @@ import { TestMemoryRouter } from './TestMemoryRouter.js';
 // Suppress auto-refresh for all tests in this file — we don't want auto-login
 const refresh401 = http.post('/api/v1/auth/refresh', () => new HttpResponse(null, { status: 401 }));
 
-function renderLoginScreen() {
+function renderLoginScreen(initialState?: Record<string, unknown>) {
+  const initialEntries = initialState
+    ? [{ pathname: '/login', state: initialState }]
+    : ['/login'];
   return render(
-    <TestMemoryRouter initialEntries={['/login']}>
+    <TestMemoryRouter initialEntries={initialEntries}>
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginScreen />} />
@@ -69,6 +72,13 @@ describe('LoginScreen', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
     });
+  });
+
+  it('shows session-expired banner when redirected with sessionExpired state', () => {
+    server.use(refresh401);
+    renderLoginScreen({ sessionExpired: true });
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Økten din har utløpt');
   });
 
   it('navigates to /trips after successful login', async () => {

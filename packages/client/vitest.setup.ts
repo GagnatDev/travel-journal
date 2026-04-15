@@ -50,6 +50,7 @@ const nb = {
       passwordPlaceholder: 'Ditt passord',
       submitButton: 'Logg inn',
       invalidCredentials: 'Ugyldig e-post eller passord',
+      sessionExpired: 'Økten din har utløpt. Vennligst logg inn på nytt.',
     },
     register: {
       title: 'Opprett administratorkonto',

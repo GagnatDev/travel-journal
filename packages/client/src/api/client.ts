@@ -1,3 +1,5 @@
+import { attemptRefresh } from './tokenStore.js';
+
 export type ApiJsonOptions = {
   token?: string;
   method?: string;
@@ -57,6 +59,26 @@ export async function apiJson<T>(path: string, options: ApiJsonOptions = {}): Pr
   const { fallbackErrorMessage } = options;
   const res = await fetch(path, buildRequestInit(options));
 
+  if (res.status === 401 && options.token) {
+    let newToken: string;
+    try {
+      newToken = await attemptRefresh();
+    } catch {
+      window.dispatchEvent(new CustomEvent('auth:session-expired'));
+      throw new Error(fallbackErrorMessage ?? 'Session expired');
+    }
+    const retryRes = await fetch(path, buildRequestInit({ ...options, token: newToken }));
+    if (!retryRes.ok) {
+      if (retryRes.status === 401) {
+        window.dispatchEvent(new CustomEvent('auth:session-expired'));
+      }
+      const parsed = await retryRes.json().catch(() => ({}));
+      throw new Error(parseApiErrorMessage(parsed) ?? fallbackErrorMessage ?? 'Request failed');
+    }
+    if (retryRes.status === 204) return undefined as T;
+    return retryRes.json() as Promise<T>;
+  }
+
   if (!res.ok) {
     const parsed = await res.json().catch(() => ({}));
     throw new Error(
@@ -73,6 +95,25 @@ export async function apiJson<T>(path: string, options: ApiJsonOptions = {}): Pr
  */
 export async function apiJsonIfOk<T>(path: string, options: ApiJsonOptions = {}): Promise<T | undefined> {
   const res = await fetch(path, buildRequestInit(options));
+
+  if (res.status === 401 && options.token) {
+    let newToken: string;
+    try {
+      newToken = await attemptRefresh();
+    } catch {
+      window.dispatchEvent(new CustomEvent('auth:session-expired'));
+      return undefined;
+    }
+    const retryRes = await fetch(path, buildRequestInit({ ...options, token: newToken }));
+    if (!retryRes.ok) {
+      if (retryRes.status === 401) {
+        window.dispatchEvent(new CustomEvent('auth:session-expired'));
+      }
+      return undefined;
+    }
+    if (retryRes.status === 204) return undefined;
+    return retryRes.json() as Promise<T>;
+  }
 
   if (!res.ok) return undefined;
   if (res.status === 204) return undefined;

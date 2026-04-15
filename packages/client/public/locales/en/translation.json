@@ -10,7 +10,8 @@
       "passwordLabel": "Password",
       "passwordPlaceholder": "Your password",
       "submitButton": "Sign in",
-      "invalidCredentials": "Invalid email or password"
+      "invalidCredentials": "Invalid email or password",
+      "sessionExpired": "Your session has expired. Please sign in again."
     },
     "register": {
       "title": "Create admin account",

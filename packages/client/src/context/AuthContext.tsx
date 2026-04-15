@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { PublicUser } from '@travel-journal/shared';
 
 import { apiJson } from '../api/client.js';
+import { registerRefresh } from '../api/tokenStore.js';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -26,6 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user: null,
     status: 'loading',
   });
+  const navigate = useNavigate();
 
   const setAuthenticated = useCallback((accessToken: string, user: PublicUser) => {
     setState({ accessToken, user, status: 'authenticated' });
@@ -43,6 +46,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setState({ accessToken: null, user: null, status: 'unauthenticated' });
       });
   }, [setAuthenticated]);
+
+  // Register the refresh function with the API client when authenticated
+  useEffect(() => {
+    if (state.status !== 'authenticated') {
+      registerRefresh(null);
+      return;
+    }
+    const doRefresh = async (): Promise<string> => {
+      const data = await apiJson<{ accessToken: string; user: PublicUser }>(
+        '/api/v1/auth/refresh',
+        { method: 'POST', credentials: 'include' },
+      );
+      setAuthenticated(data.accessToken, data.user);
+      return data.accessToken;
+    };
+    registerRefresh(doRefresh);
+    return () => registerRefresh(null);
+  }, [state.status, setAuthenticated]);
+
+  // Handle session expiry (fired by apiJson when both access token and refresh token are invalid)
+  useEffect(() => {
+    function handleSessionExpired() {
+      setState({ accessToken: null, user: null, status: 'unauthenticated' });
+      navigate('/login', { state: { sessionExpired: true }, replace: true });
+    }
+    window.addEventListener('auth:session-expired', handleSessionExpired);
+    return () => window.removeEventListener('auth:session-expired', handleSessionExpired);
+  }, [navigate]);
 
   const login = useCallback(
     async (email: string, password: string) => {
