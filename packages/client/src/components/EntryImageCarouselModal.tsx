@@ -1,6 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+
+import { useAuth } from '../context/AuthContext.js';
+import {
+  acquireAuthenticatedMediaObjectUrl,
+  createMediaCacheKey,
+  releaseAuthenticatedMediaObjectUrl,
+} from '../lib/authenticatedMedia.js';
 
 import { AuthenticatedImage } from './AuthenticatedImage.js';
 
@@ -21,13 +28,55 @@ export function EntryImageCarouselModal({
   onClose,
 }: EntryImageCarouselModalProps) {
   const { t } = useTranslation();
+  const { accessToken } = useAuth();
   const [activeIndex, setActiveIndex] = useState(initialIndex);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const prefetchedCacheKeysRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isOpen) return;
     setActiveIndex(initialIndex);
   }, [initialIndex, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !accessToken || images.length === 0) return;
+
+    const neighborIndexes = [
+      (activeIndex - 1 + images.length) % images.length,
+      (activeIndex + 1) % images.length,
+    ];
+
+    for (const index of neighborIndexes) {
+      const mediaKey = images[index]?.key;
+      if (!mediaKey) continue;
+
+      const cacheKey = createMediaCacheKey(accessToken, mediaKey);
+      if (prefetchedCacheKeysRef.current.has(cacheKey)) continue;
+
+      prefetchedCacheKeysRef.current.add(cacheKey);
+      void acquireAuthenticatedMediaObjectUrl(mediaKey, accessToken).catch(() => {
+        prefetchedCacheKeysRef.current.delete(cacheKey);
+      });
+    }
+  }, [activeIndex, accessToken, images, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) return;
+    for (const cacheKey of prefetchedCacheKeysRef.current) {
+      releaseAuthenticatedMediaObjectUrl(cacheKey);
+    }
+    prefetchedCacheKeysRef.current.clear();
+  }, [isOpen]);
+
+  useEffect(
+    () => () => {
+      for (const cacheKey of prefetchedCacheKeysRef.current) {
+        releaseAuthenticatedMediaObjectUrl(cacheKey);
+      }
+      prefetchedCacheKeysRef.current.clear();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!isOpen) return;

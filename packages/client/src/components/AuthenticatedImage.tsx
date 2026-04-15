@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 
 import { useAuth } from '../context/AuthContext.js';
-import { acquireMediaObjectUrl, releaseMediaObjectUrl } from '../lib/mediaBlobCache.js';
+import {
+  acquireAuthenticatedMediaObjectUrl,
+  releaseAuthenticatedMediaObjectUrl,
+} from '../lib/authenticatedMedia.js';
 
 interface AuthenticatedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   mediaKey: string;
@@ -12,21 +15,18 @@ export function AuthenticatedImage({ mediaKey, ...props }: AuthenticatedImagePro
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!accessToken) return;
+    if (!accessToken) {
+      setBlobUrl(null);
+      return;
+    }
 
-    const cacheKey = `${accessToken}:${mediaKey}`;
+    let cacheKey: string | null = null;
     let cancelled = false;
 
-    void acquireMediaObjectUrl(cacheKey, () =>
-      fetch(`/api/v1/media/${mediaKey}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }).then((res) => {
-        if (!res.ok) throw new Error(`Failed to load media: ${res.status}`);
-        return res.blob();
-      }),
-    )
-      .then((url) => {
-        if (!cancelled) setBlobUrl(url);
+    void acquireAuthenticatedMediaObjectUrl(mediaKey, accessToken)
+      .then(({ cacheKey: resolvedCacheKey, objectUrl }) => {
+        cacheKey = resolvedCacheKey;
+        if (!cancelled) setBlobUrl(objectUrl);
       })
       .catch(() => {
         if (!cancelled) setBlobUrl(null);
@@ -34,12 +34,13 @@ export function AuthenticatedImage({ mediaKey, ...props }: AuthenticatedImagePro
 
     return () => {
       cancelled = true;
-      releaseMediaObjectUrl(cacheKey);
-      setBlobUrl(null);
+      if (cacheKey) {
+        releaseAuthenticatedMediaObjectUrl(cacheKey);
+      }
     };
   }, [mediaKey, accessToken]);
 
   if (!blobUrl) return null;
 
-  return <img src={blobUrl} {...props} />;
+  return <img src={blobUrl} decoding="async" {...props} />;
 }

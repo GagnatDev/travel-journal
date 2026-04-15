@@ -1,9 +1,15 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Entry } from '@travel-journal/shared';
 
 import { formatEntryContent } from '../utils/formatEntryContent.js';
+import { useAuth } from '../context/AuthContext.js';
+import {
+  acquireAuthenticatedMediaObjectUrl,
+  createMediaCacheKey,
+  releaseAuthenticatedMediaObjectUrl,
+} from '../lib/authenticatedMedia.js';
 
 import { AuthenticatedImage } from './AuthenticatedImage.js';
 import { EntryImageCarouselModal } from './EntryImageCarouselModal.js';
@@ -41,9 +47,11 @@ function getRelativeTime(dateStr: string, language: string): string {
 export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId, onDelete }: EntryCardProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const { accessToken } = useAuth();
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [isCarouselOpen, setIsCarouselOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const prefetchedCacheKeyRef = useRef<string | null>(null);
 
   const isAuthor = entry.authorId === currentUserId;
 
@@ -74,6 +82,30 @@ export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId,
     setActiveImageIndex(index);
     setIsCarouselOpen(true);
   };
+
+  useEffect(() => {
+    if (!accessToken || sortedImages.length === 0) return;
+
+    const primaryImageKey = sortedImages[0]?.key;
+    if (!primaryImageKey) return;
+
+    const cacheKey = createMediaCacheKey(accessToken, primaryImageKey);
+    if (prefetchedCacheKeyRef.current === cacheKey) return;
+
+    prefetchedCacheKeyRef.current = cacheKey;
+    void acquireAuthenticatedMediaObjectUrl(primaryImageKey, accessToken).catch(() => {
+      if (prefetchedCacheKeyRef.current === cacheKey) {
+        prefetchedCacheKeyRef.current = null;
+      }
+    });
+
+    return () => {
+      if (prefetchedCacheKeyRef.current) {
+        releaseAuthenticatedMediaObjectUrl(prefetchedCacheKeyRef.current);
+        prefetchedCacheKeyRef.current = null;
+      }
+    };
+  }, [accessToken, sortedImages]);
 
   return (
     <article className="bg-bg-secondary rounded-card border border-caption/10 overflow-hidden">
