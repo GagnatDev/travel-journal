@@ -1,6 +1,9 @@
-# Cursor Cloud dev-environment skill
+---
+name: cloud-dev-environment
+description: Cursor Cloud dev-environment setup and operations. Use when setting up the development environment, starting dev servers, running tests, or debugging infrastructure issues in a Cloud VM.
+---
 
-Use this skill when setting up or running the development environment in a Cursor Cloud VM, starting dev servers, running tests, or debugging infrastructure issues.
+# Cloud Dev Environment
 
 ## Architecture overview
 
