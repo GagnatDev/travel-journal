@@ -222,7 +222,13 @@
     "uploadingImage": "Uploading...",
     "uploadFailed": "Could not upload one or more photos. Try again.",
     "imageLimit": "Maximum 10 images",
-    "removeImage": "Remove image"
+    "removeImage": "Remove image",
+    "carousel": {
+      "dialogLabel": "Image carousel",
+      "previousImage": "Previous image",
+      "nextImage": "Next image",
+      "closeImageCarousel": "Close image carousel"
+    }
   },
   "reactions": {
     "label": "Reactions"

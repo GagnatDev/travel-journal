@@ -222,7 +222,13 @@
     "uploadingImage": "Laster opp...",
     "uploadFailed": "Kunne ikke laste opp ett eller flere bilder. Prøv igjen.",
     "imageLimit": "Maks 10 bilder",
-    "removeImage": "Fjern bilde"
+    "removeImage": "Fjern bilde",
+    "carousel": {
+      "dialogLabel": "Bildekarusell",
+      "previousImage": "Forrige bilde",
+      "nextImage": "Neste bilde",
+      "closeImageCarousel": "Lukk bildekarusell"
+    }
   },
   "reactions": {
     "label": "Reaksjoner"

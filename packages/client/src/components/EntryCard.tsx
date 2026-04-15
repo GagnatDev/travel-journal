@@ -6,9 +6,12 @@ import type { Entry } from '@travel-journal/shared';
 import { formatEntryContent } from '../utils/formatEntryContent.js';
 
 import { AuthenticatedImage } from './AuthenticatedImage.js';
+import { EntryImageCarouselModal } from './EntryImageCarouselModal.js';
 import { Avatar } from './ui/Avatar.js';
 import { ReactionBar } from './ReactionBar.js';
 import { CommentSection } from './CommentSection.js';
+
+const BODY_OPEN_LOCK = 'entryCarouselOpen';
 
 interface EntryCardProps {
   entry: Entry;
@@ -39,6 +42,8 @@ export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId,
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [overflowOpen, setOverflowOpen] = useState(false);
+  const [isCarouselOpen, setIsCarouselOpen] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   const isAuthor = entry.authorId === currentUserId;
 
@@ -53,19 +58,40 @@ export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId,
   );
 
   const [heroImage, ...moreImages] = sortedImages;
+  const carouselImages = useMemo(
+    () =>
+      sortedImages.map((image) => ({
+        key: image.key,
+        alt: entry.title,
+      })),
+    [entry.title, sortedImages],
+  );
+
+  const openCarousel = (index: number) => {
+    if (document.body.dataset[BODY_OPEN_LOCK] === 'true') {
+      return;
+    }
+    setActiveImageIndex(index);
+    setIsCarouselOpen(true);
+  };
 
   return (
     <article className="bg-bg-secondary rounded-card border border-caption/10 overflow-hidden">
       {/* Hero image */}
       {heroImage && (
-        <div className="w-full aspect-[4/3] overflow-hidden">
+        <button
+          type="button"
+          onClick={() => openCarousel(0)}
+          aria-label={t('entries.openImageCarousel', { defaultValue: 'Open image carousel' })}
+          className="block w-full aspect-[4/3] overflow-hidden"
+        >
           <AuthenticatedImage
             mediaKey={heroImage.key}
             alt={entry.title}
             loading="lazy"
             className="w-full h-full object-cover"
           />
-        </div>
+        </button>
       )}
 
       {/* Author row */}
@@ -127,14 +153,24 @@ export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId,
       {/* Additional images */}
       {moreImages.length > 0 && (
         <div className="flex gap-2 flex-wrap px-4 mt-3">
-          {moreImages.map((img) => (
-            <AuthenticatedImage
+          {moreImages.map((img, index) => (
+            <button
               key={img.key}
-              mediaKey={img.thumbnailKey ?? img.key}
-              alt=""
-              loading="lazy"
-              className="h-20 w-20 object-cover rounded"
-            />
+              type="button"
+              onClick={() => openCarousel(index + 1)}
+              aria-label={t('entries.openImageCarouselAt', {
+                index: index + 2,
+                defaultValue: `Open image ${index + 2}`,
+              })}
+              className="block h-20 w-20 overflow-hidden rounded"
+            >
+              <AuthenticatedImage
+                mediaKey={img.thumbnailKey ?? img.key}
+                alt=""
+                loading="lazy"
+                className="h-20 w-20 object-cover rounded"
+              />
+            </button>
           ))}
         </div>
       )}
@@ -150,6 +186,13 @@ export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId,
         <ReactionBar tripId={tripId} entryId={entry.id} reactions={entry.reactions} />
         <CommentSection tripId={tripId} entryId={entry.id} />
       </div>
+
+      <EntryImageCarouselModal
+        images={carouselImages}
+        initialIndex={activeImageIndex}
+        isOpen={isCarouselOpen}
+        onClose={() => setIsCarouselOpen(false)}
+      />
     </article>
   );
 });
