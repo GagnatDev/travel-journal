@@ -157,8 +157,9 @@ export default async function globalSetup() {
     };
   } else {
     runtimeState = {
-      mongodbUri: process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-test',
-      s3Endpoint: process.env['S3_ENDPOINT'] ?? 'http://localhost:9100',
+      mongodbUri:
+        process.env['MONGODB_URI'] ?? 'mongodb://127.0.0.1:27017/travel-journal-test',
+      s3Endpoint: process.env['S3_ENDPOINT'] ?? 'http://127.0.0.1:9100',
       s3Bucket: process.env['S3_BUCKET'] ?? 'travel-journal',
       serverPort: SERVER_PORT,
       serverPid: null,
