@@ -26,6 +26,6 @@
     "eslint-plugin-import": "^2.29.1",
     "prettier": "^3.2.5",
     "testcontainers": "^11.14.0",
-    "typescript": "^5.4.5"
+    "typescript": "5.5.4"
   }
 }
