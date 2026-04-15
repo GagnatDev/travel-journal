@@ -134,11 +134,11 @@ test.describe('Media', () => {
         buffer: TINY_PNG,
       });
       await expect(page.getByText(/laster opp|uploading/i)).not.toBeVisible({ timeout: 15_000 });
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
-    await expect(
-      page.getByRole('button', { name: /legg til bilder|add photos/i }),
-    ).not.toBeVisible();
+    await expect(page.locator('[data-key]')).toHaveCount(10, { timeout: 15_000 });
+    await expect(page.getByRole('button', { name: /legg til bilder|add photos/i })).toHaveCount(0);
   });
 
   test('delete one image from multi-image entry — correct image removed', async ({ page }) => {
