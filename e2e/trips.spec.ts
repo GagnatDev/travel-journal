@@ -23,16 +23,20 @@ async function createTrip(page: Page, name: string) {
   await page.getByLabel(/turnavn|trip name/i).fill(name);
   await page.getByRole('button', { name: /opprett tur|create trip/i }).last().click();
   await page.waitForURL('**/timeline');
+
+  const tripIdMatch = page.url().match(/\/trips\/([^/]+)/);
+  if (!tripIdMatch) {
+    throw new Error(`Expected createTrip to land on /trips/:id/timeline, got: ${page.url()}`);
+  }
+
+  return tripIdMatch[1];
 }
 
 /** Trip settings renders nothing until the trip query resolves; wait for real UI before acting. */
-async function goToTripSettings(page: Page) {
-  const tripIdMatch = page.url().match(/\/trips\/([^/]+)/);
-  if (!tripIdMatch) {
-    throw new Error(`Expected a /trips/:id URL before opening settings, got: ${page.url()}`);
-  }
-  await page.goto(`/trips/${tripIdMatch[1]}/settings`);
-  await expect(page.getByRole('heading', { name: /trip settings|turinnstillinger/i })).toBeVisible();
+async function goToTripSettings(page: Page, tripId: string) {
+  await page.goto(`/trips/${tripId}/settings`);
+  await expect(page).toHaveURL(new RegExp(`/trips/${tripId}/settings$`));
+  await expect(page.getByRole('button', { name: /slett tur|delete trip/i })).toBeVisible();
 }
 
 test.describe('Trip dashboard', () => {
@@ -95,14 +99,8 @@ test.describe('Trip status transitions', () => {
     await registerAdmin(page);
     await page.goto('/trips');
 
-    await createTrip(page, 'Status Trip');
-    await page.goto('/trips');
-
-    // Navigate to settings
-    await page.getByText('Status Trip').click();
-    await page.waitForURL('**/timeline');
-
-    await goToTripSettings(page);
+    const tripId = await createTrip(page, 'Status Trip');
+    await goToTripSettings(page, tripId);
 
     // planned → active
     await page.getByRole('button', { name: /merk som aktiv|mark as active/i }).click();
@@ -122,13 +120,8 @@ test.describe('Trip deletion', () => {
   test('creator deletes a completed trip successfully', async ({ page }) => {
     await registerAdmin(page);
     await page.goto('/trips');
-    await createTrip(page, 'To Delete');
-    await page.goto('/trips');
-
-    // Go to settings
-    await page.getByText('To Delete').click();
-    await page.waitForURL('**/timeline');
-    await goToTripSettings(page);
+    const tripId = await createTrip(page, 'To Delete');
+    await goToTripSettings(page, tripId);
 
     // Transition to active then completed
     await page.getByRole('button', { name: /merk som aktiv|mark as active/i }).click();
@@ -147,12 +140,8 @@ test.describe('Trip deletion', () => {
   test('app admin can delete an active trip (non-admins get 409 from API)', async ({ page }) => {
     await registerAdmin(page);
     await page.goto('/trips');
-    await createTrip(page, 'Active Trip');
-    await page.goto('/trips');
-
-    await page.getByText('Active Trip').click();
-    await page.waitForURL('**/timeline');
-    await goToTripSettings(page);
+    const tripId = await createTrip(page, 'Active Trip');
+    await goToTripSettings(page, tripId);
 
     await page.getByRole('button', { name: /merk som aktiv|mark as active/i }).click();
     await expect(page.getByRole('button', { name: /merk som fullf|mark as completed/i })).toBeVisible();
