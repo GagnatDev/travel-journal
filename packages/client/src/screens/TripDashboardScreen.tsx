@@ -8,6 +8,30 @@ import { useAuth } from '../context/AuthContext.js';
 import { TripCard } from '../components/TripCard.js';
 import { CreateTripModal } from '../components/CreateTripModal.js';
 
+type TripGroupProps = {
+  label: string;
+  items: Trip[];
+  currentUserId: string;
+};
+
+function TripGroup({ label, items, currentUserId }: TripGroupProps) {
+  if (items.length === 0) return null;
+  return (
+    <section>
+      <h2 className="font-ui text-sm font-semibold text-caption uppercase tracking-wide mb-2">
+        {label}
+      </h2>
+      <ul className="space-y-3">
+        {items.map((trip) => (
+          <li key={trip.id}>
+            <TripCard trip={trip} currentUserId={currentUserId} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function TripDashboardScreen() {
   const { t } = useTranslation();
   const { accessToken, user } = useAuth();
@@ -24,24 +48,7 @@ export function TripDashboardScreen() {
   const completed = trips.filter((t) => t.status === 'completed');
 
   const canCreate = user?.appRole === 'admin' || user?.appRole === 'creator';
-
-  function TripGroup({ label, items }: { label: string; items: Trip[] }) {
-    if (items.length === 0) return null;
-    return (
-      <section>
-        <h2 className="font-ui text-sm font-semibold text-caption uppercase tracking-wide mb-2">
-          {label}
-        </h2>
-        <ul className="space-y-3">
-          {items.map((trip) => (
-            <li key={trip.id}>
-              <TripCard trip={trip} currentUserId={user?.id ?? ''} />
-            </li>
-          ))}
-        </ul>
-      </section>
-    );
-  }
+  const currentUserId = user?.id ?? '';
 
   return (
     <div className="min-h-screen bg-bg-primary pb-24 pt-14">
@@ -62,9 +69,21 @@ export function TripDashboardScreen() {
           <p className="font-ui text-body text-center py-12">{t('trips.dashboard.emptyState')}</p>
         ) : (
           <>
-            <TripGroup label={t('trips.dashboard.statusGroup.active')} items={active} />
-            <TripGroup label={t('trips.dashboard.statusGroup.planned')} items={planned} />
-            <TripGroup label={t('trips.dashboard.statusGroup.completed')} items={completed} />
+            <TripGroup
+              label={t('trips.dashboard.statusGroup.active')}
+              items={active}
+              currentUserId={currentUserId}
+            />
+            <TripGroup
+              label={t('trips.dashboard.statusGroup.planned')}
+              items={planned}
+              currentUserId={currentUserId}
+            />
+            <TripGroup
+              label={t('trips.dashboard.statusGroup.completed')}
+              items={completed}
+              currentUserId={currentUserId}
+            />
           </>
         )}
       </main>
