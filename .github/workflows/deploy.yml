@@ -46,7 +46,7 @@ jobs:
 
       - name: Deploy container (create or update)
         id: deploy
-        uses: GagnatDev/scaleway-gh-action/container-manage@main
+        uses: GagnatDev/scaleway-gh-action/container-manage@beta
         with:
           action: ${{ secrets.SCW_CONTAINER_ID != '' && 'update' || 'create' }}
           secret_key: ${{ secrets.SCW_SECRET_KEY }}
@@ -60,16 +60,14 @@ jobs:
           memory_limit: '1024'
           cpu_limit: '560'
           secret_environment_variables: |
-            [
-              {"key":"NODE_ENV","value":"production"},
-              {"key":"MONGODB_URI","value":"${{ secrets.APP_MONGODB_URI }}"},
-              {"key":"JWT_SECRET","value":"${{ secrets.APP_JWT_SECRET }}"},
-              {"key":"ADMIN_EMAIL","value":"${{ secrets.APP_ADMIN_EMAIL }}"},
-              {"key":"S3_ENDPOINT","value":"${{ secrets.APP_S3_ENDPOINT }}"},
-              {"key":"S3_BUCKET","value":"${{ secrets.APP_S3_BUCKET }}"},
-              {"key":"S3_ACCESS_KEY","value":"${{ secrets.APP_S3_ACCESS_KEY }}"},
-              {"key":"S3_SECRET_KEY","value":"${{ secrets.APP_S3_SECRET_KEY }}"},
-              {"key":"WEB_PUSH_VAPID_PUBLIC_KEY","value":"${{ secrets.APP_WEB_PUSH_VAPID_PUBLIC_KEY }}"},
-              {"key":"WEB_PUSH_VAPID_PRIVATE_KEY","value":"${{ secrets.APP_WEB_PUSH_VAPID_PRIVATE_KEY }}"},
-              {"key":"WEB_PUSH_SUBJECT","value":"${{ secrets.APP_WEB_PUSH_SUBJECT }}"}
-            ]
+            NODE_ENV: production
+            MONGODB_URI: ${{ secrets.APP_MONGODB_URI }}
+            JWT_SECRET: ${{ secrets.APP_JWT_SECRET }}
+            ADMIN_EMAIL: ${{ secrets.APP_ADMIN_EMAIL }}
+            S3_ENDPOINT: ${{ secrets.APP_S3_ENDPOINT }}
+            S3_BUCKET: ${{ secrets.APP_S3_BUCKET }}
+            S3_ACCESS_KEY: ${{ secrets.APP_S3_ACCESS_KEY }}
+            S3_SECRET_KEY: ${{ secrets.APP_S3_SECRET_KEY }}
+            WEB_PUSH_VAPID_PUBLIC_KEY: ${{ secrets.APP_WEB_PUSH_VAPID_PUBLIC_KEY }}
+            WEB_PUSH_VAPID_PRIVATE_KEY: ${{ secrets.APP_WEB_PUSH_VAPID_PRIVATE_KEY }}
+            WEB_PUSH_SUBJECT: ${{ secrets.APP_WEB_PUSH_SUBJECT }}
