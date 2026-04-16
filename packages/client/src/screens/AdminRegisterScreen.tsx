@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { AdminExistsResponse } from '@travel-journal/shared';
 
 import { apiJson, apiJsonIfOk } from '../api/client.js';
+import { AuthPageLayout } from '../components/ui/AuthPageLayout.js';
 import { TextField } from '../components/ui/TextField.js';
 import { useAuth } from '../context/AuthContext.js';
 
@@ -80,69 +81,63 @@ export function AdminRegisterScreen() {
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-bg-primary flex items-center justify-center">
-        <p className="font-ui text-body">{t('common.loading')}</p>
-      </div>
+    <AuthPageLayout title={t('common.loading')} bodyClassName="w-full max-w-sm text-center">
+      <p className="font-ui text-body">{t('common.loading')}</p>
+    </AuthPageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-bg-primary flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <h1 className="font-display text-3xl text-heading mb-8 text-center">
-          {t('auth.register.title')}
-        </h1>
+    <AuthPageLayout title={t('auth.register.title')}>
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        <TextField
+          label={t('auth.register.emailLabel')}
+          labelHtmlFor="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          error={errors.email}
+          errorId="register-email-error"
+          errorClassName={fieldErrorClass}
+        />
 
-        <form onSubmit={handleSubmit} noValidate className="space-y-4">
-          <TextField
-            label={t('auth.register.emailLabel')}
-            labelHtmlFor="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            error={errors.email}
-            errorId="register-email-error"
-            errorClassName={fieldErrorClass}
-          />
+        <TextField
+          label={t('auth.register.displayNameLabel')}
+          labelHtmlFor="displayName"
+          type="text"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          placeholder={t('auth.register.displayNamePlaceholder')}
+          error={errors.displayName}
+          errorId="register-displayName-error"
+          errorClassName={fieldErrorClass}
+        />
 
-          <TextField
-            label={t('auth.register.displayNameLabel')}
-            labelHtmlFor="displayName"
-            type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder={t('auth.register.displayNamePlaceholder')}
-            error={errors.displayName}
-            errorId="register-displayName-error"
-            errorClassName={fieldErrorClass}
-          />
+        <TextField
+          label={t('auth.register.passwordLabel')}
+          labelHtmlFor="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          error={errors.password}
+          errorId="register-password-error"
+          errorClassName={fieldErrorClass}
+        />
 
-          <TextField
-            label={t('auth.register.passwordLabel')}
-            labelHtmlFor="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            error={errors.password}
-            errorId="register-password-error"
-            errorClassName={fieldErrorClass}
-          />
+        {errors.api && (
+          <p role="alert" className="text-sm text-accent font-ui">
+            {errors.api}
+          </p>
+        )}
 
-          {errors.api && (
-            <p role="alert" className="text-sm text-accent font-ui">
-              {errors.api}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full py-2.5 px-4 bg-accent text-white font-ui font-semibold rounded-round-eight hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
-          >
-            {isSubmitting ? t('common.loading') : t('auth.register.submitButton')}
-          </button>
-        </form>
-      </div>
-    </div>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full py-2.5 px-4 bg-accent text-white font-ui font-semibold rounded-round-eight hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+        >
+          {isSubmitting ? t('common.loading') : t('auth.register.submitButton')}
+        </button>
+      </form>
+    </AuthPageLayout>
   );
 }

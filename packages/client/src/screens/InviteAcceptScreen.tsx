@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { PublicUser } from '@travel-journal/shared';
 
 import { apiJson, apiJsonIfOk } from '../api/client.js';
+import { AuthPageLayout } from '../components/ui/AuthPageLayout.js';
 import { TextField } from '../components/ui/TextField.js';
 import { useAuth } from '../context/AuthContext.js';
 
@@ -78,79 +79,79 @@ export function InviteAcceptScreen() {
 
   if (validating) {
     return (
-      <div className="min-h-screen bg-bg-primary flex items-center justify-center">
-        <p className="font-ui text-body">{t('common.loading')}</p>
-      </div>
+    <AuthPageLayout title={t('common.loading')} bodyClassName="w-full max-w-sm text-center">
+      <p className="font-ui text-body">{t('common.loading')}</p>
+    </AuthPageLayout>
     );
   }
 
   if (tokenError) {
     return (
-      <div className="min-h-screen bg-bg-primary flex items-center justify-center px-4">
-        <div className="max-w-md w-full text-center space-y-4">
-          <p role="alert" className="font-ui text-body text-caption">
-            {t('invite.accept.expiredError')}
-          </p>
-        </div>
-      </div>
+    <AuthPageLayout
+      title={t('invite.accept.title')}
+      bodyClassName="max-w-md w-full text-center space-y-4"
+      titleClassName="font-display text-2xl text-heading text-center mb-4"
+    >
+      <p role="alert" className="font-ui text-body text-caption">
+        {t('invite.accept.expiredError')}
+      </p>
+    </AuthPageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-bg-primary flex items-center justify-center px-4">
-      <div className="max-w-md w-full space-y-6">
-        <h1 className="font-display text-2xl text-heading text-center">
-          {t('invite.accept.title')}
-        </h1>
+    <AuthPageLayout
+      title={t('invite.accept.title')}
+      bodyClassName="max-w-md w-full space-y-6"
+      titleClassName="font-display text-2xl text-heading text-center"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <TextField
+          label={t('auth.login.emailLabel')}
+          labelHtmlFor="invite-email-readonly"
+          type="email"
+          value={email}
+          readOnly
+          aria-label={t('auth.login.emailLabel')}
+          className="opacity-60 cursor-not-allowed"
+        />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <TextField
-            label={t('auth.login.emailLabel')}
-            labelHtmlFor="invite-email-readonly"
-            type="email"
-            value={email}
-            readOnly
-            aria-label={t('auth.login.emailLabel')}
-            className="opacity-60 cursor-not-allowed"
-          />
+        <TextField
+          label={t('invite.accept.displayNameLabel')}
+          labelHtmlFor="invite-displayName"
+          type="text"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          placeholder={t('auth.register.displayNamePlaceholder')}
+          required
+        />
 
-          <TextField
-            label={t('invite.accept.displayNameLabel')}
-            labelHtmlFor="invite-displayName"
-            type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder={t('auth.register.displayNamePlaceholder')}
-            required
-          />
+        <TextField
+          label={t('invite.accept.passwordLabel')}
+          labelHtmlFor="invite-password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          error={passwordError}
+          errorId="invite-password-error"
+          errorClassName="mt-1 font-ui text-sm text-red-500"
+        />
 
-          <TextField
-            label={t('invite.accept.passwordLabel')}
-            labelHtmlFor="invite-password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            error={passwordError}
-            errorId="invite-password-error"
-            errorClassName="mt-1 font-ui text-sm text-red-500"
-          />
+        {submitError && (
+          <p role="alert" className="font-ui text-sm text-red-500">
+            {submitError}
+          </p>
+        )}
 
-          {submitError && (
-            <p role="alert" className="font-ui text-sm text-red-500">
-              {submitError}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full py-3 bg-accent text-white font-ui font-semibold rounded-round-eight hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
-          >
-            {t('invite.accept.submitButton')}
-          </button>
-        </form>
-      </div>
-    </div>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full py-3 bg-accent text-white font-ui font-semibold rounded-round-eight hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+        >
+          {t('invite.accept.submitButton')}
+        </button>
+      </form>
+    </AuthPageLayout>
   );
 }
