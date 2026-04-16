@@ -13,9 +13,14 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "cpu-features",
       "esbuild",
+      "mongodb-memory-server",
       "msw",
-      "@playwright/test"
+      "@playwright/test",
+      "protobufjs",
+      "sharp",
+      "ssh2"
     ]
   },
   "devDependencies": {
