@@ -7,6 +7,27 @@ import type { Entry } from '@travel-journal/shared';
 
 import { EntryCard } from '../components/EntryCard.js';
 
+vi.mock('../components/AuthenticatedImage.js', () => ({
+  AuthenticatedImage: ({
+    mediaKey: _mediaKey,
+    loading,
+    className,
+    alt,
+  }: {
+    mediaKey: string;
+    loading?: HTMLImageElement['loading'];
+    className?: string;
+    alt?: string;
+  }) => (
+    <img
+      src="blob:http://localhost/test-placeholder"
+      alt={alt ?? ''}
+      loading={loading}
+      className={className}
+    />
+  ),
+}));
+
 import { AuthSessionProvider } from './AuthSessionProvider.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
