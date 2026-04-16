@@ -26,6 +26,9 @@ async function toTrip(doc: ITrip): Promise<Trip> {
       displayName: userMap.get(String(m.userId)) ?? '',
       tripRole: m.tripRole,
       addedAt: m.addedAt.toISOString(),
+      notificationPreferences: {
+        newEntriesPushEnabled: m.notificationPreferences?.newEntriesPushEnabled ?? true,
+      },
     })),
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
@@ -67,6 +70,9 @@ export async function createTrip(data: CreateTripRequest, creatorId: string): Pr
         userId: new mongoose.Types.ObjectId(creatorId),
         tripRole: 'creator',
         addedAt: new Date(),
+        notificationPreferences: {
+          newEntriesPushEnabled: true,
+        },
       },
     ],
   });

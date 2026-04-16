@@ -4,6 +4,9 @@ export interface ITripMember {
   userId: Types.ObjectId;
   tripRole: 'creator' | 'contributor' | 'follower';
   addedAt: Date;
+  notificationPreferences: {
+    newEntriesPushEnabled: boolean;
+  };
 }
 
 export interface ITrip extends Document {
@@ -24,6 +27,9 @@ const tripMemberSchema = new Schema<ITripMember>(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     tripRole: { type: String, enum: ['creator', 'contributor', 'follower'], required: true },
     addedAt: { type: Date, default: () => new Date() },
+    notificationPreferences: {
+      newEntriesPushEnabled: { type: Boolean, default: true },
+    },
   },
   { _id: false },
 );

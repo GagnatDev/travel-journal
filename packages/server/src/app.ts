@@ -8,6 +8,7 @@ import express, { Express, NextFunction, Request, Response } from 'express';
 import { authRouter } from './routes/auth.router.js';
 import { inviteRouter } from './routes/invite.router.js';
 import { mediaRouter } from './routes/media.router.js';
+import { notificationRouter } from './routes/notification.router.js';
 import { tripRouter } from './routes/trip.router.js';
 import { userRouter } from './routes/user.router.js';
 import { logger } from './logger.js';
@@ -52,6 +53,7 @@ export function createApp(): Express {
   app.use('/api/v1/invites', inviteRouter);
   app.use('/api/v1/users', userRouter);
   app.use('/api/v1/media', mediaRouter);
+  app.use('/api/v1/notifications', notificationRouter);
 
   if (existsSync(indexHtmlPath)) {
     app.use(express.static(publicDir));

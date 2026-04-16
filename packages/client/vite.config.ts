@@ -18,34 +18,17 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       includeAssets: ['*.png', '*.webmanifest'],
       // Reuse the existing manifest.webmanifest in public/
       manifest: false,
-      workbox: {
+      injectManifest: {
         // Default Workbox cap is 2 MiB; the main bundle (e.g. Mapbox) is larger — precache it explicitly.
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        globPatterns: ['**/*.{js,css,html,woff2}'],
-        runtimeCaching: [
-          // i18n locale files — cache-first (rarely change)
-          {
-            urlPattern: /^\/locales\//,
-            handler: 'CacheFirst',
-            options: { cacheName: 'locales' },
-          },
-          // API trip/entry data — network-first with cache fallback
-          {
-            urlPattern: /^\/api\/v1\/trips/,
-            handler: 'NetworkFirst',
-            options: { cacheName: 'api-trips' },
-          },
-          // Media proxy — stale-while-revalidate (object bytes streamed from API)
-          {
-            urlPattern: /^\/api\/v1\/media\//,
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'media' },
-          },
-        ],
+        globPatterns: ['**/*.{js,mjs,css,html,woff2}'],
       },
     }),
   ],

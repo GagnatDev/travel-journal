@@ -166,6 +166,10 @@
       "privacyPublic": "Hele kretsen",
       "privacyPrivate": "Privat dagbok",
       "allowContributorInvites": "La bidragsytere invitere andre",
+      "notificationsNewEntriesToggle": "Varsle meg når nye innlegg publiseres i denne turen",
+      "notificationsUnsupported": "Denne nettleseren støtter ikke push-varsler.",
+      "notificationsDenied": "Push-varsler er blokkert. Aktiver varsler i nettleserinnstillingene for å slå dette på.",
+      "notificationsPermissionRequired": "Tillat varsler i nettleseren for å aktivere denne innstillingen.",
       "collaborativeChaptersTitle": "Samarbeidskapitler",
       "collaborativeChaptersInfo": "Medlemmer kan skrive innlegg sammen og dele minner."
     },

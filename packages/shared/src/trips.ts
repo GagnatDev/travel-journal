@@ -1,11 +1,16 @@
 export type TripStatus = 'planned' | 'active' | 'completed';
 export type TripRole = 'creator' | 'contributor' | 'follower';
 
+export interface TripMemberNotificationPreferences {
+  newEntriesPushEnabled: boolean;
+}
+
 export interface TripMember {
   userId: string;
   displayName: string;
   tripRole: TripRole;
   addedAt: string; // ISO date
+  notificationPreferences?: TripMemberNotificationPreferences;
 }
 
 export interface Trip {
@@ -33,4 +38,8 @@ export interface UpdateTripRequest {
   description?: string;
   departureDate?: string;
   returnDate?: string;
+}
+
+export interface UpdateTripMemberNotificationPreferencesRequest {
+  newEntriesPushEnabled: boolean;
 }

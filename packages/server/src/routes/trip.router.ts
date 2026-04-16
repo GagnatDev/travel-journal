@@ -1,7 +1,16 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import type { CreateTripRequest, UpdateTripRequest, TripStatus, AccessTokenPayload, Trip } from '@travel-journal/shared';
+import type {
+  CreateTripRequest,
+  UpdateTripRequest,
+  TripStatus,
+  AccessTokenPayload,
+  Trip,
+  UpdateTripMemberNotificationPreferencesRequest,
+} from '@travel-journal/shared';
+import mongoose from 'mongoose';
 
 import { requireAppRole, requireAuth } from '../middleware/auth.middleware.js';
+import { Trip as TripModel } from '../models/Trip.model.js';
 import {
   createTrip,
   deleteTrip,
@@ -118,6 +127,53 @@ tripRouter.patch(
       const tripId = req.params['id']!;
 
       const trip = await updateTrip(tripId, body, auth.userId);
+      res.json(trip);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// PATCH /:id/members/me/notification-preferences — Update own trip-level notification preferences
+tripRouter.patch(
+  '/:id/members/me/notification-preferences',
+  membershipGuard,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const auth = res.locals['auth'] as AccessTokenPayload;
+      const tripId = req.params['id']!;
+      const body = req.body as UpdateTripMemberNotificationPreferencesRequest;
+
+      if (typeof body.newEntriesPushEnabled !== 'boolean') {
+        res.status(400).json({
+          error: { message: 'newEntriesPushEnabled must be boolean', code: 'VALIDATION_ERROR' },
+        });
+        return;
+      }
+
+      const result = await TripModel.updateOne(
+        {
+          _id: new mongoose.Types.ObjectId(tripId),
+          'members.userId': new mongoose.Types.ObjectId(auth.userId),
+        },
+        {
+          $set: {
+            'members.$.notificationPreferences.newEntriesPushEnabled': body.newEntriesPushEnabled,
+          },
+        },
+      );
+
+      if (!result.matchedCount) {
+        res.status(404).json({ error: { message: 'Trip not found', code: 'NOT_FOUND' } });
+        return;
+      }
+
+      const trip = await getTripById(tripId);
+      if (!trip) {
+        res.status(404).json({ error: { message: 'Trip not found', code: 'NOT_FOUND' } });
+        return;
+      }
+
       res.json(trip);
     } catch (err) {
       next(err);

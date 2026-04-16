@@ -3,11 +3,17 @@ interface ToggleSwitchProps {
   onChange: (value: boolean) => void;
   label: string;
   id: string;
+  disabled?: boolean;
 }
 
-export function ToggleSwitch({ checked, onChange, label, id }: ToggleSwitchProps) {
+export function ToggleSwitch({ checked, onChange, label, id, disabled = false }: ToggleSwitchProps) {
   return (
-    <label htmlFor={id} className="flex items-center justify-between gap-3 cursor-pointer py-2">
+    <label
+      htmlFor={id}
+      className={`flex items-center justify-between gap-3 py-2 ${
+        disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+      }`}
+    >
       <span className="font-ui text-sm text-body">{label}</span>
       <div className="relative shrink-0">
         <input
@@ -16,6 +22,7 @@ export function ToggleSwitch({ checked, onChange, label, id }: ToggleSwitchProps
           role="switch"
           checked={checked}
           aria-checked={checked}
+          disabled={disabled}
           onChange={(e) => onChange(e.target.checked)}
           className="sr-only peer"
         />

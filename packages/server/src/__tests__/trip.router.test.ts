@@ -79,6 +79,7 @@ describe('POST /api/v1/trips', () => {
     const member = res.body.members.find((m: { userId: string }) => m.userId === userId);
     expect(member).toBeDefined();
     expect(member.tripRole).toBe('creator');
+    expect(member.notificationPreferences.newEntriesPushEnabled).toBe(true);
   });
 });
 
@@ -194,6 +195,43 @@ describe('PATCH /api/v1/trips/:id', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.name).toBe('Updated Name');
+  });
+});
+
+describe('PATCH /api/v1/trips/:id/members/me/notification-preferences', () => {
+  it('updates own newEntriesPushEnabled preference', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'My Trip' });
+
+    const tripId = createRes.body.id as string;
+    const res = await request(app)
+      .patch(`/api/v1/trips/${tripId}/members/me/notification-preferences`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ newEntriesPushEnabled: false });
+
+    expect(res.status).toBe(200);
+    const me = res.body.members.find((m: { userId: string }) => m.userId === String(creator._id));
+    expect(me.notificationPreferences.newEntriesPushEnabled).toBe(false);
+  });
+
+  it('returns 400 for invalid payload', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'My Trip' });
+
+    const tripId = createRes.body.id as string;
+    const res = await request(app)
+      .patch(`/api/v1/trips/${tripId}/members/me/notification-preferences`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ newEntriesPushEnabled: 'nope' });
+
+    expect(res.status).toBe(400);
   });
 });
 
