@@ -1,36 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import type { TripStatus } from '@travel-journal/shared';
 
-import {
-  addTripMember,
-  deleteTrip,
-  fetchTrip,
-  fetchTripInvites,
-  patchMyTripNotificationPreferences,
-  patchTrip,
-  patchTripMemberRole,
-  patchTripStatus,
-  removeTripMember,
-  revokeTripMemberInvite,
-} from '../api/trips.js';
 import { useAuth } from '../context/AuthContext.js';
 import { BottomNavBar } from '../components/BottomNavBar.js';
-import { ensurePushSubscription, getPushPermissionState } from '../notifications/push.js';
+import { getPushPermissionState } from '../notifications/push.js';
 
 import { TripDeleteSection } from './tripSettings/TripDeleteSection.js';
 import { TripDetailsSection } from './tripSettings/TripDetailsSection.js';
 import { TripMembersSection } from './tripSettings/TripMembersSection.js';
 import { TripStatusSection } from './tripSettings/TripStatusSection.js';
+import { useTripSettings } from './tripSettings/useTripSettings.js';
 
 export function TripSettingsScreen() {
   const { t } = useTranslation();
   const { id: tripId } = useParams<{ id: string }>();
   const { accessToken, user } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [name, setName] = useState('');
@@ -44,16 +30,30 @@ export function TripSettingsScreen() {
   const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
   const [pushPermissionState, setPushPermissionState] = useState(getPushPermissionState());
 
-  const { data: trip, isLoading } = useQuery({
-    queryKey: ['trip', tripId],
-    queryFn: () => fetchTrip(tripId!, accessToken!),
-    enabled: !!tripId && !!accessToken,
-  });
-
-  const { data: pendingInvites = [] } = useQuery({
-    queryKey: ['trip-invites', tripId],
-    queryFn: () => fetchTripInvites(tripId!, accessToken!),
-    enabled: !!tripId && !!accessToken && !!trip,
+  const {
+    trip,
+    isLoading,
+    pendingInvites,
+    updateMutation,
+    statusMutation,
+    deleteMutation,
+    addMemberMutation,
+    changeRoleMutation,
+    removeMemberMutation,
+    revokeInviteMutation,
+    updateMyNotificationPreferencesMutation,
+  } = useTripSettings({
+    tripId,
+    accessToken,
+    t,
+    addMemberInput,
+    addMemberRole,
+    setPushPermissionState,
+    onAddTripMemberSuccess: (data) => {
+      setAddMemberResult(data);
+      setAddMemberInput('');
+    },
+    onRemoveTripMemberSuccess: () => setMemberToRemove(null),
   });
 
   useEffect(() => {
@@ -68,88 +68,6 @@ export function TripSettingsScreen() {
     window.addEventListener('focus', refreshPermission);
     return () => window.removeEventListener('focus', refreshPermission);
   }, []);
-
-  const updateMutation = useMutation({
-    mutationFn: (data: { name?: string }) => patchTrip(tripId!, data, accessToken!),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['trips'] });
-      void queryClient.invalidateQueries({ queryKey: ['trip', tripId] });
-    },
-  });
-
-  const statusMutation = useMutation({
-    mutationFn: (newStatus: TripStatus) => patchTripStatus(tripId!, newStatus, accessToken!),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['trips'] });
-      void queryClient.invalidateQueries({ queryKey: ['trip', tripId] });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: () => deleteTrip(tripId!, accessToken!),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['trips'] });
-      navigate('/trips');
-    },
-  });
-
-  const addMemberMutation = useMutation({
-    mutationFn: () =>
-      addTripMember(
-        tripId!,
-        { emailOrNickname: addMemberInput, tripRole: addMemberRole },
-        accessToken!,
-      ),
-    onSuccess: (data) => {
-      setAddMemberResult(data);
-      setAddMemberInput('');
-      void queryClient.invalidateQueries({ queryKey: ['trip', tripId] });
-      void queryClient.invalidateQueries({ queryKey: ['trip-invites', tripId] });
-    },
-  });
-
-  const changeRoleMutation = useMutation({
-    mutationFn: ({ userId, tripRole }: { userId: string; tripRole: 'contributor' | 'follower' }) =>
-      patchTripMemberRole(tripId!, userId, tripRole, accessToken!),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['trip', tripId] });
-    },
-  });
-
-  const removeMemberMutation = useMutation({
-    mutationFn: (userId: string) => removeTripMember(tripId!, userId, accessToken!),
-    onSuccess: () => {
-      setMemberToRemove(null);
-      void queryClient.invalidateQueries({ queryKey: ['trip', tripId] });
-    },
-  });
-
-  const revokeInviteMutation = useMutation({
-    mutationFn: (inviteId: string) => revokeTripMemberInvite(tripId!, inviteId, accessToken!),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['trip-invites', tripId] });
-    },
-  });
-
-  const updateMyNotificationPreferencesMutation = useMutation({
-    mutationFn: async (newEntriesPushEnabled: boolean) => {
-      if (newEntriesPushEnabled) {
-        const permission = await ensurePushSubscription(accessToken!);
-        setPushPermissionState(permission);
-        if (permission !== 'granted') {
-          throw new Error(t('trips.settings.notificationsPermissionRequired'));
-        }
-      }
-      return patchMyTripNotificationPreferences(
-        tripId!,
-        { newEntriesPushEnabled },
-        accessToken!,
-      );
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['trip', tripId] });
-    },
-  });
 
   const myMember = trip?.members.find((m) => m.userId === user?.id);
   const isCreator = !!myMember && myMember.tripRole === 'creator';
