@@ -215,6 +215,30 @@ describe('EntryCard', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('closes the carousel on browser back without leaving the timeline route', async () => {
+    const entry = makeEntry({
+      images: [
+        { key: 'media/trip-1/a.jpg', width: 800, height: 600, order: 0, uploadedAt: new Date().toISOString() },
+        { key: 'media/trip-1/b.jpg', width: 800, height: 600, order: 1, uploadedAt: new Date().toISOString() },
+      ],
+    });
+    const user = userEvent.setup();
+    renderCard(entry, 'other-user');
+
+    await user.click(await screen.findByRole('button', { name: /open image carousel/i }));
+    expect(
+      screen.getByRole('dialog', { name: /image carousel|entries\.carousel\.dialogLabel/i }),
+    ).toBeInTheDocument();
+
+    window.history.back();
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: /image carousel|entries\.carousel\.dialogLabel/i }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
   it('changes carousel image on horizontal swipe gestures', async () => {
     const entry = makeEntry({
       images: [

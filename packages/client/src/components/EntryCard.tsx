@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Entry } from '@travel-journal/shared';
@@ -18,6 +18,7 @@ import { ReactionBar } from './ReactionBar.js';
 import { CommentSection } from './CommentSection.js';
 
 const BODY_OPEN_LOCK = 'entryCarouselOpen';
+const CAROUSEL_HISTORY_STATE = { __entryImageCarousel: true } as const;
 
 interface EntryCardProps {
   entry: Entry;
@@ -52,6 +53,7 @@ export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId,
   const [isCarouselOpen, setIsCarouselOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const prefetchedCacheKeyRef = useRef<string | null>(null);
+  const carouselOwnsHistoryRef = useRef(false);
 
   const isAuthor = entry.authorId === currentUserId;
 
@@ -79,9 +81,32 @@ export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId,
     if (document.body.dataset[BODY_OPEN_LOCK] === 'true') {
       return;
     }
+    window.history.pushState(CAROUSEL_HISTORY_STATE, '', window.location.href);
+    carouselOwnsHistoryRef.current = true;
     setActiveImageIndex(index);
     setIsCarouselOpen(true);
   };
+
+  useEffect(() => {
+    if (!isCarouselOpen) return;
+
+    function onPopState() {
+      if (!carouselOwnsHistoryRef.current) return;
+      carouselOwnsHistoryRef.current = false;
+      setIsCarouselOpen(false);
+    }
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [isCarouselOpen]);
+
+  const closeCarousel = useCallback(() => {
+    if (carouselOwnsHistoryRef.current) {
+      carouselOwnsHistoryRef.current = false;
+      window.history.back();
+    }
+    setIsCarouselOpen(false);
+  }, []);
 
   useEffect(() => {
     if (!accessToken || sortedImages.length === 0) return;
@@ -223,7 +248,7 @@ export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId,
         images={carouselImages}
         initialIndex={activeImageIndex}
         isOpen={isCarouselOpen}
-        onClose={() => setIsCarouselOpen(false)}
+        onClose={closeCarousel}
       />
     </article>
   );
