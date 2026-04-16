@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './context/AuthContext.js';
 import { ThemeProvider } from './context/ThemeContext.js';
 import { AppHeader } from './components/AppHeader.js';
-import { ProtectedRoute } from './components/ProtectedRoute.js';
+import { ProtectedLayout } from './components/ProtectedLayout.js';
 import { OfflineBanner } from './components/OfflineBanner.js';
 import { AdminPanelScreen } from './screens/AdminPanelScreen.js';
 import { ProfileScreen } from './screens/ProfileScreen.js';
@@ -52,78 +52,20 @@ export function App() {
         <Route path="/register" element={<AdminRegisterScreen />} />
         <Route path="/login" element={<LoginScreen />} />
         <Route path="/invite/accept" element={<InviteAcceptScreen />} />
-        <Route
-          path="/trips"
-          element={
-            <ProtectedRoute>
-              <TripDashboardScreen />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/trips/:id/timeline"
-          element={
-            <ProtectedRoute>
-              <TimelineScreen />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/trips/:id/entries/new"
-          element={
-            <ProtectedRoute>
-              <CreateEntryScreen />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/trips/:id/entries/pending/:localId/edit"
-          element={
-            <ProtectedRoute>
-              <CreateEntryScreen />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/trips/:id/entries/:entryId/edit"
-          element={
-            <ProtectedRoute>
-              <CreateEntryScreen />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/trips/:id/map"
-          element={
-            <ProtectedRoute>
-              <MapScreen />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/trips/:id/settings"
-          element={
-            <ProtectedRoute>
-              <TripSettingsScreen />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute>
-              <AdminPanelScreen />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <ProfileScreen />
-            </ProtectedRoute>
-          }
-        />
+        <Route element={<ProtectedLayout />}>
+          <Route path="/trips" element={<TripDashboardScreen />} />
+          <Route path="/trips/:id/timeline" element={<TimelineScreen />} />
+          <Route path="/trips/:id/entries/new" element={<CreateEntryScreen />} />
+          <Route
+            path="/trips/:id/entries/pending/:localId/edit"
+            element={<CreateEntryScreen />}
+          />
+          <Route path="/trips/:id/entries/:entryId/edit" element={<CreateEntryScreen />} />
+          <Route path="/trips/:id/map" element={<MapScreen />} />
+          <Route path="/trips/:id/settings" element={<TripSettingsScreen />} />
+          <Route path="/admin" element={<AdminPanelScreen />} />
+          <Route path="/profile" element={<ProfileScreen />} />
+        </Route>
         <Route path="/" element={<Navigate to="/trips" replace />} />
       </Routes>
     </ThemeProvider>
