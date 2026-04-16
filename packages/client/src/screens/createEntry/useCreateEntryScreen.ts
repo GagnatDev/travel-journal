@@ -11,7 +11,8 @@ import { compressImage } from '../../utils/compressImage.js';
 import { getPendingEntry } from '../../offline/db.js';
 import { saveOfflineEntry } from '../../offline/entrySync.js';
 
-import { EMPTY_ENTRY_FORM, entryFormIsDirty, type EntryFormState } from './entryFormState.js';
+import { EMPTY_ENTRY_FORM, type EntryFormState } from './entryFormState.js';
+import { useEntryForm } from './useEntryForm.js';
 
 export function useCreateEntryScreen() {
   const { id: tripId, entryId, localId: pendingLocalId } = useParams<{
@@ -178,62 +179,26 @@ export function useCreateEntryScreen() {
     setLocalFiles((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const handleLocationToggle = useCallback(() => {
-    if (!form.locationEnabled) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setForm((prev) => ({
-            ...prev,
-            locationEnabled: true,
-            locationLat: pos.coords.latitude,
-            locationLng: pos.coords.longitude,
-          }));
-        },
-        () => {
-          setForm((prev) => ({ ...prev, locationEnabled: true }));
-        },
-      );
-    } else {
-      setForm((prev) => ({
-        ...prev,
-        locationEnabled: false,
-        locationLat: null,
-        locationLng: null,
-        locationName: '',
-      }));
-    }
-  }, [form.locationEnabled]);
-
-  const handleDiscard = useCallback(() => {
-    if (
-      entryFormIsDirty(form, initialForm, images, initialImages, localFiles, initialLocalFiles)
-    ) {
-      if (!window.confirm(t('entries.discardConfirm'))) return;
-    }
-    navigate(`/trips/${tripId}/timeline`);
-  }, [form, initialForm, images, initialImages, localFiles, initialLocalFiles, navigate, t, tripId]);
+  const { handleLocationToggle, handleDiscard, validateRequiredFields } = useEntryForm(
+    form,
+    setForm,
+    initialForm,
+    images,
+    initialImages,
+    localFiles,
+    initialLocalFiles,
+    setTitleError,
+    setContentError,
+    t,
+    navigate,
+    tripId,
+  );
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
 
-      let valid = true;
-
-      if (!form.title.trim()) {
-        setTitleError(t('entries.titleRequired'));
-        valid = false;
-      } else {
-        setTitleError('');
-      }
-
-      if (!form.content.trim()) {
-        setContentError(t('entries.contentRequired'));
-        valid = false;
-      } else {
-        setContentError('');
-      }
-
-      if (!valid) return;
+      if (!validateRequiredFields()) return;
 
       const location =
         form.locationEnabled && form.locationLat !== null && form.locationLng !== null
@@ -299,11 +264,11 @@ export function useCreateEntryScreen() {
       pendingOfflineMeta,
       createMutation,
       updateMutation,
-      t,
       tripId,
       navigate,
       localFiles,
       images,
+      validateRequiredFields,
     ],
   );
 

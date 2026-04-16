@@ -9,7 +9,7 @@ import { entryTextControlClass } from '../../components/ui/fieldStyles.js';
 
 import type { EntryFormState } from './entryFormState.js';
 
-interface EntryFormBodyProps {
+export interface CreateEntryFormProps {
   form: EntryFormState;
   setForm: React.Dispatch<React.SetStateAction<EntryFormState>>;
   titleError: string;
@@ -30,7 +30,7 @@ interface EntryFormBodyProps {
   updateMutationError: boolean;
 }
 
-export function EntryFormBody({
+export function CreateEntryForm({
   form,
   setForm,
   titleError,
@@ -49,7 +49,7 @@ export function EntryFormBody({
   savedOffline,
   createMutationError,
   updateMutationError,
-}: EntryFormBodyProps) {
+}: CreateEntryFormProps) {
   const { t } = useTranslation();
   const hasImages = images.length > 0 || localPreviews.length > 0;
 

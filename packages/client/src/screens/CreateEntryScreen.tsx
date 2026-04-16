@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
-import { EntryFormBody } from './createEntry/EntryFormBody.js';
+import { CreateEntryForm } from './createEntry/CreateEntryForm.js';
 import { useCreateEntryScreen } from './createEntry/useCreateEntryScreen.js';
 
 export function CreateEntryScreen() {
@@ -30,7 +30,7 @@ export function CreateEntryScreen() {
         {isEditing && <span className="w-6" />}
       </header>
       <div className="flex-1 overflow-y-auto">
-        <EntryFormBody {...form} />
+        <CreateEntryForm {...form} />
       </div>
     </div>
   );

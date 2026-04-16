@@ -5,6 +5,27 @@ import type { EntryImage } from '@travel-journal/shared';
 
 import { ImageReorder } from '../components/ImageReorder.js';
 
+vi.mock('../components/AuthenticatedImage.js', () => ({
+  AuthenticatedImage: ({
+    mediaKey: _mediaKey,
+    loading,
+    className,
+    alt,
+  }: {
+    mediaKey: string;
+    loading?: HTMLImageElement['loading'];
+    className?: string;
+    alt?: string;
+  }) => (
+    <img
+      src="blob:http://localhost/test-placeholder"
+      alt={alt ?? ''}
+      loading={loading}
+      className={className}
+    />
+  ),
+}));
+
 import { AuthSessionProvider } from './AuthSessionProvider.js';
 import { mockUser } from './mocks/handlers.js';
 
