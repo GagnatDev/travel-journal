@@ -45,5 +45,4 @@ Without `ADMIN_EMAIL`, the admin bootstrap registration endpoint returns 403.
 - The `@travel-journal/shared` package **must be built** before running server or client (`pnpm --filter @travel-journal/shared build`). Without this, imports from `@travel-journal/shared` fail.
 - pnpm 10 blocks build scripts by default. The root `package.json` field `pnpm.onlyBuiltDependencies` allowlists packages that need postinstall/install scripts (sharp, mongodb-memory-server, etc.). If a new native dependency is added and its build script is blocked, add it to that list.
 - Server unit tests use `mongodb-memory-server` (embedded MongoDB binary) — no external MongoDB needed. Client unit tests use `msw` + `happy-dom` — no external services needed.
-- Two client tests (`EntryCard.test.tsx` and `ImageReorder.test.tsx`) have pre-existing failures related to `createObjectURL` not being available in the jsdom/happy-dom test environment. These are not regressions.
 - Docker daemon in nested container environments needs `fuse-overlayfs` storage driver and `iptables-legacy`. See the `daemon.json` and `update-alternatives` setup in the VM snapshot.
