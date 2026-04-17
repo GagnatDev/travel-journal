@@ -18,6 +18,7 @@ import { usePendingEntriesForTrip } from '../hooks/usePendingEntriesForTrip.js';
 import { QUERY_STALE_MS } from '../lib/appQueryClient.js';
 import { groupEntriesByDay } from '../utils/groupEntriesByDay.js';
 import { SectionLabel } from '../components/ui/SectionLabel.js';
+import { DeleteEntryConfirmDialog } from '../components/DeleteEntryConfirmDialog.js';
 
 export function TimelineScreen() {
   const { id: tripId } = useParams<{ id: string }>();
@@ -31,6 +32,7 @@ export function TimelineScreen() {
     () => localStorage.getItem(storyModeKey) === 'true',
   );
   const pendingEntries = usePendingEntriesForTrip(tripId);
+  const [entryIdPendingDelete, setEntryIdPendingDelete] = useState<string | null>(null);
 
   const toggleStoryMode = useCallback(() => {
     setStoryMode((prev) => {
@@ -80,14 +82,23 @@ export function TimelineScreen() {
     },
   });
 
-  const handleDelete = useCallback(
-    (entryId: string) => {
-      if (window.confirm(t('entries.deleteConfirm'))) {
-        deleteMutation.mutate(entryId);
-      }
-    },
-    [deleteMutation, t],
-  );
+  const requestDeleteEntry = useCallback((entryId: string) => {
+    setEntryIdPendingDelete(entryId);
+  }, []);
+
+  const cancelDeleteEntry = useCallback(() => {
+    setEntryIdPendingDelete(null);
+  }, []);
+
+  const confirmDeleteEntry = useCallback(() => {
+    if (!entryIdPendingDelete) return;
+    const id = entryIdPendingDelete;
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        setEntryIdPendingDelete(null);
+      },
+    });
+  }, [entryIdPendingDelete, deleteMutation]);
 
   useInfiniteScrollSentinel(sentinelRef, fetchNextPage, !!hasNextPage, isFetchingNextPage);
 
@@ -96,9 +107,9 @@ export function TimelineScreen() {
     () => ({
       tripId: tripId!,
       currentUserId: user?.id ?? '',
-      onDelete: handleDelete,
+      onDelete: requestDeleteEntry,
     }),
-    [tripId, user?.id, handleDelete],
+    [tripId, user?.id, requestDeleteEntry],
   );
 
   const entriesErrorMessage =
@@ -174,6 +185,13 @@ export function TimelineScreen() {
       </main>
 
       <BottomNavBar {...(tripId !== undefined && { tripId })} {...(tripRole !== undefined && { tripRole })} />
+
+      <DeleteEntryConfirmDialog
+        open={entryIdPendingDelete !== null}
+        isDeleting={deleteMutation.isPending}
+        onCancel={cancelDeleteEntry}
+        onConfirm={confirmDeleteEntry}
+      />
     </div>
   );
 }
