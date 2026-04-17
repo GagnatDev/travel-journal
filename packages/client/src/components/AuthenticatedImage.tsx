@@ -84,7 +84,7 @@ export function AuthenticatedImage({
           decoding="async"
           alt={alt}
           loading={loading}
-          className={`absolute inset-0 z-[1] h-full w-full ${className}`}
+          className={`absolute inset-0 h-full w-full ${className}`}
           {...imgRest}
         />
       )}

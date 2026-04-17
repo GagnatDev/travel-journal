@@ -3,20 +3,20 @@
 export function AuthenticatedImageLoadingPulse() {
   return (
     <span
-      className="absolute inset-0 z-0 bg-caption/10 animate-pulse motion-reduce:animate-none"
+      className="absolute inset-0 bg-caption/10 animate-pulse motion-reduce:animate-none"
       aria-hidden
     />
   );
 }
 
 export function AuthenticatedImageNeutralUnderlay() {
-  return <span className="absolute inset-0 z-0 bg-bg-secondary" aria-hidden />;
+  return <span className="absolute inset-0 bg-bg-secondary" aria-hidden />;
 }
 
 export function AuthenticatedImageUnavailable({ label }: { label: string }) {
   return (
     <span
-      className="absolute inset-0 z-[2] flex flex-col items-center justify-center gap-1 bg-bg-secondary px-2 text-center text-caption"
+      className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-bg-secondary px-2 text-center text-caption"
       role="status"
       aria-live="polite"
       aria-label={label}
