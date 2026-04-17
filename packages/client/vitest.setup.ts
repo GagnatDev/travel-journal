@@ -105,6 +105,7 @@ const nb = {
   common: {
     loading: 'Laster...',
     error: 'Det oppstod en feil',
+    retry: 'Prøv igjen',
     save: 'Lagre',
     cancel: 'Avbryt',
     close: 'Lukk',
@@ -221,6 +222,13 @@ const nb = {
     title: 'Kart',
     noLocations: 'Ingen innlegg med plassering ennå. Legg til plassering når du oppretter et innlegg.',
     viewEntry: 'Se innlegg',
+    mapboxTokenMissingTitle: 'Kartet kan ikke vises',
+    mapboxTokenMissingDev:
+      'Legg til VITE_MAPBOX_TOKEN (Mapbox public token) i miljøfilen for klienten, for eksempel packages/client/.env, og start Vite på nytt.',
+    mapboxTokenMissingStaging:
+      'Klientbygget mangler VITE_MAPBOX_TOKEN. Legg tokenet i hemmeligheter/variabler for staging-bygget.',
+    mapboxTokenMissingProd:
+      'Karttjenesten er ikke konfigurert for denne installasjonen. Ta kontakt med den som drifter appen.',
   },
   offline: {
     banner: 'Du er frakoblet — innlegg synkroniseres når du er tilkoblet igjen',
@@ -235,6 +243,8 @@ const nb = {
     editTitle: 'Rediger innlegg',
     draft: 'Kladd',
     sectionLabel: 'Siste nytt fra reisen',
+    loadError: 'Kunne ikke laste innlegg.',
+    retryLoad: 'Prøv igjen',
     tripNameFallback: 'Reise',
     moreOptions: 'Flere valg',
     saveEntry: 'LAGRE INNLEGG',

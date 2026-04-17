@@ -29,6 +29,13 @@ MONGODB_URI=mongodb://localhost:27017/travel-journal
 
 Without `ADMIN_EMAIL`, the admin bootstrap registration endpoint returns 403.
 
+## Client `VITE_MAPBOX_TOKEN`
+
+The trip map uses Mapbox GL. Set **`VITE_MAPBOX_TOKEN`** to a [Mapbox public access token](https://account.mapbox.com/) in the client environment before running or building Vite (values are inlined at build time).
+
+- **Local dev:** add `VITE_MAPBOX_TOKEN=pk....` to `packages/client/.env` (or another env file Vite loads), then restart `pnpm dev`. Without it, the map screen shows an inline notice instead of a blank map.
+- **Docker / production:** pass the token at image build time, for example `docker build --build-arg VITE_MAPBOX_TOKEN=...` (see repo `Dockerfile`).
+
 ## Key commands
 
 | Task | Command |
