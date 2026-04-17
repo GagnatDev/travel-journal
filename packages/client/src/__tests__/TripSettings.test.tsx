@@ -39,6 +39,34 @@ function makeTrip(status: Trip['status'] = 'active', role: Trip['members'][0]['t
   };
 }
 
+/** Signed-in user is `mockUser` (`user-1`) as a contributor; another user is trip creator. */
+function makeContributorTrip(status: Trip['status'] = 'active'): Trip {
+  return {
+    id: 'trip-1',
+    name: 'Shared Trip',
+    status,
+    createdBy: 'user-2',
+    members: [
+      {
+        userId: 'user-2',
+        displayName: 'Trip Owner',
+        tripRole: 'creator',
+        addedAt: new Date().toISOString(),
+        notificationPreferences: { newEntriesPushEnabled: true },
+      },
+      {
+        userId: 'user-1',
+        displayName: 'Test User',
+        tripRole: 'contributor',
+        addedAt: new Date().toISOString(),
+        notificationPreferences: { newEntriesPushEnabled: true },
+      },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 function renderSettings(trip: Trip) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   server.use(
@@ -90,12 +118,60 @@ describe('TripSettingsScreen', () => {
     fetchSpy.mockRestore();
   });
 
-  it('non-creator is redirected to timeline', async () => {
+  it('follower is redirected to timeline', async () => {
     const followerTrip = makeTrip('active', 'follower');
     renderSettings(followerTrip);
 
     await waitFor(() => {
       expect(screen.getByText('Timeline')).toBeInTheDocument();
+    });
+  });
+
+  it('contributor stays on settings and sees the settings heading', async () => {
+    renderSettings(makeContributorTrip());
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /turinnstillinger|trip settings/i })).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Timeline')).not.toBeInTheDocument();
+  });
+
+  it('contributor settings load does not request pending trip invites', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    renderSettings(makeContributorTrip());
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /turinnstillinger|trip settings/i })).toBeInTheDocument();
+    });
+
+    const inviteListCalls = fetchSpy.mock.calls.filter((c) =>
+      String(c[0]).includes('/api/v1/trips/trip-1/members/invites'),
+    );
+    expect(inviteListCalls.length).toBe(0);
+    fetchSpy.mockRestore();
+  });
+
+  it('contributor does not see creator-only trip controls', async () => {
+    renderSettings(makeContributorTrip());
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /turinnstillinger|trip settings/i })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole('button', { name: /slett tur|delete trip/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /merk som fullf|mark as completed/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Turnavn$/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /inviter nytt medlem|invite new member/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('contributor trip settings bottom nav reflects contributor role', async () => {
+    renderSettings(makeContributorTrip());
+
+    await waitFor(() => {
+      const nav = document.querySelector('nav[data-viewer-trip-role]');
+      expect(nav).toHaveAttribute('data-viewer-trip-role', 'contributor');
     });
   });
 

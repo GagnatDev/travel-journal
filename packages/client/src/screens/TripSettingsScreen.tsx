@@ -10,6 +10,13 @@ import { TripDeleteSection } from './tripSettings/TripDeleteSection.js';
 import { TripDetailsSection } from './tripSettings/TripDetailsSection.js';
 import { TripMembersSection } from './tripSettings/TripMembersSection.js';
 import { TripStatusSection } from './tripSettings/TripStatusSection.js';
+import {
+  canAccessTripSettingsScreen,
+  canDeleteTrip,
+  canEditTripDetailsAndLifecycle,
+  canManageTripInvitesAndMembers,
+  viewerTripRoleForUser,
+} from './tripSettings/tripSettingsPermissions.js';
 import { useTripSettings } from './tripSettings/useTripSettings.js';
 
 export function TripSettingsScreen() {
@@ -45,6 +52,7 @@ export function TripSettingsScreen() {
   } = useTripSettings({
     tripId,
     accessToken,
+    userId: user?.id,
     t,
     addMemberInput,
     addMemberRole,
@@ -70,21 +78,27 @@ export function TripSettingsScreen() {
   }, []);
 
   const myMember = trip?.members.find((m) => m.userId === user?.id);
-  const isCreator = !!myMember && myMember.tripRole === 'creator';
+  const myRole = viewerTripRoleForUser(trip, user?.id);
 
   useEffect(() => {
-    if (trip && !isCreator) {
+    if (trip && !canAccessTripSettingsScreen(myRole)) {
       navigate(`/trips/${tripId}/timeline`);
     }
-  }, [trip, isCreator, navigate, tripId]);
+  }, [trip, myRole, navigate, tripId]);
 
   if (isLoading || !trip) {
     return null;
   }
 
-  if (!isCreator) {
+  if (!canAccessTripSettingsScreen(myRole)) {
     return null;
   }
+
+  if (!myMember) {
+    return null;
+  }
+
+  const canManageMembers = canManageTripInvitesAndMembers(myRole);
 
   return (
     <div className="min-h-screen bg-bg-primary pt-14 pb-28">
@@ -93,11 +107,16 @@ export function TripSettingsScreen() {
       </header>
 
       <main className="px-4 space-y-8">
-        <TripDetailsSection t={t} name={name} setName={setName} updateMutation={updateMutation} />
-        <TripStatusSection t={t} tripStatus={trip.status} statusMutation={statusMutation} />
+        {canEditTripDetailsAndLifecycle(myRole) ? (
+          <TripDetailsSection t={t} name={name} setName={setName} updateMutation={updateMutation} />
+        ) : null}
+        {canEditTripDetailsAndLifecycle(myRole) ? (
+          <TripStatusSection t={t} tripStatus={trip.status} statusMutation={statusMutation} />
+        ) : null}
         <TripMembersSection
           t={t}
           trip={trip}
+          canManageMembers={canManageMembers}
           pendingInvites={pendingInvites}
           addMemberInput={addMemberInput}
           setAddMemberInput={setAddMemberInput}
@@ -115,15 +134,19 @@ export function TripSettingsScreen() {
           pushPermissionState={pushPermissionState}
           updateMyNotificationPreferencesMutation={updateMyNotificationPreferencesMutation}
         />
-        <TripDeleteSection
-          t={t}
-          showDeleteConfirm={showDeleteConfirm}
-          setShowDeleteConfirm={setShowDeleteConfirm}
-          deleteMutation={deleteMutation}
-        />
+        {canDeleteTrip(myRole) ? (
+          <TripDeleteSection
+            t={t}
+            showDeleteConfirm={showDeleteConfirm}
+            setShowDeleteConfirm={setShowDeleteConfirm}
+            deleteMutation={deleteMutation}
+          />
+        ) : null}
       </main>
 
-      {tripId !== undefined && <BottomNavBar tripId={tripId} tripRole="creator" />}
+      {tripId !== undefined && myRole !== undefined && (
+        <BottomNavBar tripId={tripId} tripRole={myRole} />
+      )}
     </div>
   );
 }
