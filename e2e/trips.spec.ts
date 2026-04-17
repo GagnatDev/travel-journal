@@ -39,6 +39,21 @@ async function goToTripSettings(page: Page, tripId: string) {
   await expect(page.getByRole('button', { name: /slett tur|delete trip/i })).toBeVisible();
 }
 
+/** Confirm delete in settings; wait for API + navigation so list assertions are not flaky on cached data. */
+async function confirmTripDelete(page: Page, tripId: string) {
+  const deleteRes = page.waitForResponse(
+    (res) =>
+      res.request().method() === 'DELETE' &&
+      new URL(res.url()).pathname === `/api/v1/trips/${tripId}` &&
+      res.status() === 204,
+  );
+  await Promise.all([
+    deleteRes,
+    page.getByRole('button', { name: /^slett$|^delete$/i }).click(),
+  ]);
+  await expect(page).toHaveURL(/\/trips\/?$/);
+}
+
 test.describe('Trip dashboard', () => {
   test('admin creates a trip and it appears under Planned', async ({ page }) => {
     await registerAdmin(page);
@@ -131,10 +146,9 @@ test.describe('Trip deletion', () => {
 
     // Delete
     await page.getByRole('button', { name: /slett tur|delete trip/i }).click();
-    await page.getByRole('button', { name: /^slett$|^delete$/i }).click();
-    await page.waitForURL('**/trips');
+    await confirmTripDelete(page, tripId);
 
-    await expect(page.getByText('To Delete')).not.toBeVisible();
+    await expect(page.getByText('To Delete')).toHaveCount(0, { timeout: 20_000 });
   });
 
   test('app admin can delete an active trip (non-admins get 409 from API)', async ({ page }) => {
@@ -147,9 +161,8 @@ test.describe('Trip deletion', () => {
     await expect(page.getByRole('button', { name: /merk som fullf|mark as completed/i })).toBeVisible();
 
     await page.getByRole('button', { name: /slett tur|delete trip/i }).click();
-    await page.getByRole('button', { name: /^slett$|^delete$/i }).click();
-    await page.waitForURL('**/trips');
+    await confirmTripDelete(page, tripId);
 
-    await expect(page.getByText('Active Trip')).not.toBeVisible();
+    await expect(page.getByText('Active Trip')).toHaveCount(0, { timeout: 20_000 });
   });
 });
