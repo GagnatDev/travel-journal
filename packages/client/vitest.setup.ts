@@ -101,7 +101,7 @@ const nb = {
       noUsers: 'Ingen brukere funnet.',
     },
   },
-  nav: { trips: 'Turer', admin: 'Admin' },
+  nav: { trips: 'Turer', admin: 'Admin', back: 'Gå tilbake' },
   common: {
     loading: 'Laster...',
     error: 'Det oppstod en feil',
@@ -119,7 +119,30 @@ const nb = {
     imageUnavailable: 'Bildet er ikke tilgjengelig',
   },
   language: { nb: 'Norsk', en: 'English' },
-  menu: { theme: 'Mørk modus', language: 'Språk', profile: 'Profil' },
+  menu: { openMenu: 'Åpne meny', theme: 'Mørk modus', language: 'Språk', profile: 'Profil' },
+  notifications: {
+    openPanel: 'Varsler',
+    panelTitle: 'Varsler om nye innlegg',
+    closePanel: 'Lukk varselspanelet',
+    intro:
+      'Når noen publiserer et dagboksinlegg på en tur du er med på, sendes varsler via nettleserens eller systemets push-varsler (Web Push). Appen har foreløpig ikke en egen varselinnboks.',
+    tripSettingsHint:
+      'Slå varsler om nye innlegg av eller på for hver tur fra den turens innstillinger (samme skjerm som medlemmer og personvern).',
+    openTripSettings: 'Åpne innstillinger for denne turen',
+    goToTrips: 'Gå til Mine turer',
+    statusHeading: 'Denne enheten',
+    serverHeading: 'Server',
+    loadingServer: 'Sjekker om push er tilgjengelig…',
+    serverAvailable:
+      'Serveren er satt opp for Web Push. Med tillatelse i nettleseren og varsling slått på for turen kan du motta varsler om nye innlegg.',
+    serverUnavailable:
+      'Push er ikke konfigurert på denne serveren, så varsler om nye innlegg kan ikke leveres før driftsmiljøet legger inn Web Push (VAPID-nøkler).',
+    serverError:
+      'Klarte ikke å bekrefte om push er tilgjengelig. Varsler kan mangle inntil denne sjekken lykkes.',
+    deviceGranted: 'Nettleservarsler er tillatt på denne enheten.',
+    deviceDefault:
+      'Nettleservarsler er ikke tillatt ennå. Du kan tillate dem når du slår på varsler i turinnstillingene, eller fra nettleserens nettstedinnstillinger for denne appen.',
+  },
   profile: {
     title: 'Profil',
     displayNameLabel: 'Kallenavn',
@@ -180,6 +203,11 @@ const nb = {
       privacyPublic: 'Hele kretsen',
       privacyPrivate: 'Privat dagbok',
       allowContributorInvites: 'La bidragsytere invitere andre',
+      notificationsNewEntriesToggle: 'Varsle meg når nye innlegg publiseres i denne turen',
+      notificationsUnsupported: 'Denne nettleseren støtter ikke push-varsler.',
+      notificationsDenied:
+        'Push-varsler er blokkert. Aktiver varsler i nettleserinnstillingene for å slå dette på.',
+      notificationsPermissionRequired: 'Tillat varsler i nettleseren for å aktivere denne innstillingen.',
       collaborativeChaptersTitle: 'Samarbeidskapitler',
       collaborativeChaptersInfo: 'Medlemmer kan skrive innlegg sammen og dele minner.',
     },

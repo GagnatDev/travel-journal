@@ -173,4 +173,15 @@ describe('deleteTrip', () => {
 
     await expect(deleteTrip(trip.id, String(admin._id), 'admin')).resolves.toBeUndefined();
   });
+
+  it('allows admin to delete an active trip', async () => {
+    const admin = await makeUser('admin@test.com', 'admin');
+    const trip = await createTrip({ name: 'Trip' }, String(admin._id));
+    const active = await updateTripStatus(trip.id, 'active', String(admin._id));
+
+    await expect(deleteTrip(active.id, String(admin._id), 'admin')).resolves.toBeUndefined();
+
+    const found = await getTripById(active.id);
+    expect(found).toBeNull();
+  });
 });
