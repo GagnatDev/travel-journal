@@ -108,9 +108,12 @@ test.describe('Entries', () => {
     await page.goBack();
     await page.waitForURL('**/timeline');
 
-    page.once('dialog', (dialog) => void dialog.accept());
     await openEntryAuthorMenu(page);
     await page.getByRole('button', { name: /slett|delete/i }).click();
+
+    const deleteDialog = page.getByTestId('delete-entry-dialog');
+    await expect(deleteDialog).toBeVisible();
+    await deleteDialog.getByRole('button', { name: /^(Slett|Delete)$/ }).click();
 
     await expect(page.getByText('To Be Deleted')).not.toBeVisible();
 
