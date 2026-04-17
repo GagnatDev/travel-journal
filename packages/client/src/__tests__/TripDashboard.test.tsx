@@ -47,6 +47,32 @@ function renderDashboard(user = mockUser) {
 }
 
 describe('TripDashboardScreen', () => {
+  it('does not show empty state while trips request is still pending', async () => {
+    let releaseTrips: (() => void) | undefined;
+    const tripsGate = new Promise<void>((resolve) => {
+      releaseTrips = resolve;
+    });
+    server.use(
+      http.get('/api/v1/trips', async () => {
+        await tripsGate;
+        return HttpResponse.json([makeTrip({ name: 'Gated Trip' })]);
+      }),
+    );
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText(/laster/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/du har ingen turer ennå|you have no trips/i)).not.toBeInTheDocument();
+
+    releaseTrips!();
+
+    await waitFor(() => {
+      expect(screen.getByText('Gated Trip')).toBeInTheDocument();
+    });
+  });
+
   it('shows empty state when user has no trips', async () => {
     server.use(http.get('/api/v1/trips', () => HttpResponse.json([])));
     renderDashboard();
