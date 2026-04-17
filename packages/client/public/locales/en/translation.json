@@ -209,6 +209,8 @@
     "editTitle": "Edit Entry",
     "draft": "Draft",
     "sectionLabel": "Latest from the Road",
+    "loadError": "Could not load entries.",
+    "retryLoad": "Try again",
     "tripNameFallback": "Trip",
     "moreOptions": "More options",
     "saveEntry": "SAVE ENTRY",

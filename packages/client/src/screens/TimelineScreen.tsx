@@ -8,6 +8,7 @@ import { deleteEntry, fetchEntriesPage } from '../api/entries.js';
 import { fetchTrip } from '../api/trips.js';
 import { PendingEntryPreviewList } from '../components/timeline/PendingEntryPreviewList.js';
 import { StoryModeToggle } from '../components/timeline/StoryModeToggle.js';
+import { TimelineEntrySkeletonList } from '../components/timeline/TimelineEntrySkeletonList.js';
 import { TimelineEntryCardList } from '../components/timeline/TimelineEntryCardList.js';
 import { BottomNavBar } from '../components/BottomNavBar.js';
 import { DayHeader } from '../components/DayHeader.js';
@@ -41,7 +42,7 @@ export function TimelineScreen() {
     });
   }, [storyModeKey]);
 
-  const { data: trip = null } = useQuery({
+  const { data: trip = null, isPending: isTripPending } = useQuery({
     queryKey: ['trip', tripId],
     queryFn: () => fetchTrip(tripId!, accessToken!),
     enabled: !!accessToken && !!tripId,
@@ -55,7 +56,11 @@ export function TimelineScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isLoading,
+    isLoading: isEntriesLoading,
+    isError: isEntriesError,
+    error: entriesError,
+    refetch: refetchEntries,
+    isRefetching: isEntriesRefetching,
   } = useInfiniteQuery<EntriesPage, Error, { pages: EntriesPage[] }, [string, string], number>({
     queryKey: ['entries', tripId!],
     queryFn: ({ pageParam }) => fetchEntriesPage(tripId!, pageParam, accessToken!),
@@ -107,13 +112,8 @@ export function TimelineScreen() {
     [tripId, user?.id, requestDeleteEntry],
   );
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-bg-primary flex items-center justify-center">
-        <p className="font-ui text-body">{t('common.loading')}</p>
-      </div>
-    );
-  }
+  const entriesErrorMessage =
+    entriesError instanceof Error ? entriesError.message : t('common.error');
 
   return (
     <div className="min-h-screen bg-bg-primary pb-28 pt-14">
@@ -123,15 +123,38 @@ export function TimelineScreen() {
 
       <div className="px-4 pb-2">
         <SectionLabel>{t('entries.sectionLabel')}</SectionLabel>
-        <h1 className="font-display text-3xl text-heading mt-1 mb-2">
-          {trip?.name?.trim() ? trip.name.trim() : t('entries.tripNameFallback')}
-        </h1>
+        {isTripPending ? (
+          <div
+            className="mt-1 mb-2 h-9 max-w-[min(100%,18rem)] rounded-lg bg-bg-tertiary animate-pulse"
+            aria-hidden="true"
+            data-testid="timeline-trip-title-skeleton"
+          />
+        ) : (
+          <h1 className="font-display text-3xl text-heading mt-1 mb-2">
+            {trip?.name?.trim() ? trip.name.trim() : t('entries.tripNameFallback')}
+          </h1>
+        )}
       </div>
 
-      <main className="px-4 space-y-6">
+      <main className="px-4 space-y-6" {...(isEntriesLoading ? { 'aria-busy': true } : {})}>
         {tripId && <PendingEntryPreviewList tripId={tripId} pendingEntries={pendingEntries} t={t} />}
 
-        {allEntries.length === 0 && pendingEntries.length === 0 ? (
+        {isEntriesError && allEntries.length === 0 ? (
+          <div className="bg-bg-secondary rounded-card border border-caption/10 p-6 text-center space-y-3">
+            <p className="font-ui text-body text-caption">{t('entries.loadError')}</p>
+            <p className="font-ui text-xs text-caption break-words">{entriesErrorMessage}</p>
+            <button
+              type="button"
+              onClick={() => void refetchEntries()}
+              disabled={isEntriesRefetching}
+              className="font-ui text-sm text-accent underline disabled:opacity-50"
+            >
+              {isEntriesRefetching ? t('common.loading') : t('entries.retryLoad')}
+            </button>
+          </div>
+        ) : isEntriesLoading ? (
+          <TimelineEntrySkeletonList />
+        ) : allEntries.length === 0 && pendingEntries.length === 0 ? (
           <p className="font-ui text-body text-center py-12 text-caption">
             {t('entries.emptyState')}
           </p>
