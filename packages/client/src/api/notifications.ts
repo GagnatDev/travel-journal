@@ -1,9 +1,7 @@
 import type { PushSubscriptionInput } from '@travel-journal/shared';
 
 import { apiJson } from './client.js';
-
 import { VAPID_PUBLIC_KEY_PATH } from './notificationPaths.js';
-
 export type PushServerAvailability = 'available' | 'unavailable' | 'error';
 export { VAPID_PUBLIC_KEY_PATH } from './notificationPaths.js';
 
