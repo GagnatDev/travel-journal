@@ -84,6 +84,9 @@
     "copied": "Copied!",
     "copyFailed": "Could not copy"
   },
+  "media": {
+    "imageUnavailable": "Image unavailable"
+  },
   "language": {
     "nb": "Norsk",
     "en": "English"
