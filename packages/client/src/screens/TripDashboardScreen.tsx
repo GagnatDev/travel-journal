@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Trip } from '@travel-journal/shared';
 
 import { fetchTrips } from '../api/trips.js';
+import { QUERY_STALE_MS } from '../lib/appQueryClient.js';
 import { useAuth } from '../context/AuthContext.js';
 import { TripCard } from '../components/TripCard.js';
 import { CreateTripModal } from '../components/CreateTripModal.js';
@@ -41,6 +42,7 @@ export function TripDashboardScreen() {
     queryKey: ['trips'],
     queryFn: () => fetchTrips(accessToken!),
     enabled: !!accessToken,
+    staleTime: QUERY_STALE_MS.trips,
   });
 
   const active = trips.filter((t) => t.status === 'active');

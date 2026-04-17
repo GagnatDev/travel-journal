@@ -16,6 +16,7 @@ import {
   removeTripMember,
   revokeTripMemberInvite,
 } from '../../api/trips.js';
+import { QUERY_STALE_MS } from '../../lib/appQueryClient.js';
 import { ensurePushSubscription } from '../../notifications/push.js';
 
 /** React Query keys shared by trip settings queries and invalidations. */
@@ -53,12 +54,14 @@ export function useTripSettings({
     queryKey: tripSettingsQueryKeys.trip(tripId),
     queryFn: () => fetchTrip(tripId!, accessToken!),
     enabled: !!tripId && !!accessToken,
+    staleTime: QUERY_STALE_MS.tripDetail,
   });
 
   const { data: pendingInvites = [] } = useQuery({
     queryKey: tripSettingsQueryKeys.tripInvites(tripId),
     queryFn: () => fetchTripInvites(tripId!, accessToken!),
     enabled: !!tripId && !!accessToken && !!trip,
+    staleTime: QUERY_STALE_MS.tripDetail,
   });
 
   const invalidateTripListsAndDetail = () => {

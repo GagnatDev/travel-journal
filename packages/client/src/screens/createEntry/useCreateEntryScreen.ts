@@ -12,6 +12,7 @@ import { getPendingEntry } from '../../offline/db.js';
 import { saveOfflineEntry } from '../../offline/entrySync.js';
 
 import { EMPTY_ENTRY_FORM, type EntryFormState } from './entryFormState.js';
+import { QUERY_STALE_MS } from '../../lib/appQueryClient.js';
 import { useEntryForm } from './useEntryForm.js';
 
 export function useCreateEntryScreen() {
@@ -70,6 +71,7 @@ export function useCreateEntryScreen() {
     queryKey: ['entry', tripId, entryId],
     queryFn: () => fetchEntry(tripId!, entryId!, accessToken!),
     enabled: isServerEdit && !!accessToken && !!tripId && !!entryId,
+    staleTime: QUERY_STALE_MS.entryEditor,
   });
 
   useEffect(() => {

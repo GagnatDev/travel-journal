@@ -18,6 +18,7 @@ export function AdminUsersTab({ token }: AdminUsersTabProps) {
     queryKey: ['admin-users'],
     queryFn: () => apiJson<AdminUser[]>('/api/v1/users', { token }),
     enabled: !!token,
+    refetchOnWindowFocus: true,
   });
 
   const promoteMutation = useMutation({
