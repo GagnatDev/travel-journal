@@ -16,6 +16,8 @@ import { standardTextControlClass } from '../../components/ui/fieldStyles.js';
 interface TripMembersSectionProps {
   t: TFunction;
   trip: Trip;
+  /** When false, only member-safe UI (e.g. notification preferences) is shown. */
+  canManageMembers?: boolean;
   pendingInvites: Invite[];
   addMemberInput: string;
   setAddMemberInput: (v: string) => void;
@@ -42,6 +44,7 @@ interface TripMembersSectionProps {
 export function TripMembersSection({
   t,
   trip,
+  canManageMembers = true,
   pendingInvites,
   addMemberInput,
   setAddMemberInput,
@@ -71,67 +74,71 @@ export function TripMembersSection({
         {t('trips.settings.circleTitle')}
       </h1>
 
-      {/* Invite button */}
-      <PillButton
-        fullWidth
-        icon={<PersonPlusIcon width={18} height={18} />}
-        onClick={() => setInviteFormOpen((v) => !v)}
-      >
-        {t('trips.settings.inviteButton')}
-      </PillButton>
-
-      {/* Invite form (collapsible) */}
-      {inviteFormOpen && (
-        <div className="space-y-3 p-4 bg-bg-secondary rounded-card border border-caption/10">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setAddMemberResult(null);
-              addMemberMutation.mutate();
-            }}
-            className="flex gap-2"
+      {canManageMembers ? (
+        <>
+          {/* Invite button */}
+          <PillButton
+            fullWidth
+            icon={<PersonPlusIcon width={18} height={18} />}
+            onClick={() => setInviteFormOpen((v) => !v)}
           >
-            <input
-              type="text"
-              value={addMemberInput}
-              onChange={(e) => setAddMemberInput(e.target.value)}
-              placeholder={t('trips.settings.addMemberPlaceholder')}
-              required
-              className={`flex-1 min-w-0 text-sm ${standardTextControlClass}`}
-            />
-            <select
-              value={addMemberRole}
-              onChange={(e) => setAddMemberRole(e.target.value as 'contributor' | 'follower')}
-              className="px-2 py-2 border border-caption rounded-round-eight font-ui text-sm bg-bg-secondary text-body"
-            >
-              <option value="follower">{t('trips.role.follower')}</option>
-              <option value="contributor">{t('trips.role.contributor')}</option>
-            </select>
-            <button
-              type="submit"
-              disabled={addMemberMutation.isPending}
-              className="px-4 py-2 bg-accent text-white font-ui text-sm font-semibold rounded-round-eight hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
-            >
-              {t('trips.settings.addMemberButton')}
-            </button>
-          </form>
+            {t('trips.settings.inviteButton')}
+          </PillButton>
 
-          {addMemberResult?.type === 'added' && (
-            <p className="font-ui text-sm text-green-600">{t('trips.settings.memberAdded')}</p>
+          {/* Invite form (collapsible) */}
+          {inviteFormOpen && (
+            <div className="space-y-3 p-4 bg-bg-secondary rounded-card border border-caption/10">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setAddMemberResult(null);
+                  addMemberMutation.mutate();
+                }}
+                className="flex gap-2"
+              >
+                <input
+                  type="text"
+                  value={addMemberInput}
+                  onChange={(e) => setAddMemberInput(e.target.value)}
+                  placeholder={t('trips.settings.addMemberPlaceholder')}
+                  required
+                  className={`flex-1 min-w-0 text-sm ${standardTextControlClass}`}
+                />
+                <select
+                  value={addMemberRole}
+                  onChange={(e) => setAddMemberRole(e.target.value as 'contributor' | 'follower')}
+                  className="px-2 py-2 border border-caption rounded-round-eight font-ui text-sm bg-bg-secondary text-body"
+                >
+                  <option value="follower">{t('trips.role.follower')}</option>
+                  <option value="contributor">{t('trips.role.contributor')}</option>
+                </select>
+                <button
+                  type="submit"
+                  disabled={addMemberMutation.isPending}
+                  className="px-4 py-2 bg-accent text-white font-ui text-sm font-semibold rounded-round-eight hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {t('trips.settings.addMemberButton')}
+                </button>
+              </form>
+
+              {addMemberResult?.type === 'added' && (
+                <p className="font-ui text-sm text-green-600">{t('trips.settings.memberAdded')}</p>
+              )}
+
+              {addMemberResult?.type === 'invite_created' && addMemberResult.inviteLink ? (
+                <CopyableLinkField
+                  value={window.location.origin + addMemberResult.inviteLink}
+                  description={t('trips.settings.inviteLinkGenerated')}
+                  inputAriaLabel={t('trips.settings.inviteLinkGenerated')}
+                  copyLabel={t('trips.settings.copyLink')}
+                  copiedLabel={t('trips.settings.linkCopied')}
+                  errorLabel={t('common.copyFailed')}
+                />
+              ) : null}
+            </div>
           )}
-
-          {addMemberResult?.type === 'invite_created' && addMemberResult.inviteLink ? (
-            <CopyableLinkField
-              value={window.location.origin + addMemberResult.inviteLink}
-              description={t('trips.settings.inviteLinkGenerated')}
-              inputAriaLabel={t('trips.settings.inviteLinkGenerated')}
-              copyLabel={t('trips.settings.copyLink')}
-              copiedLabel={t('trips.settings.linkCopied')}
-              errorLabel={t('common.copyFailed')}
-            />
-          ) : null}
-        </div>
-      )}
+        </>
+      ) : null}
 
       {/* Current members */}
       <div className="space-y-3">
@@ -148,7 +155,7 @@ export function TripMembersSection({
                   <p className="font-ui text-sm font-medium text-body">{member.displayName}</p>
                   <p className="font-ui text-xs text-caption">{t(`trips.role.${member.tripRole}`)}</p>
                 </div>
-                {member.tripRole !== 'creator' && (
+                {canManageMembers && member.tripRole !== 'creator' && (
                   <div className="flex items-center gap-2 shrink-0">
                     <select
                       value={member.tripRole}
@@ -200,7 +207,7 @@ export function TripMembersSection({
       </div>
 
       {/* Pending invites */}
-      {pendingInvites.length > 0 && (
+      {canManageMembers && pendingInvites.length > 0 && (
         <div className="space-y-3">
           <SectionLabel>{t('trips.settings.pendingInvitesTitle')}</SectionLabel>
           <ul className="space-y-2">
@@ -230,27 +237,31 @@ export function TripMembersSection({
       )}
 
       {/* Privacy Controls (UI stub) */}
-      <div className="space-y-3">
-        <SectionLabel>{t('trips.settings.privacyTitle')}</SectionLabel>
-        <div className="space-y-2">
-          <label className="flex items-center gap-3 cursor-pointer py-1">
-            <input type="radio" name="privacy" value="public" defaultChecked className="accent-accent" />
-            <span className="font-ui text-sm text-body">{t('trips.settings.privacyPublic')}</span>
-          </label>
-          <label className="flex items-center gap-3 cursor-pointer py-1">
-            <input type="radio" name="privacy" value="private" className="accent-accent" />
-            <span className="font-ui text-sm text-body">{t('trips.settings.privacyPrivate')}</span>
-          </label>
+      {canManageMembers ? (
+        <div className="space-y-3">
+          <SectionLabel>{t('trips.settings.privacyTitle')}</SectionLabel>
+          <div className="space-y-2">
+            <label className="flex items-center gap-3 cursor-pointer py-1">
+              <input type="radio" name="privacy" value="public" defaultChecked className="accent-accent" />
+              <span className="font-ui text-sm text-body">{t('trips.settings.privacyPublic')}</span>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer py-1">
+              <input type="radio" name="privacy" value="private" className="accent-accent" />
+              <span className="font-ui text-sm text-body">{t('trips.settings.privacyPrivate')}</span>
+            </label>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {/* Contributor invite toggle */}
-      <ToggleSwitch
-        id="allow-contributor-invites"
-        checked={allowContributorInvites}
-        onChange={setAllowContributorInvites}
-        label={t('trips.settings.allowContributorInvites')}
-      />
+      {canManageMembers ? (
+        <ToggleSwitch
+          id="allow-contributor-invites"
+          checked={allowContributorInvites}
+          onChange={setAllowContributorInvites}
+          label={t('trips.settings.allowContributorInvites')}
+        />
+      ) : null}
 
       <div className="space-y-2">
         <ToggleSwitch

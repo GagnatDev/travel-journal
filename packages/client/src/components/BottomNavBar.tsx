@@ -36,7 +36,10 @@ export function BottomNavBar({ tripId, tripRole }: BottomNavBarProps) {
   }
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-10 pb-safe md:bg-transparent bg-bg-primary">
+    <nav
+      className="fixed bottom-0 inset-x-0 z-10 pb-safe md:bg-transparent bg-bg-primary"
+      data-viewer-trip-role={tripRole}
+    >
       <div className="max-w-lg mx-auto bg-bg-primary border-t border-caption/20 md:rounded-t-xl md:border-x md:border-caption/20 md:shadow-[0_-4px_24px_rgba(0,0,0,0.06)] dark:md:shadow-[0_-4px_24px_rgba(0,0,0,0.25)]">
         <div className="flex justify-center px-4 pt-1">
           <SyncStatus />

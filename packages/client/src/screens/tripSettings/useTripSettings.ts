@@ -19,6 +19,8 @@ import {
 import { QUERY_STALE_MS } from '../../lib/appQueryClient.js';
 import { ensurePushSubscription } from '../../notifications/push.js';
 
+import { canManageTripInvitesAndMembers, viewerTripRoleForUser } from './tripSettingsPermissions.js';
+
 /** React Query keys shared by trip settings queries and invalidations. */
 export const tripSettingsQueryKeys = {
   trips: ['trips'] as const,
@@ -29,6 +31,7 @@ export const tripSettingsQueryKeys = {
 type UseTripSettingsParams = {
   tripId: string | undefined;
   accessToken: string | null | undefined;
+  userId: string | undefined;
   t: TFunction;
   addMemberInput: string;
   addMemberRole: 'contributor' | 'follower';
@@ -40,6 +43,7 @@ type UseTripSettingsParams = {
 export function useTripSettings({
   tripId,
   accessToken,
+  userId,
   t,
   addMemberInput,
   addMemberRole,
@@ -57,10 +61,13 @@ export function useTripSettings({
     staleTime: QUERY_STALE_MS.tripDetail,
   });
 
+  const viewerRole = viewerTripRoleForUser(trip, userId);
+
   const { data: pendingInvites = [] } = useQuery({
     queryKey: tripSettingsQueryKeys.tripInvites(tripId),
     queryFn: () => fetchTripInvites(tripId!, accessToken!),
-    enabled: !!tripId && !!accessToken && !!trip,
+    enabled:
+      !!tripId && !!accessToken && !!trip && canManageTripInvitesAndMembers(viewerRole),
     staleTime: QUERY_STALE_MS.tripDetail,
   });
 
