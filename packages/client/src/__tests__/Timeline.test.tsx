@@ -1,4 +1,4 @@
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
@@ -272,6 +272,65 @@ describe('TimelineScreen', () => {
     // Second page should be fetched
     await waitFor(() => {
       expect(screen.getByText('Page2 Entry 0')).toBeInTheDocument();
+    });
+  });
+
+  it('delete from overflow opens confirm dialog; cancel keeps entry and skips DELETE', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries`, () =>
+        HttpResponse.json({ entries: [makeEntry()], total: 1 }),
+      ),
+    );
+
+    renderTimeline();
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Entry')).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /more options|flere valg/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^delete$|^slett$/i }));
+
+    expect(screen.getByTestId('delete-entry-dialog')).toBeInTheDocument();
+    expect(screen.getByText(/delete this entry\?|slette dette innlegget\?/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /cancel|avbryt/i }));
+
+    const deleteCalls = fetchSpy.mock.calls.filter(
+      (c) => String(c[0]).includes('/entries/') && (c[1] as RequestInit)?.method === 'DELETE',
+    );
+    expect(deleteCalls.length).toBe(0);
+    expect(screen.getByText('Test Entry')).toBeInTheDocument();
+    fetchSpy.mockRestore();
+  });
+
+  it('confirming in-app delete calls DELETE and removes the entry card', async () => {
+    let entries: Entry[] = [makeEntry()];
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries`, () =>
+        HttpResponse.json({ entries, total: entries.length }),
+      ),
+      http.delete(`/api/v1/trips/${TRIP_ID}/entries/:entryId`, ({ params }) => {
+        entries = entries.filter((e) => e.id !== params['entryId']);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    renderTimeline();
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Entry')).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /more options|flere valg/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^delete$|^slett$/i }));
+
+    const dialog = screen.getByTestId('delete-entry-dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: /^delete$|^slett$/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Test Entry')).not.toBeInTheDocument();
     });
   });
 });
