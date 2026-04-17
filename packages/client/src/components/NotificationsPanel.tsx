@@ -13,7 +13,7 @@ interface NotificationsPanelProps {
 
 export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps) {
   const { t } = useTranslation();
-  const { accessToken } = useAuth();
+  const { accessToken, status: authStatus } = useAuth();
   const navigate = useNavigate();
   const tripMatch = useMatch('/trips/:id/*');
   const tripId = tripMatch?.params.id;
@@ -29,6 +29,11 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
 
   useEffect(() => {
     if (!isOpen) return;
+    // Avoid treating a null token during the initial refresh as a push probe failure (flaky in CI).
+    if (authStatus === 'loading') {
+      setServerAvail('loading');
+      return;
+    }
     if (!accessToken) {
       setServerAvail('error');
       return;
@@ -44,7 +49,7 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
         setServerAvail('error');
       });
     return () => ac.abort();
-  }, [isOpen, accessToken]);
+  }, [isOpen, accessToken, authStatus]);
 
   useEffect(() => {
     if (!isOpen) return;

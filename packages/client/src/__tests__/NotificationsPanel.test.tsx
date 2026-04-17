@@ -68,13 +68,16 @@ describe('NotificationsPanel', () => {
       </TestMemoryRouter>,
     );
 
-    await waitFor(() => {
-      expect(
-        screen.getByText(
-          /Push er ikke konfigurert på denne serveren|Push is not configured on this server|notifications\.serverUnavailable/i,
-        ),
-      ).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        expect(
+          screen.getByText(
+            /Push er ikke konfigurert på denne serveren|Push is not configured on this server|notifications\.serverUnavailable/i,
+          ),
+        ).toBeInTheDocument();
+      },
+      { timeout: 5000 },
+    );
   });
 
   it('navigates to trip settings when the shortcut is used', async () => {

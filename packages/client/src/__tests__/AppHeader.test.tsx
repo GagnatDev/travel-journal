@@ -54,7 +54,9 @@ describe('AppHeader', () => {
     expect(panel.className).toContain('translate-x-0');
     expect(panel.className).not.toContain('translate-x-full');
     expect(
-      await screen.findByText(/Serveren er satt opp for Web Push|configured for Web Push/i),
+      await screen.findByText(/Serveren er satt opp for Web Push|configured for Web Push/i, {
+        timeout: 5000,
+      }),
     ).toBeInTheDocument();
   });
 
