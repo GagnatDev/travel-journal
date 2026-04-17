@@ -114,6 +114,9 @@ const nb = {
     copied: 'Kopiert!',
     copyFailed: 'Kunne ikke kopiere',
   },
+  media: {
+    imageUnavailable: 'Bildet er ikke tilgjengelig',
+  },
   language: { nb: 'Norsk', en: 'English' },
   menu: { theme: 'Mørk modus', language: 'Språk', profile: 'Profil' },
   profile: {
