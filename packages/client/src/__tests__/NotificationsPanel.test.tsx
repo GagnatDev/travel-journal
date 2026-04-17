@@ -11,6 +11,7 @@ import { NotificationsPanel } from '../components/NotificationsPanel.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { server } from './mocks/server.js';
 import { mockUser } from './mocks/handlers.js';
+import { vapidPublicKeyPath } from './mocks/notificationHandlers.js';
 
 vi.mock('../notifications/push.js', () => ({
   getPushPermissionState: vi.fn(() => 'denied' as NotificationPermission),
@@ -51,7 +52,7 @@ describe('NotificationsPanel', () => {
       http.post('/api/v1/auth/refresh', () =>
         HttpResponse.json({ accessToken: 'mock-token', user: mockUser }),
       ),
-      http.get('/api/v1/notifications/vapid-public-key', () =>
+      http.get(vapidPublicKeyPath, () =>
         HttpResponse.json(
           { error: { message: 'Push notifications are unavailable', code: 'PUSH_UNAVAILABLE' } },
           { status: 503 },

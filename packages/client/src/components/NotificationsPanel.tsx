@@ -11,6 +11,12 @@ interface NotificationsPanelProps {
   onClose: () => void;
 }
 
+function isAbortError(err: unknown): boolean {
+  if (err instanceof DOMException && err.name === 'AbortError') return true;
+  if (err instanceof Error && err.name === 'AbortError') return true;
+  return false;
+}
+
 export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps) {
   const { t } = useTranslation();
   const { accessToken, status: authStatus } = useAuth();
@@ -39,16 +45,20 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
       return;
     }
     const ac = new AbortController();
+    let active = true;
     setServerAvail('loading');
     void fetchPushServerAvailability(accessToken, ac.signal)
       .then((s) => {
-        setServerAvail(s);
+        if (active) setServerAvail(s);
       })
       .catch((err: unknown) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (!active || isAbortError(err)) return;
         setServerAvail('error');
       });
-    return () => ac.abort();
+    return () => {
+      active = false;
+      ac.abort();
+    };
   }, [isOpen, accessToken, authStatus]);
 
   useEffect(() => {
