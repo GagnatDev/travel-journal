@@ -19,6 +19,8 @@ export function AdminUsersTab({ token }: AdminUsersTabProps) {
     queryFn: () => apiJson<AdminUser[]>('/api/v1/users', { token }),
     enabled: !!token,
     refetchOnWindowFocus: true,
+    // Tab switch remounts this panel; window focus alone does not run when staying in-app.
+    refetchOnMount: 'always',
   });
 
   const promoteMutation = useMutation({

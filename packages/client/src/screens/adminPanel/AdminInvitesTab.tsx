@@ -25,6 +25,7 @@ export function AdminInvitesTab({ token }: AdminInvitesTabProps) {
     queryFn: () => apiJson<Invite[]>('/api/v1/invites/platform?status=pending', { token }),
     enabled: !!token,
     refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
   });
 
   const createInviteMutation = useMutation({

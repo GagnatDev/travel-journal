@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { CreateEntryRequest, EntryImage, UpdateEntryRequest } from '@travel-journal/shared';
 
@@ -22,6 +22,7 @@ export function useCreateEntryScreen() {
     localId?: string;
   }>();
   const { accessToken } = useAuth();
+  const queryClient = useQueryClient();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -129,13 +130,26 @@ export function useCreateEntryScreen() {
 
   const createMutation = useMutation({
     mutationFn: (data: CreateEntryRequest) => createEntry(tripId!, data, accessToken!),
-    onSuccess: () => navigate(`/trips/${tripId}/timeline`),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['entries', tripId] }),
+        queryClient.invalidateQueries({ queryKey: ['entryLocations', tripId] }),
+      ]);
+      navigate(`/trips/${tripId}/timeline`);
+    },
   });
 
   const updateMutation = useMutation({
     mutationFn: (data: UpdateEntryRequest) =>
       updateEntry(tripId!, entryId!, data, accessToken!),
-    onSuccess: () => navigate(`/trips/${tripId}/timeline`),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['entries', tripId] }),
+        queryClient.invalidateQueries({ queryKey: ['entryLocations', tripId] }),
+        queryClient.invalidateQueries({ queryKey: ['entry', tripId, entryId] }),
+      ]);
+      navigate(`/trips/${tripId}/timeline`);
+    },
   });
 
   const handleFileSelect = useCallback(
