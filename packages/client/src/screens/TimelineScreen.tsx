@@ -14,6 +14,7 @@ import { DayHeader } from '../components/DayHeader.js';
 import { useAuth } from '../context/AuthContext.js';
 import { useInfiniteScrollSentinel } from '../hooks/useInfiniteScrollSentinel.js';
 import { usePendingEntriesForTrip } from '../hooks/usePendingEntriesForTrip.js';
+import { QUERY_STALE_MS } from '../lib/appQueryClient.js';
 import { groupEntriesByDay } from '../utils/groupEntriesByDay.js';
 import { SectionLabel } from '../components/ui/SectionLabel.js';
 
@@ -42,6 +43,7 @@ export function TimelineScreen() {
     queryKey: ['trip', tripId],
     queryFn: () => fetchTrip(tripId!, accessToken!),
     enabled: !!accessToken && !!tripId,
+    staleTime: QUERY_STALE_MS.tripDetail,
   });
   const myMember = trip?.members.find((m) => m.userId === user?.id);
   const tripRole = myMember?.tripRole;
@@ -61,6 +63,7 @@ export function TimelineScreen() {
       return loaded < lastPage.total ? allPages.length + 1 : undefined;
     },
     enabled: !!accessToken && !!tripId,
+    staleTime: QUERY_STALE_MS.entriesFeed,
   });
 
   const allEntries = data?.pages.flatMap((p) => p.entries) ?? [];

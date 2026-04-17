@@ -9,6 +9,7 @@ import { fetchEntryLocations } from '../api/entries.js';
 import { useAuth } from '../context/AuthContext.js';
 import { BottomNavBar } from '../components/BottomNavBar.js';
 import { fetchTrip } from '../api/trips.js';
+import { QUERY_STALE_MS } from '../lib/appQueryClient.js';
 
 export function MapScreen() {
   const { id: tripId } = useParams<{ id: string }>();
@@ -22,6 +23,7 @@ export function MapScreen() {
     queryKey: ['trip', tripId],
     queryFn: () => fetchTrip(tripId!, accessToken!),
     enabled: !!tripId && !!accessToken,
+    staleTime: QUERY_STALE_MS.tripDetail,
   });
 
   const {
@@ -32,6 +34,7 @@ export function MapScreen() {
     queryKey: ['entryLocations', tripId],
     queryFn: () => fetchEntryLocations(tripId!, accessToken!),
     enabled: !!tripId && !!accessToken,
+    staleTime: QUERY_STALE_MS.entryLocations,
   });
 
   useEffect(() => {

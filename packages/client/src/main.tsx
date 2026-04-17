@@ -5,12 +5,13 @@ import './styles/global.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { registerSW } from 'virtual:pwa-register';
 
 import { AuthProvider } from './context/AuthContext.js';
 import { routerFutureV7 } from './reactRouterFuture.js';
 import { App } from './App.js';
+import { createAppQueryClient } from './lib/appQueryClient.js';
 
 // Apply dark mode class based on system preference
 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -19,7 +20,7 @@ if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
   document.documentElement.classList.add('dark');
 }
 
-const queryClient = new QueryClient();
+const queryClient = createAppQueryClient();
 
 registerSW({ immediate: true });
 
