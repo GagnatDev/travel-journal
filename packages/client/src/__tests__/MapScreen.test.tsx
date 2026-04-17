@@ -1,6 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
+import mapboxgl from 'mapbox-gl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import type { Trip } from '@travel-journal/shared';
@@ -124,6 +126,7 @@ describe('MapScreen', () => {
   beforeEach(() => {
     // Provide a dummy VITE_MAPBOX_TOKEN so the map initialises
     vi.stubEnv('VITE_MAPBOX_TOKEN', 'pk.test-token');
+    vi.mocked(mapboxgl.Map).mockClear();
   });
 
   afterEach(() => {
@@ -203,5 +206,49 @@ describe('MapScreen', () => {
     await waitFor(() => {
       expect(screen.getByText('Det oppstod en feil')).toBeInTheDocument();
     });
+    expect(screen.getByRole('button', { name: /prøv igjen/i })).toBeInTheDocument();
+  });
+
+  it('shows token-missing banner and does not initialise Mapbox when token is unset', async () => {
+    vi.unstubAllEnvs();
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, () =>
+        HttpResponse.json(mockPins),
+      ),
+    );
+
+    renderMap();
+
+    await waitFor(() => {
+      expect(screen.getByText('Kartet kan ikke vises')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(mapboxgl.Map).not.toHaveBeenCalled();
+  });
+
+  it('refetches locations when retry is clicked after an error', async () => {
+    let requestCount = 0;
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, () => {
+        requestCount += 1;
+        if (requestCount === 1) {
+          return HttpResponse.json({ error: { message: 'Server error' } }, { status: 500 });
+        }
+        return HttpResponse.json(mockPins);
+      }),
+    );
+
+    renderMap();
+
+    await waitFor(() => {
+      expect(screen.getByText('Det oppstod en feil')).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /prøv igjen/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Det oppstod en feil')).not.toBeInTheDocument();
+    });
+    expect(requestCount).toBe(2);
   });
 });

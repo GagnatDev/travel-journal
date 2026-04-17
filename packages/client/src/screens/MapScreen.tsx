@@ -11,6 +11,13 @@ import { BottomNavBar } from '../components/BottomNavBar.js';
 import { fetchTrip } from '../api/trips.js';
 import { QUERY_STALE_MS } from '../lib/appQueryClient.js';
 
+function mapboxTokenMissingBodyKey(): 'map.mapboxTokenMissingDev' | 'map.mapboxTokenMissingStaging' | 'map.mapboxTokenMissingProd' {
+  const mode = import.meta.env.MODE;
+  if (mode === 'production') return 'map.mapboxTokenMissingProd';
+  if (mode === 'staging') return 'map.mapboxTokenMissingStaging';
+  return 'map.mapboxTokenMissingDev';
+}
+
 export function MapScreen() {
   const { id: tripId } = useParams<{ id: string }>();
   const { accessToken, user } = useAuth();
@@ -30,6 +37,8 @@ export function MapScreen() {
     data: pins,
     isLoading,
     isError,
+    isFetching,
+    refetch,
   } = useQuery({
     queryKey: ['entryLocations', tripId],
     queryFn: () => fetchEntryLocations(tripId!, accessToken!),
@@ -37,12 +46,12 @@ export function MapScreen() {
     staleTime: QUERY_STALE_MS.entryLocations,
   });
 
+  const hasMapboxToken = Boolean(import.meta.env.VITE_MAPBOX_TOKEN?.trim());
+
   useEffect(() => {
-    if (!mapContainerRef.current || isLoading || isError) return;
+    if (!mapContainerRef.current || isLoading || isError || !hasMapboxToken) return;
 
-    const token = import.meta.env.VITE_MAPBOX_TOKEN;
-    if (!token) return;
-
+    const token = import.meta.env.VITE_MAPBOX_TOKEN!.trim();
     mapboxgl.accessToken = token;
 
     const map = new mapboxgl.Map({
@@ -119,7 +128,7 @@ export function MapScreen() {
       map.remove();
       mapRef.current = null;
     };
-  }, [pins, isLoading, isError, tripId, navigate, t]);
+  }, [pins, isLoading, isError, hasMapboxToken, tripId, navigate, t]);
 
   const tripRole = trip?.members.find((m) => m.userId === user?.id)?.tripRole;
 
@@ -132,6 +141,16 @@ export function MapScreen() {
           className="!absolute inset-0 [&_.mapboxgl-ctrl-bottom-left]:bottom-[4.5rem] [&_.mapboxgl-ctrl-bottom-right]:bottom-[4.5rem]"
         />
 
+        {!hasMapboxToken && (
+          <div
+            role="alert"
+            className="absolute top-3 left-3 right-3 z-20 rounded-xl border border-yellow-300 bg-yellow-100 px-4 py-3 font-ui text-sm text-yellow-950 shadow-md dark:border-yellow-700 dark:bg-yellow-950/90 dark:text-yellow-50"
+          >
+            <p className="font-semibold text-heading">{t('map.mapboxTokenMissingTitle')}</p>
+            <p className="mt-1 text-caption leading-snug">{t(mapboxTokenMissingBodyKey())}</p>
+          </div>
+        )}
+
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-bg-primary/80">
             <span className="font-ui text-caption text-sm">{t('common.loading')}</span>
@@ -139,12 +158,24 @@ export function MapScreen() {
         )}
 
         {isError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-bg-primary/80">
-            <span className="font-ui text-caption text-sm">{t('common.error')}</span>
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg-primary/80 px-6">
+            <span className="font-ui text-caption text-sm text-center">{t('common.error')}</span>
+            <button
+              type="button"
+              disabled={isFetching}
+              onClick={() => void refetch()}
+              className="font-ui text-sm rounded-lg border border-caption/30 bg-bg-secondary px-4 py-2 text-body hover:border-accent/40 disabled:opacity-50"
+            >
+              {t('common.retry')}
+            </button>
           </div>
         )}
 
-        {!isLoading && !isError && pins !== undefined && pins.length === 0 && (
+        {!isLoading &&
+          !isError &&
+          hasMapboxToken &&
+          pins !== undefined &&
+          pins.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="bg-bg-primary/90 rounded-xl px-6 py-4 shadow-md text-center">
               <p className="font-ui text-caption text-sm">{t('map.noLocations')}</p>
