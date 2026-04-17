@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import type { Entry, Trip } from '@travel-journal/shared';
 
 import { AuthProvider } from '../context/AuthContext.js';
@@ -182,6 +182,37 @@ describe('TimelineScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('story-mode-toggle')).toBeInTheDocument();
     });
+  });
+
+  it('shows timeline shell and skeleton rows while first entries page is loading', async () => {
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries`, async () => {
+        await delay(4000);
+        return HttpResponse.json({ entries: [], total: 0 });
+      }),
+    );
+
+    renderTimeline();
+
+    expect(
+      await screen.findByTestId('story-mode-toggle', {}, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByTestId('timeline-entry-skeleton')).toHaveLength(4);
+  });
+
+  it('shows entries load error and retry when entries request fails', async () => {
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries`, () =>
+        HttpResponse.json({ message: 'Server error' }, { status: 500 }),
+      ),
+    );
+
+    renderTimeline();
+
+    await waitFor(() => {
+      expect(screen.getByText(/kunne ikke laste innlegg/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /prøv igjen/i })).toBeInTheDocument();
   });
 
   it('shows day headers when Story Mode is toggled on', async () => {

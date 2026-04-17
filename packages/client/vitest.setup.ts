@@ -207,6 +207,8 @@ const nb = {
     editTitle: 'Rediger innlegg',
     draft: 'Kladd',
     sectionLabel: 'Siste nytt fra reisen',
+    loadError: 'Kunne ikke laste innlegg.',
+    retryLoad: 'Prøv igjen',
     tripNameFallback: 'Reise',
     moreOptions: 'Flere valg',
     saveEntry: 'LAGRE INNLEGG',
