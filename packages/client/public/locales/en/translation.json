@@ -75,6 +75,7 @@
   "common": {
     "loading": "Loading...",
     "error": "An error occurred",
+    "retry": "Retry",
     "save": "Save",
     "cancel": "Cancel",
     "close": "Close",
@@ -201,7 +202,11 @@
   "map": {
     "title": "Map",
     "noLocations": "No entries with locations yet. Add a location when creating an entry.",
-    "viewEntry": "View Entry"
+    "viewEntry": "View Entry",
+    "mapboxTokenMissingTitle": "Map unavailable",
+    "mapboxTokenMissingDev": "Add VITE_MAPBOX_TOKEN (your Mapbox public token) to the client env file, for example packages/client/.env, then restart the Vite dev server.",
+    "mapboxTokenMissingStaging": "This staging client build is missing VITE_MAPBOX_TOKEN. Add the token to your staging build secrets or environment variables.",
+    "mapboxTokenMissingProd": "The map service is not configured for this deployment. Contact the app administrator if this persists."
   },
   "entries": {
     "emptyState": "No entries yet. Be the first to post!",
