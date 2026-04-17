@@ -2,7 +2,10 @@ import type { PushSubscriptionInput } from '@travel-journal/shared';
 
 import { apiJson } from './client.js';
 
+import { VAPID_PUBLIC_KEY_PATH } from './notificationPaths.js';
+
 export type PushServerAvailability = 'available' | 'unavailable' | 'error';
+export { VAPID_PUBLIC_KEY_PATH } from './notificationPaths.js';
 
 /**
  * Probes whether the server exposes Web Push (VAPID) for subscription flows.
@@ -17,7 +20,7 @@ export async function fetchPushServerAvailability(
     headers: { Authorization: `Bearer ${token}` },
   };
   if (signal !== undefined) init.signal = signal;
-  const res = await fetch('/api/v1/notifications/vapid-public-key', init);
+  const res = await fetch(VAPID_PUBLIC_KEY_PATH, init);
   if (res.ok) return 'available';
   let code: string | undefined;
   try {
@@ -31,7 +34,7 @@ export async function fetchPushServerAvailability(
 }
 
 export function fetchVapidPublicKey(token: string): Promise<{ publicKey: string }> {
-  return apiJson<{ publicKey: string }>('/api/v1/notifications/vapid-public-key', { token });
+  return apiJson<{ publicKey: string }>(VAPID_PUBLIC_KEY_PATH, { token });
 }
 
 export function upsertPushSubscription(

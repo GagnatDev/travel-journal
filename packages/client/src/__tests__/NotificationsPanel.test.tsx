@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { useLocation } from 'react-router-dom';
 
+import { fetchPushServerAvailability } from '../api/notifications.js';
 import { AuthProvider } from '../context/AuthContext.js';
 import { ThemeProvider } from '../context/ThemeContext.js';
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
@@ -11,7 +12,14 @@ import { NotificationsPanel } from '../components/NotificationsPanel.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { server } from './mocks/server.js';
 import { mockUser } from './mocks/handlers.js';
-import { vapidPublicKeyPath } from './mocks/notificationHandlers.js';
+
+vi.mock('../api/notifications.js', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('../api/notifications.js')>();
+  return {
+    ...orig,
+    fetchPushServerAvailability: vi.fn(orig.fetchPushServerAvailability),
+  };
+});
 
 vi.mock('../notifications/push.js', () => ({
   getPushPermissionState: vi.fn(() => 'denied' as NotificationPermission),
@@ -48,15 +56,10 @@ describe('NotificationsPanel', () => {
   });
 
   it('shows server unavailable messaging when VAPID is not configured', async () => {
+    vi.mocked(fetchPushServerAvailability).mockResolvedValueOnce('unavailable');
     server.use(
       http.post('/api/v1/auth/refresh', () =>
         HttpResponse.json({ accessToken: 'mock-token', user: mockUser }),
-      ),
-      http.get(vapidPublicKeyPath, () =>
-        HttpResponse.json(
-          { error: { message: 'Push notifications are unavailable', code: 'PUSH_UNAVAILABLE' } },
-          { status: 503 },
-        ),
       ),
     );
     render(

@@ -7,5 +7,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
+    // MSW server is module singleton; parallel test files share it and race on
+    // server.use()/resetHandlers(). Forks isolate each file's handlers.
+    pool: 'forks',
   },
 });

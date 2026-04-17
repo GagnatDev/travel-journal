@@ -1,8 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 
+import { fetchPushServerAvailability } from '../api/notifications.js';
 import { AuthProvider } from '../context/AuthContext.js';
 import { ThemeProvider } from '../context/ThemeContext.js';
 import { AppHeader } from '../components/AppHeader.js';
@@ -10,6 +11,14 @@ import { AppHeader } from '../components/AppHeader.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { server } from './mocks/server.js';
 import { mockUser } from './mocks/handlers.js';
+
+vi.mock('../api/notifications.js', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('../api/notifications.js')>();
+  return {
+    ...orig,
+    fetchPushServerAvailability: vi.fn(orig.fetchPushServerAvailability),
+  };
+});
 
 function renderHeader() {
   server.use(
@@ -45,6 +54,7 @@ describe('AppHeader', () => {
   });
 
   it('opens the notifications panel when the bell is clicked', async () => {
+    vi.mocked(fetchPushServerAvailability).mockResolvedValueOnce('available');
     renderHeader();
     const panel = screen.getByRole('dialog', { name: /Varsler om nye innlegg|New entry alerts/i });
     expect(panel.className).toContain('translate-x-full');
