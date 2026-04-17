@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw';
 
 import { AuthenticatedImage } from '../components/AuthenticatedImage.js';
 import * as authenticatedMedia from '../lib/authenticatedMedia.js';
+
 import { AuthSessionProvider } from './AuthSessionProvider.js';
 import { mockUser } from './mocks/handlers.js';
 import { server } from './mocks/server.js';
