@@ -41,29 +41,59 @@ describe('AppHeader', () => {
 
   it('renders notification bell button with correct aria-label', () => {
     renderHeader();
-    expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Varsler|Notifications/i })).toBeInTheDocument();
+  });
+
+  it('opens the notifications panel when the bell is clicked', async () => {
+    renderHeader();
+    const panel = screen.getByRole('dialog', { name: /Varsler om nye innlegg|New entry alerts/i });
+    expect(panel.className).toContain('translate-x-full');
+
+    await userEvent.click(screen.getByRole('button', { name: /Varsler|Notifications/i }));
+
+    expect(panel.className).toContain('translate-x-0');
+    expect(panel.className).not.toContain('translate-x-full');
+    expect(
+      await screen.findByText(/Serveren er satt opp for Web Push|configured for Web Push/i),
+    ).toBeInTheDocument();
+  });
+
+  it('closes the notifications panel when the close control is activated', async () => {
+    renderHeader();
+    await userEvent.click(screen.getByRole('button', { name: /Varsler|Notifications/i }));
+    const panel = screen.getByRole('dialog', { name: /Varsler om nye innlegg|New entry alerts/i });
+    expect(panel.className).toContain('translate-x-0');
+
+    await userEvent.click(screen.getByRole('button', { name: /Lukk varselspanelet|Close notifications/i }));
+
+    expect(panel.className).toContain('translate-x-full');
   });
 
   it('opens the MenuDrawer when hamburger is clicked', async () => {
     renderHeader();
-    const dialog = screen.getByRole('dialog', { hidden: true });
-    expect(dialog.className).toContain('-translate-x-full');
+    const menuDialog = screen.getByRole('dialog', {
+      name: /Profil|Profile|menu\.profile/i,
+      hidden: true,
+    });
+    expect(menuDialog.className).toContain('-translate-x-full');
 
     await userEvent.click(screen.getByRole('button', { name: /Åpne meny|Open menu|menu\.openMenu/ }));
 
-    expect(dialog.className).toContain('translate-x-0');
-    expect(dialog.className).not.toContain('-translate-x-full');
+    expect(menuDialog.className).toContain('translate-x-0');
+    expect(menuDialog.className).not.toContain('-translate-x-full');
   });
 
   it('closes the MenuDrawer when close button is clicked', async () => {
     renderHeader();
     await userEvent.click(screen.getByRole('button', { name: /Åpne meny|Open menu|menu\.openMenu/ }));
 
-    const dialog = screen.getByRole('dialog');
-    expect(dialog.className).toContain('translate-x-0');
+    const menuDialog = screen.getByRole('dialog', { name: /Profil|Profile|menu\.profile/i });
+    expect(menuDialog.className).toContain('translate-x-0');
 
     await userEvent.click(screen.getByRole('button', { name: 'Close menu' }));
 
-    expect(screen.getByRole('dialog', { hidden: true }).className).toContain('-translate-x-full');
+    expect(
+      screen.getByRole('dialog', { name: /Profil|Profile|menu\.profile/i, hidden: true }).className,
+    ).toContain('-translate-x-full');
   });
 });

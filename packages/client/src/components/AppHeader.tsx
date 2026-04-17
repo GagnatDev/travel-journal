@@ -4,9 +4,11 @@ import { useLocation, useMatch, useNavigate } from 'react-router-dom';
 
 import { BellIcon, ChevronLeftIcon, HamburgerIcon } from './icons/index.js';
 import { MenuDrawer } from './MenuDrawer.js';
+import { NotificationsPanel } from './NotificationsPanel.js';
 
 export function AppHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -85,15 +87,18 @@ export function AppHeader() {
 
           <button
             type="button"
-            aria-label="Notifications"
+            aria-label={t('notifications.openPanel')}
+            aria-expanded={notificationsOpen}
+            onClick={() => setNotificationsOpen(true)}
             className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] text-body hover:text-heading transition-colors rounded-lg shrink-0"
           >
-            <BellIcon width={22} height={22} />
+            <BellIcon width={22} height={22} aria-hidden="true" />
           </button>
         </div>
       </header>
 
       <MenuDrawer isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
+      <NotificationsPanel isOpen={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
     </>
   );
 }
