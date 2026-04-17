@@ -37,7 +37,7 @@ export function TripDashboardScreen() {
   const { accessToken, user } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
 
-  const { data: trips = [] } = useQuery({
+  const { data: trips = [], isLoading } = useQuery({
     queryKey: ['trips'],
     queryFn: () => fetchTrips(accessToken!),
     enabled: !!accessToken,
@@ -65,7 +65,9 @@ export function TripDashboardScreen() {
       </header>
 
       <main className="px-4 space-y-6">
-        {trips.length === 0 ? (
+        {isLoading ? (
+          <p className="font-ui text-body text-center py-12">{t('common.loading')}</p>
+        ) : trips.length === 0 ? (
           <p className="font-ui text-body text-center py-12">{t('trips.dashboard.emptyState')}</p>
         ) : (
           <>
