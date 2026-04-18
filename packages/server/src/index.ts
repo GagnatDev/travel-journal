@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 import { createApp } from './app.js';
 import { connectDb } from './db.js';
+import { startDailyEntryDigestJob } from './jobs/entryDigestJob.js';
 import { logger } from './logger.js';
 
 // Local dev uses packages/server/.env.local (gitignored). E2E and CI set env explicitly;
@@ -21,6 +22,8 @@ async function main() {
   await connectDb(MONGODB_URI);
 
   const app = createApp();
+
+  startDailyEntryDigestJob();
 
   app.listen(PORT, () => {
     logger.info({ port: PORT }, 'Server listening');
