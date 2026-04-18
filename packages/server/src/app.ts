@@ -5,6 +5,9 @@ import { join } from 'node:path';
 import cookieParser from 'cookie-parser';
 import express, { Express, NextFunction, Request, Response } from 'express';
 
+import { applyCorsAllowlist } from './middleware/corsAllowlist.js';
+import { applySecurityHeaders } from './middleware/securityHeaders.js';
+import { applyTrustProxy } from './middleware/trustProxy.js';
 import { authRouter } from './routes/auth.router.js';
 import { inviteRouter } from './routes/invite.router.js';
 import { mediaRouter } from './routes/media.router.js';
@@ -18,7 +21,12 @@ export function createApp(): Express {
   const publicDir = join(__dirname, 'public');
   const indexHtmlPath = join(publicDir, 'index.html');
 
-  app.use(express.json());
+  applyTrustProxy(app);
+  applySecurityHeaders(app);
+  applyCorsAllowlist(app);
+
+  const jsonBodyLimit = process.env['JSON_BODY_LIMIT'] ?? '1mb';
+  app.use(express.json({ limit: jsonBodyLimit }));
   app.use(cookieParser());
 
   // Request-ID middleware
