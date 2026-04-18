@@ -1,4 +1,3 @@
-import type { TFunction } from 'i18next';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TripStatus } from '@travel-journal/shared';
@@ -9,7 +8,6 @@ import {
   deleteTrip,
   fetchTrip,
   fetchTripInvites,
-  patchMyTripNotificationPreferences,
   patchTrip,
   patchTripMemberRole,
   patchTripStatus,
@@ -17,7 +15,6 @@ import {
   revokeTripMemberInvite,
 } from '../../api/trips.js';
 import { QUERY_STALE_MS } from '../../lib/appQueryClient.js';
-import { ensurePushSubscription } from '../../notifications/push.js';
 
 import { canManageTripInvitesAndMembers, viewerTripRoleForUser } from './tripSettingsPermissions.js';
 
@@ -32,10 +29,8 @@ type UseTripSettingsParams = {
   tripId: string | undefined;
   accessToken: string | null | undefined;
   userId: string | undefined;
-  t: TFunction;
   addMemberInput: string;
   addMemberRole: 'contributor' | 'follower';
-  setPushPermissionState: (state: NotificationPermission | 'unsupported') => void;
   onAddTripMemberSuccess: (data: AddTripMemberResult) => void;
   onRemoveTripMemberSuccess: () => void;
 };
@@ -44,10 +39,8 @@ export function useTripSettings({
   tripId,
   accessToken,
   userId,
-  t,
   addMemberInput,
   addMemberRole,
-  setPushPermissionState,
   onAddTripMemberSuccess,
   onRemoveTripMemberSuccess,
 }: UseTripSettingsParams) {
@@ -131,26 +124,6 @@ export function useTripSettings({
     },
   });
 
-  const updateMyNotificationPreferencesMutation = useMutation({
-    mutationFn: async (newEntriesPushEnabled: boolean) => {
-      if (newEntriesPushEnabled) {
-        const permission = await ensurePushSubscription(accessToken!);
-        setPushPermissionState(permission);
-        if (permission !== 'granted') {
-          throw new Error(t('trips.settings.notificationsPermissionRequired'));
-        }
-      }
-      return patchMyTripNotificationPreferences(
-        tripId!,
-        { newEntriesPushEnabled },
-        accessToken!,
-      );
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: tripSettingsQueryKeys.trip(tripId) });
-    },
-  });
-
   return {
     trip,
     isLoading,
@@ -162,6 +135,5 @@ export function useTripSettings({
     changeRoleMutation,
     removeMemberMutation,
     revokeInviteMutation,
-    updateMyNotificationPreferencesMutation,
   };
 }

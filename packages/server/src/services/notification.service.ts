@@ -6,7 +6,7 @@ import { notificationLinkFor } from '@travel-journal/shared';
 import { logger } from '../logger.js';
 import { Notification } from '../models/Notification.model.js';
 import { PushSubscription } from '../models/PushSubscription.model.js';
-import { Trip as TripModel } from '../models/Trip.model.js';
+import { Trip as TripModel, readTripMemberEntryMode } from '../models/Trip.model.js';
 
 function isWebPushConfigured(): boolean {
   return Boolean(
@@ -146,7 +146,7 @@ export async function dispatchNewEntryNotification(entry: Entry): Promise<void> 
     .filter((member) => {
       const userId = String(member.userId);
       if (userId === entry.authorId) return false;
-      return member.notificationPreferences?.newEntriesPushEnabled ?? true;
+      return readTripMemberEntryMode(member.notificationPreferences) === 'per_entry';
     })
     .map((member) => new mongoose.Types.ObjectId(String(member.userId)));
 

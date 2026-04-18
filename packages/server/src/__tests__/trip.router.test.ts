@@ -79,7 +79,7 @@ describe('POST /api/v1/trips', () => {
     const member = res.body.members.find((m: { userId: string }) => m.userId === userId);
     expect(member).toBeDefined();
     expect(member.tripRole).toBe('creator');
-    expect(member.notificationPreferences.newEntriesPushEnabled).toBe(true);
+    expect(member.notificationPreferences.newEntriesMode).toBe('per_entry');
   });
 });
 
@@ -199,7 +199,7 @@ describe('PATCH /api/v1/trips/:id', () => {
 });
 
 describe('PATCH /api/v1/trips/:id/members/me/notification-preferences', () => {
-  it('updates own newEntriesPushEnabled preference', async () => {
+  it('persists the chosen newEntriesMode and returns it on the trip', async () => {
     const creator = await makeUser('creator@test.com', 'creator');
 
     const createRes = await request(app)
@@ -208,17 +208,77 @@ describe('PATCH /api/v1/trips/:id/members/me/notification-preferences', () => {
       .send({ name: 'My Trip' });
 
     const tripId = createRes.body.id as string;
-    const res = await request(app)
-      .patch(`/api/v1/trips/${tripId}/members/me/notification-preferences`)
-      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
-      .send({ newEntriesPushEnabled: false });
 
-    expect(res.status).toBe(200);
-    const me = res.body.members.find((m: { userId: string }) => m.userId === String(creator._id));
-    expect(me.notificationPreferences.newEntriesPushEnabled).toBe(false);
+    for (const mode of ['off', 'daily_digest', 'per_entry'] as const) {
+      const res = await request(app)
+        .patch(`/api/v1/trips/${tripId}/members/me/notification-preferences`)
+        .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+        .send({ newEntriesMode: mode });
+
+      expect(res.status).toBe(200);
+      const me = res.body.members.find(
+        (m: { userId: string }) => m.userId === String(creator._id),
+      );
+      expect(me.notificationPreferences.newEntriesMode).toBe(mode);
+    }
   });
 
-  it('returns 400 for invalid payload', async () => {
+  it('clears the legacy newEntriesPushEnabled field on write', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'My Trip' });
+    const tripId = createRes.body.id as string;
+
+    await Trip.updateOne(
+      { _id: tripId, 'members.userId': creator._id },
+      { $set: { 'members.$.notificationPreferences.newEntriesPushEnabled': false } },
+    );
+
+    const res = await request(app)
+      .patch(`/api/v1/trips/${tripId}/members/me/notification-preferences`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ newEntriesMode: 'daily_digest' });
+
+    expect(res.status).toBe(200);
+
+    const doc = await Trip.findById(tripId).lean();
+    const member = doc!.members.find(
+      (m) => String(m.userId) === String(creator._id),
+    )!;
+    expect(member.notificationPreferences.newEntriesMode).toBe('daily_digest');
+    expect(member.notificationPreferences.newEntriesPushEnabled).toBeUndefined();
+  });
+
+  it('falls back to legacy newEntriesPushEnabled=false as off on read', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'My Trip' });
+    const tripId = createRes.body.id as string;
+
+    await Trip.updateOne(
+      { _id: tripId, 'members.userId': creator._id },
+      {
+        $set: { 'members.$.notificationPreferences.newEntriesPushEnabled': false },
+        $unset: { 'members.$.notificationPreferences.newEntriesMode': '' },
+      },
+    );
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${tripId}`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(res.status).toBe(200);
+    const me = res.body.members.find(
+      (m: { userId: string }) => m.userId === String(creator._id),
+    );
+    expect(me.notificationPreferences.newEntriesMode).toBe('off');
+  });
+
+  it('returns 400 for invalid mode', async () => {
     const creator = await makeUser('creator@test.com', 'creator');
     const createRes = await request(app)
       .post('/api/v1/trips')
@@ -229,7 +289,7 @@ describe('PATCH /api/v1/trips/:id/members/me/notification-preferences', () => {
     const res = await request(app)
       .patch(`/api/v1/trips/${tripId}/members/me/notification-preferences`)
       .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
-      .send({ newEntriesPushEnabled: 'nope' });
+      .send({ newEntriesMode: 'nope' });
 
     expect(res.status).toBe(400);
   });

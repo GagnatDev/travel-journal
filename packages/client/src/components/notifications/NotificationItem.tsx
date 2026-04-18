@@ -27,6 +27,17 @@ function useItemRender(notification: AppNotification): ItemRenderProps {
           tripName: data.tripName,
         }),
       };
+    case 'trip.new_entry_digest':
+      return {
+        title: t('notifications.item.tripNewEntryDigest.title', {
+          count: data.entryCount,
+          tripName: data.tripName,
+        }),
+        body: t('notifications.item.tripNewEntryDigest.body', {
+          count: data.entryCount,
+          tripName: data.tripName,
+        }),
+      };
     case 'system.release_announcement':
       return {
         title: t('notifications.item.releaseAnnouncement.title', { version: data.version }),

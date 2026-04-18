@@ -36,9 +36,6 @@ interface TripMembersSectionProps {
   >;
   removeMemberMutation: UseMutationResult<void, Error, string, unknown>;
   revokeInviteMutation: UseMutationResult<void, Error, string, unknown>;
-  myMember?: Trip['members'][number];
-  pushPermissionState?: NotificationPermission | 'unsupported';
-  updateMyNotificationPreferencesMutation?: UseMutationResult<Trip, Error, boolean, unknown>;
 }
 
 export function TripMembersSection({
@@ -58,13 +55,7 @@ export function TripMembersSection({
   changeRoleMutation,
   removeMemberMutation,
   revokeInviteMutation,
-  myMember,
-  pushPermissionState = 'default',
-  updateMyNotificationPreferencesMutation,
 }: TripMembersSectionProps) {
-  const isUpdatingMyNotificationPreferences = updateMyNotificationPreferencesMutation?.isPending ?? false;
-  const notificationPreferenceError = updateMyNotificationPreferencesMutation?.error;
-
   const [allowContributorInvites, setAllowContributorInvites] = useState(false);
   const [inviteFormOpen, setInviteFormOpen] = useState(false);
 
@@ -262,31 +253,6 @@ export function TripMembersSection({
           label={t('trips.settings.allowContributorInvites')}
         />
       ) : null}
-
-      <div className="space-y-2">
-        <ToggleSwitch
-          id="trip-new-entry-push"
-          checked={myMember?.notificationPreferences?.newEntriesPushEnabled ?? true}
-          disabled={isUpdatingMyNotificationPreferences}
-          onChange={(next) => updateMyNotificationPreferencesMutation?.mutate(next)}
-          label={t('trips.settings.notificationsNewEntriesToggle')}
-        />
-        {pushPermissionState === 'unsupported' && (
-          <p className="font-ui text-xs text-caption">
-            {t('trips.settings.notificationsUnsupported')}
-          </p>
-        )}
-        {pushPermissionState === 'denied' && (
-          <p className="font-ui text-xs text-caption">
-            {t('trips.settings.notificationsDenied')}
-          </p>
-        )}
-        {notificationPreferenceError ? (
-          <p className="font-ui text-xs text-red-600">
-            {notificationPreferenceError.message}
-          </p>
-        ) : null}
-      </div>
 
       {/* Collaborative Chapters info box */}
       <InfoBox icon={<BookOpenIcon width={18} height={18} />}>
