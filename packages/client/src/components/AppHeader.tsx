@@ -96,6 +96,7 @@ export function AppHeader() {
                 : t('notifications.openPanel')
             }
             aria-expanded={notificationsOpen}
+            data-testid="notifications-bell"
             onClick={() => setNotificationsOpen(true)}
             className="relative inline-flex items-center justify-center min-w-[44px] min-h-[44px] text-body hover:text-heading transition-colors rounded-lg shrink-0"
           >
