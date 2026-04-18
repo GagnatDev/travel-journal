@@ -9,9 +9,9 @@ import { fetchTrip } from '../api/trips.js';
 import { PendingEntryPreviewList } from '../components/timeline/PendingEntryPreviewList.js';
 import { StoryModeToggle } from '../components/timeline/StoryModeToggle.js';
 import { TimelineEntrySkeletonList } from '../components/timeline/TimelineEntrySkeletonList.js';
+import { StoryModeTimelineList } from '../components/timeline/StoryModeTimelineList.js';
 import { TimelineEntryCardList } from '../components/timeline/TimelineEntryCardList.js';
 import { BottomNavBar } from '../components/BottomNavBar.js';
-import { DayHeader } from '../components/DayHeader.js';
 import { useAuth } from '../context/AuthContext.js';
 import { useInfiniteScrollSentinel } from '../hooks/useInfiniteScrollSentinel.js';
 import { usePendingEntriesForTrip } from '../hooks/usePendingEntriesForTrip.js';
@@ -159,20 +159,7 @@ export function TimelineScreen() {
             {t('entries.emptyState')}
           </p>
         ) : storyMode && dayGroups ? (
-          dayGroups.map((group) => (
-            <div key={group.date.toISOString()}>
-              <DayHeader
-                date={group.date}
-                dayNumber={group.dayNumber}
-                {...(group.locationSummary !== undefined
-                  ? { locationSummary: group.locationSummary }
-                  : {})}
-              />
-              <div className="space-y-4 mt-4">
-                <TimelineEntryCardList entries={group.entries} {...listProps} />
-              </div>
-            </div>
-          ))
+          <StoryModeTimelineList dayGroups={dayGroups} {...listProps} />
         ) : (
           <TimelineEntryCardList entries={allEntries} {...listProps} />
         )}
