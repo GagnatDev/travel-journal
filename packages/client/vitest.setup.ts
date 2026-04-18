@@ -1,9 +1,17 @@
 import '@testing-library/jest-dom';
+import { configure } from '@testing-library/react';
 import { beforeAll, beforeEach, afterAll } from 'vitest';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
 import { server } from './src/__tests__/mocks/server.js';
+
+// GitHub Actions runners are ~20-25x slower than local dev machines, which makes
+// the default 1000ms findBy*/waitFor deadline too tight for tests that wait for
+// an auth refresh → React Query enable → fetch → re-render chain. Bumping the
+// async util timeout globally avoids having to sprinkle `{ timeout: 5000 }` on
+// every assertion that happens to depend on that cascade.
+configure({ asyncUtilTimeout: 5000 });
 
 // jsdom has no matchMedia implementation; polyfill it globally for all tests.
 if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
