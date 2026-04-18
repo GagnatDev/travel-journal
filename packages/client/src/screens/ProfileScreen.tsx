@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PublicUser } from '@travel-journal/shared';
 
@@ -22,6 +22,12 @@ export function ProfileScreen() {
   const [draftName, setDraftName] = useState(user?.displayName ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editing && user != null) {
+      setDraftName(user.displayName);
+    }
+  }, [editing, user]);
 
   if (!user) return null;
 

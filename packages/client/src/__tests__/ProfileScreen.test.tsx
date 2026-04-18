@@ -1,10 +1,13 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { Route, Routes } from 'react-router-dom';
+import type { PublicUser } from '@travel-journal/shared';
 
-import { AuthProvider } from '../context/AuthContext.js';
+import { AuthContext, AuthProvider } from '../context/AuthContext.js';
+import type { AuthContextValue } from '../context/AuthContext.js';
 import { ThemeProvider } from '../context/ThemeContext.js';
 import { ProtectedRoute } from '../components/ProtectedRoute.js';
 import { ProfileScreen } from '../screens/ProfileScreen.js';
@@ -12,6 +15,8 @@ import { ProfileScreen } from '../screens/ProfileScreen.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { server } from './mocks/server.js';
 import { mockUser } from './mocks/handlers.js';
+
+const SERVER_PUSHED_DISPLAY_NAME = 'Server Pushed Name';
 
 // Override auto-refresh to return an authenticated user
 const refreshHandler = http.post('/api/v1/auth/refresh', () =>
@@ -37,6 +42,61 @@ function renderProfile() {
         </ThemeProvider>
       </AuthProvider>
     </TestMemoryRouter>,
+  );
+}
+
+/** Simulates auth resolving user after first paint (user null → populated). */
+function ProfileWithDelayedUser() {
+  const [user, setUser] = useState<PublicUser | null>(null);
+  useEffect(() => {
+    setUser(mockUser);
+  }, []);
+  const setUserFromContext = useCallback((u: PublicUser) => setUser(u), []);
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      accessToken: 'mock-token',
+      user,
+      status: user ? 'authenticated' : 'loading',
+      login: vi.fn(),
+      loginWithToken: vi.fn(),
+      logout: vi.fn(),
+      setUser: setUserFromContext,
+    }),
+    [user, setUserFromContext],
+  );
+  return (
+    <AuthContext.Provider value={value}>
+      <ProfileScreen />
+    </AuthContext.Provider>
+  );
+}
+
+/** Simulates another part of the app calling setUser with an updated display name. */
+function ProfileWithUpstreamSetUser() {
+  const [user, setUserState] = useState<PublicUser>(mockUser);
+  const setUser = useCallback((u: PublicUser) => setUserState(u), []);
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      accessToken: 'mock-token',
+      user,
+      status: 'authenticated',
+      login: vi.fn(),
+      loginWithToken: vi.fn(),
+      logout: vi.fn(),
+      setUser,
+    }),
+    [user, setUser],
+  );
+  return (
+    <AuthContext.Provider value={value}>
+      <button
+        type="button"
+        onClick={() => setUser({ ...mockUser, displayName: SERVER_PUSHED_DISPLAY_NAME })}
+      >
+        server-update
+      </button>
+      <ProfileScreen />
+    </AuthContext.Provider>
   );
 }
 
@@ -70,6 +130,47 @@ describe('ProfileScreen', () => {
     const input = screen.getByRole('textbox', { name: /kallenavn/i });
     expect(input).toBeInTheDocument();
     expect((input as HTMLInputElement).value).toBe(mockUser.displayName);
+  });
+
+  it('keeps display name draft in sync when user hydrates after first render', async () => {
+    render(
+      <TestMemoryRouter initialEntries={['/profile']}>
+        <ThemeProvider>
+          <ProfileWithDelayedUser />
+        </ThemeProvider>
+      </TestMemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(mockUser.displayName)).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /rediger/i }));
+    const input = screen.getByRole('textbox', { name: /kallenavn/i });
+    expect((input as HTMLInputElement).value).toBe(mockUser.displayName);
+  });
+
+  it('keeps display name draft in sync when setUser updates displayName while not editing', async () => {
+    render(
+      <TestMemoryRouter initialEntries={['/profile']}>
+        <ThemeProvider>
+          <ProfileWithUpstreamSetUser />
+        </ThemeProvider>
+      </TestMemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(mockUser.displayName)).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /^server-update$/i }));
+    await waitFor(() => {
+      expect(screen.getByText(SERVER_PUSHED_DISPLAY_NAME)).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /rediger/i }));
+    const input = screen.getByRole('textbox', { name: /kallenavn/i });
+    expect((input as HTMLInputElement).value).toBe(SERVER_PUSHED_DISPLAY_NAME);
   });
 
   it('Cancel reverts without making an API call', async () => {
