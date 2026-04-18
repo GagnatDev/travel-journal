@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useMatch, useNavigate } from 'react-router-dom';
 
+import { useNotifications } from '../notifications/useNotifications.js';
+
 import { BellIcon, ChevronLeftIcon, HamburgerIcon } from './icons/index.js';
 import { MenuDrawer } from './MenuDrawer.js';
 import { NotificationsPanel } from './NotificationsPanel.js';
@@ -10,6 +12,7 @@ export function AppHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { t } = useTranslation();
+  const { unreadCount } = useNotifications();
   const location = useLocation();
   const navigate = useNavigate();
   const tripMatch = useMatch('/trips/:id/*');
@@ -87,12 +90,25 @@ export function AppHeader() {
 
           <button
             type="button"
-            aria-label={t('notifications.openPanel')}
+            aria-label={
+              unreadCount > 0
+                ? t('notifications.unreadBadge', { count: unreadCount })
+                : t('notifications.openPanel')
+            }
             aria-expanded={notificationsOpen}
             onClick={() => setNotificationsOpen(true)}
-            className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] text-body hover:text-heading transition-colors rounded-lg shrink-0"
+            className="relative inline-flex items-center justify-center min-w-[44px] min-h-[44px] text-body hover:text-heading transition-colors rounded-lg shrink-0"
           >
             <BellIcon width={22} height={22} aria-hidden="true" />
+            {unreadCount > 0 && (
+              <span
+                aria-hidden="true"
+                data-testid="notifications-badge"
+                className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-white text-[10px] leading-[18px] font-ui font-semibold text-center"
+              >
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </button>
         </div>
       </header>

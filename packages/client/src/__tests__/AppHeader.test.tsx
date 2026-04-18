@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ListNotificationsResponse } from '@travel-journal/shared';
 
 import { fetchPushServerAvailability } from '../api/notifications.js';
 import { AuthProvider } from '../context/AuthContext.js';
@@ -20,20 +22,29 @@ vi.mock('../api/notifications.js', async (importOriginal) => {
   };
 });
 
-function renderHeader() {
+function createTestQueryClient(): QueryClient {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+}
+
+function renderHeader(inbox: ListNotificationsResponse = { notifications: [], unreadCount: 0 }) {
   server.use(
     http.post('/api/v1/auth/refresh', () =>
       HttpResponse.json({ accessToken: 'mock-token', user: mockUser }),
     ),
+    http.get('/api/v1/notifications', () => HttpResponse.json(inbox)),
   );
   return render(
-    <TestMemoryRouter initialEntries={['/trips']}>
-      <AuthProvider>
-        <ThemeProvider>
-          <AppHeader />
-        </ThemeProvider>
-      </AuthProvider>
-    </TestMemoryRouter>,
+    <QueryClientProvider client={createTestQueryClient()}>
+      <TestMemoryRouter initialEntries={['/trips']}>
+        <AuthProvider>
+          <ThemeProvider>
+            <AppHeader />
+          </ThemeProvider>
+        </AuthProvider>
+      </TestMemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -56,7 +67,7 @@ describe('AppHeader', () => {
   it('opens the notifications panel when the bell is clicked', async () => {
     vi.mocked(fetchPushServerAvailability).mockResolvedValueOnce('available');
     renderHeader();
-    const panel = screen.getByRole('dialog', { name: /Varsler om nye innlegg|New entry alerts/i });
+    const panel = screen.getByRole('dialog', { name: /^Varsler$|^Notifications$/i });
     expect(panel.className).toContain('translate-x-full');
 
     await userEvent.click(screen.getByRole('button', { name: /Varsler|Notifications/i }));
@@ -75,7 +86,7 @@ describe('AppHeader', () => {
   it('closes the notifications panel when the close control is activated', async () => {
     renderHeader();
     await userEvent.click(screen.getByRole('button', { name: /Varsler|Notifications/i }));
-    const panel = screen.getByRole('dialog', { name: /Varsler om nye innlegg|New entry alerts/i });
+    const panel = screen.getByRole('dialog', { name: /^Varsler$|^Notifications$/i });
     expect(panel.className).toContain('translate-x-0');
 
     await userEvent.click(screen.getByRole('button', { name: /Lukk varselspanelet|Close notifications/i }));

@@ -1,5 +1,5 @@
-import { useRef, useCallback, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
@@ -26,6 +26,12 @@ export function TimelineScreen() {
   const { t } = useTranslation();
   const sentinelRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const stateHighlight =
+    (location.state as { highlightEntryId?: string } | null)?.highlightEntryId ?? null;
+  const highlightEntryId = searchParams.get('entryId') ?? stateHighlight;
+  const scrolledForHighlightRef = useRef<string | null>(null);
 
   const storyModeKey = `storyMode:${tripId}`;
   const [storyMode, setStoryMode] = useState<boolean>(
@@ -101,6 +107,30 @@ export function TimelineScreen() {
   }, [entryIdPendingDelete, deleteMutation]);
 
   useInfiniteScrollSentinel(sentinelRef, fetchNextPage, !!hasNextPage, isFetchingNextPage);
+
+  // When arriving via a notification (?entryId=...), scroll the target entry
+  // into view once it appears in the list and clear the query param so the
+  // highlight isn't re-triggered on navigation within the timeline.
+  useEffect(() => {
+    if (!highlightEntryId) return;
+    if (scrolledForHighlightRef.current === highlightEntryId) return;
+    const target = allEntries.find((e) => e.id === highlightEntryId);
+    if (!target) return;
+    scrolledForHighlightRef.current = highlightEntryId;
+    const el = document.querySelector<HTMLElement>(
+      `[data-entry-id="${CSS.escape(highlightEntryId)}"]`,
+    );
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.classList.add('timeline-entry-highlight');
+      window.setTimeout(() => el.classList.remove('timeline-entry-highlight'), 2000);
+    }
+    if (searchParams.get('entryId')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('entryId');
+      setSearchParams(next, { replace: true });
+    }
+  }, [highlightEntryId, allEntries, searchParams, setSearchParams]);
 
   const dayGroups = storyMode ? groupEntriesByDay(allEntries, trip?.departureDate) : null;
   const listProps = useMemo(
