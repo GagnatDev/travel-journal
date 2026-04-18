@@ -11,6 +11,8 @@ export function notificationLinkFor(data: NotificationData): string {
   switch (data.type) {
     case 'trip.new_entry':
       return `/trips/${data.tripId}/timeline?entryId=${data.entryId}`;
+    case 'trip.new_entry_digest':
+      return `/trips/${data.tripId}/timeline`;
     case 'system.release_announcement':
       return '/trips';
     case 'user.private_message':

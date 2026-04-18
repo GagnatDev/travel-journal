@@ -29,8 +29,34 @@ function toUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+const SERVICE_WORKER_READY_TIMEOUT_MS = 5_000;
+
+/**
+ * Resolve the controlling service worker registration, but never hang forever.
+ *
+ * `navigator.serviceWorker.ready` only resolves once a registration has an
+ * active worker. If no service worker is registered (e.g. a dev build without
+ * the PWA plugin's `devOptions.enabled`), the promise never resolves, which
+ * would silently stall any mutation that awaits it. Fail fast instead so the
+ * UI can surface a meaningful error.
+ */
 async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration> {
-  return navigator.serviceWorker.ready;
+  const existing = await navigator.serviceWorker.getRegistration();
+  if (!existing) {
+    throw new Error('Service worker is not registered');
+  }
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error('Service worker did not become ready in time')),
+      SERVICE_WORKER_READY_TIMEOUT_MS,
+    );
+  });
+  try {
+    return await Promise.race([navigator.serviceWorker.ready, timeout]);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  }
 }
 
 export async function ensurePushSubscription(token: string): Promise<PushPermissionState> {

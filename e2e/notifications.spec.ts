@@ -145,4 +145,55 @@ test.describe('Notification inbox', () => {
     await adminContext.close();
     await followerContext.close();
   });
+
+  test('follower who switches the trip notification mode to off does not get notified', async ({
+    browser,
+  }) => {
+    const adminContext = await browser.newContext();
+    const adminPage = await adminContext.newPage();
+    await registerAdmin(adminPage);
+
+    const tripId = await createTripOnTimeline(adminPage, 'Baltic Voyage');
+
+    const inviteLink = await inviteFollowerToPlatform(adminPage);
+
+    const followerContext = await browser.newContext();
+    const followerPage = await followerContext.newPage();
+    await acceptInvite(followerPage, inviteLink);
+
+    await addFollowerToTrip(adminPage, tripId);
+
+    // Follower lands on the trip timeline and opts out of new-entry notifications
+    // for this trip via the control next to the story-mode toggle.
+    await followerPage.goto(`/trips/${tripId}/timeline`);
+    const trigger = followerPage.getByTestId('trip-notification-mode-trigger');
+    await expect(trigger).toBeVisible({ timeout: 15_000 });
+    await trigger.click();
+    const offOption = followerPage.getByTestId('trip-notification-mode-option-off');
+    await expect(offOption).toBeVisible();
+    await offOption.click();
+    // Popover closes after a successful mutation.
+    await expect(followerPage.getByTestId('trip-notification-mode-popover')).toHaveCount(0, {
+      timeout: 10_000,
+    });
+
+    await createEntryOnTrip(adminPage, tripId, 'Tallinn Harbour');
+
+    await followerPage.reload();
+
+    // With mode=off, neither an inbox item nor an unread badge should appear.
+    const bell = followerPage.getByTestId('notifications-bell');
+    await expect(bell).toBeVisible();
+    // Wait a bit to let any stray notifications land, then assert none did.
+    await followerPage.waitForTimeout(1_500);
+    await expect(followerPage.getByTestId('notifications-badge')).toHaveCount(0);
+
+    await bell.click();
+    await expect(followerPage.getByTestId('notifications-empty')).toBeVisible({
+      timeout: 10_000,
+    });
+
+    await adminContext.close();
+    await followerContext.close();
+  });
 });

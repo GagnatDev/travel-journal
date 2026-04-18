@@ -1,8 +1,17 @@
 export type TripStatus = 'planned' | 'active' | 'completed';
 export type TripRole = 'creator' | 'contributor' | 'follower';
 
+/**
+ * How a trip member wants to hear about new entries in the trip.
+ *
+ * - `off`: no inbox row, no push.
+ * - `per_entry`: one inbox row + one push per new entry (immediate).
+ * - `daily_digest`: a single summary inbox row + one push per day, in the evening, only if at least one new entry was created since the previous digest window. No per-entry rows.
+ */
+export type TripEntryNotificationMode = 'off' | 'per_entry' | 'daily_digest';
+
 export interface TripMemberNotificationPreferences {
-  newEntriesPushEnabled: boolean;
+  newEntriesMode: TripEntryNotificationMode;
 }
 
 export interface TripMember {
@@ -41,5 +50,5 @@ export interface UpdateTripRequest {
 }
 
 export interface UpdateTripMemberNotificationPreferencesRequest {
-  newEntriesPushEnabled: boolean;
+  newEntriesMode: TripEntryNotificationMode;
 }

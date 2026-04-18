@@ -31,7 +31,7 @@ function makeTrip(status: Trip['status'] = 'active', role: Trip['members'][0]['t
         displayName: 'Test User',
         tripRole: role,
         addedAt: new Date().toISOString(),
-        notificationPreferences: { newEntriesPushEnabled: true },
+        notificationPreferences: { newEntriesMode: 'per_entry' },
       },
     ],
     createdAt: new Date().toISOString(),
@@ -52,14 +52,14 @@ function makeContributorTrip(status: Trip['status'] = 'active'): Trip {
         displayName: 'Trip Owner',
         tripRole: 'creator',
         addedAt: new Date().toISOString(),
-        notificationPreferences: { newEntriesPushEnabled: true },
+        notificationPreferences: { newEntriesMode: 'per_entry' },
       },
       {
         userId: 'user-1',
         displayName: 'Test User',
         tripRole: 'contributor',
         addedAt: new Date().toISOString(),
-        notificationPreferences: { newEntriesPushEnabled: true },
+        notificationPreferences: { newEntriesMode: 'per_entry' },
       },
     ],
     createdAt: new Date().toISOString(),
@@ -220,43 +220,4 @@ describe('TripSettingsScreen', () => {
     });
   });
 
-  it('updates per-trip push preference when toggle is changed', async () => {
-    const trip = makeTrip('active');
-    const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    server.use(
-      http.post('/api/v1/auth/refresh', () =>
-        HttpResponse.json({ accessToken: 'mock-token', user: mockUser }),
-      ),
-      http.get('/api/v1/trips/:id', () => HttpResponse.json(trip)),
-      http.patch('/api/v1/trips/:id/members/me/notification-preferences', async ({ request }) => {
-        const body = (await request.json()) as { newEntriesPushEnabled: boolean };
-        return HttpResponse.json({
-          ...trip,
-          members: [
-            {
-              ...trip.members[0],
-              notificationPreferences: { newEntriesPushEnabled: body.newEntriesPushEnabled },
-            },
-          ],
-        });
-      }),
-    );
-
-    renderSettings(trip);
-    const toggle = await screen.findByRole('switch', {
-      name: /notify me when new entries are posted|varsle meg når nye innlegg publiseres|trips\.settings\.notificationsNewEntriesToggle/i,
-    });
-
-    await userEvent.click(toggle);
-
-    await waitFor(() => {
-      const patchCalls = fetchSpy.mock.calls.filter(
-        (c) =>
-          String(c[0]).includes('/api/v1/trips/trip-1/members/me/notification-preferences') &&
-          (c[1] as RequestInit)?.method === 'PATCH',
-      );
-      expect(patchCalls.length).toBe(1);
-    });
-    fetchSpy.mockRestore();
-  });
 });

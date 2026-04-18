@@ -11,6 +11,7 @@ import { StoryModeToggle } from '../components/timeline/StoryModeToggle.js';
 import { TimelineEntrySkeletonList } from '../components/timeline/TimelineEntrySkeletonList.js';
 import { StoryModeTimelineList } from '../components/timeline/StoryModeTimelineList.js';
 import { TimelineEntryCardList } from '../components/timeline/TimelineEntryCardList.js';
+import { TripNotificationModeControl } from '../components/timeline/TripNotificationModeControl.js';
 import { BottomNavBar } from '../components/BottomNavBar.js';
 import { useAuth } from '../context/AuthContext.js';
 import { useInfiniteScrollSentinel } from '../hooks/useInfiniteScrollSentinel.js';
@@ -147,7 +148,13 @@ export function TimelineScreen() {
 
   return (
     <div className="min-h-screen bg-bg-primary pb-28 pt-14">
-      <div className="px-4 pt-4 pb-2 flex items-center justify-end">
+      <div className="px-4 pt-4 pb-2 flex items-center justify-end gap-1">
+        {tripId && (
+          <TripNotificationModeControl
+            tripId={tripId}
+            currentMode={myMember?.notificationPreferences?.newEntriesMode}
+          />
+        )}
         <StoryModeToggle storyMode={storyMode} onToggle={toggleStoryMode} t={t} />
       </div>
 

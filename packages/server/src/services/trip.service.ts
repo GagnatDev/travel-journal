@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import type { CreateTripRequest, Trip, TripStatus, UpdateTripRequest } from '@travel-journal/shared';
 
-import { Trip as TripModel, ITrip } from '../models/Trip.model.js';
+import { Trip as TripModel, ITrip, readTripMemberEntryMode } from '../models/Trip.model.js';
 import { User } from '../models/User.model.js';
 
 function createHttpError(message: string, status: number, code: string): Error {
@@ -27,7 +27,7 @@ async function toTrip(doc: ITrip): Promise<Trip> {
       tripRole: m.tripRole,
       addedAt: m.addedAt.toISOString(),
       notificationPreferences: {
-        newEntriesPushEnabled: m.notificationPreferences?.newEntriesPushEnabled ?? true,
+        newEntriesMode: readTripMemberEntryMode(m.notificationPreferences),
       },
     })),
     createdAt: doc.createdAt.toISOString(),
@@ -71,7 +71,7 @@ export async function createTrip(data: CreateTripRequest, creatorId: string): Pr
         tripRole: 'creator',
         addedAt: new Date(),
         notificationPreferences: {
-          newEntriesPushEnabled: true,
+          newEntriesMode: 'per_entry',
         },
       },
     ],

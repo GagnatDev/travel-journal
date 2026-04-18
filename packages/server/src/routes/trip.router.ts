@@ -144,9 +144,17 @@ tripRouter.patch(
       const tripId = req.params['id']!;
       const body = req.body as UpdateTripMemberNotificationPreferencesRequest;
 
-      if (typeof body.newEntriesPushEnabled !== 'boolean') {
+      const validModes: UpdateTripMemberNotificationPreferencesRequest['newEntriesMode'][] = [
+        'off',
+        'per_entry',
+        'daily_digest',
+      ];
+      if (!validModes.includes(body.newEntriesMode)) {
         res.status(400).json({
-          error: { message: 'newEntriesPushEnabled must be boolean', code: 'VALIDATION_ERROR' },
+          error: {
+            message: `newEntriesMode must be one of: ${validModes.join(', ')}`,
+            code: 'VALIDATION_ERROR',
+          },
         });
         return;
       }
@@ -158,7 +166,10 @@ tripRouter.patch(
         },
         {
           $set: {
-            'members.$.notificationPreferences.newEntriesPushEnabled': body.newEntriesPushEnabled,
+            'members.$.notificationPreferences.newEntriesMode': body.newEntriesMode,
+          },
+          $unset: {
+            'members.$.notificationPreferences.newEntriesPushEnabled': '',
           },
         },
       );

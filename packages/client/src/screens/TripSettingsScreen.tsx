@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../context/AuthContext.js';
 import { BottomNavBar } from '../components/BottomNavBar.js';
-import { getPushPermissionState } from '../notifications/push.js';
 
 import { TripDeleteSection } from './tripSettings/TripDeleteSection.js';
 import { TripDetailsSection } from './tripSettings/TripDetailsSection.js';
@@ -35,7 +34,6 @@ export function TripSettingsScreen() {
     inviteLink?: string;
   } | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
-  const [pushPermissionState, setPushPermissionState] = useState(getPushPermissionState());
 
   const {
     trip,
@@ -48,15 +46,12 @@ export function TripSettingsScreen() {
     changeRoleMutation,
     removeMemberMutation,
     revokeInviteMutation,
-    updateMyNotificationPreferencesMutation,
   } = useTripSettings({
     tripId,
     accessToken,
     userId: user?.id,
-    t,
     addMemberInput,
     addMemberRole,
-    setPushPermissionState,
     onAddTripMemberSuccess: (data) => {
       setAddMemberResult(data);
       setAddMemberInput('');
@@ -68,14 +63,6 @@ export function TripSettingsScreen() {
     if (!trip) return;
     setName(trip.name);
   }, [trip?.id]);
-
-  useEffect(() => {
-    function refreshPermission() {
-      setPushPermissionState(getPushPermissionState());
-    }
-    window.addEventListener('focus', refreshPermission);
-    return () => window.removeEventListener('focus', refreshPermission);
-  }, []);
 
   const myMember = trip?.members.find((m) => m.userId === user?.id);
   const myRole = viewerTripRoleForUser(trip, user?.id);
@@ -130,9 +117,6 @@ export function TripSettingsScreen() {
           changeRoleMutation={changeRoleMutation}
           removeMemberMutation={removeMemberMutation}
           revokeInviteMutation={revokeInviteMutation}
-          myMember={myMember}
-          pushPermissionState={pushPermissionState}
-          updateMyNotificationPreferencesMutation={updateMyNotificationPreferencesMutation}
         />
         {canDeleteTrip(myRole) ? (
           <TripDeleteSection

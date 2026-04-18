@@ -45,10 +45,11 @@ async function makeUser(email: string, appRole: 'admin' | 'creator' | 'follower'
 }
 
 describe('dispatchNewEntryNotification', () => {
-  it('enqueues inbox notifications for eligible recipients only', async () => {
+  it('enqueues inbox notifications only for recipients on per_entry mode', async () => {
     const creator = await makeUser('creator@test.com', 'creator');
-    const followerA = await makeUser('a@test.com', 'follower');
-    const followerB = await makeUser('b@test.com', 'follower');
+    const perEntryFollower = await makeUser('a@test.com', 'follower');
+    const offFollower = await makeUser('b@test.com', 'follower');
+    const digestFollower = await makeUser('c@test.com', 'follower');
     const trip = await createTrip({ name: 'Nordic Adventure' }, String(creator._id));
 
     await Trip.updateOne(
@@ -57,16 +58,22 @@ describe('dispatchNewEntryNotification', () => {
         $push: {
           members: [
             {
-              userId: followerA._id,
+              userId: perEntryFollower._id,
               tripRole: 'follower',
               addedAt: new Date(),
-              notificationPreferences: { newEntriesPushEnabled: true },
+              notificationPreferences: { newEntriesMode: 'per_entry' },
             },
             {
-              userId: followerB._id,
+              userId: offFollower._id,
               tripRole: 'follower',
               addedAt: new Date(),
-              notificationPreferences: { newEntriesPushEnabled: false },
+              notificationPreferences: { newEntriesMode: 'off' },
+            },
+            {
+              userId: digestFollower._id,
+              tripRole: 'follower',
+              addedAt: new Date(),
+              notificationPreferences: { newEntriesMode: 'daily_digest' },
             },
           ],
         },
@@ -91,7 +98,7 @@ describe('dispatchNewEntryNotification', () => {
     const stored = await Notification.find({}).lean();
     expect(stored).toHaveLength(1);
     const [row] = stored;
-    expect(String(row!.userId)).toBe(String(followerA._id));
+    expect(String(row!.userId)).toBe(String(perEntryFollower._id));
     expect(row!.type).toBe('trip.new_entry');
     expect(row!.readAt).toBeNull();
     expect(row!.dismissedAt).toBeNull();
@@ -105,10 +112,11 @@ describe('dispatchNewEntryNotification', () => {
     });
   });
 
-  it('delivers web push with structured data and notificationId to eligible members', async () => {
+  it('delivers web push only to per_entry subscribers', async () => {
     const creator = await makeUser('creator@test.com', 'creator');
-    const followerA = await makeUser('a@test.com', 'follower');
-    const followerB = await makeUser('b@test.com', 'follower');
+    const perEntryFollower = await makeUser('a@test.com', 'follower');
+    const offFollower = await makeUser('b@test.com', 'follower');
+    const digestFollower = await makeUser('c@test.com', 'follower');
     const trip = await createTrip({ name: 'Nordic Adventure' }, String(creator._id));
 
     await Trip.updateOne(
@@ -117,16 +125,22 @@ describe('dispatchNewEntryNotification', () => {
         $push: {
           members: [
             {
-              userId: followerA._id,
+              userId: perEntryFollower._id,
               tripRole: 'follower',
               addedAt: new Date(),
-              notificationPreferences: { newEntriesPushEnabled: true },
+              notificationPreferences: { newEntriesMode: 'per_entry' },
             },
             {
-              userId: followerB._id,
+              userId: offFollower._id,
               tripRole: 'follower',
               addedAt: new Date(),
-              notificationPreferences: { newEntriesPushEnabled: false },
+              notificationPreferences: { newEntriesMode: 'off' },
+            },
+            {
+              userId: digestFollower._id,
+              tripRole: 'follower',
+              addedAt: new Date(),
+              notificationPreferences: { newEntriesMode: 'daily_digest' },
             },
           ],
         },
@@ -135,19 +149,24 @@ describe('dispatchNewEntryNotification', () => {
 
     await PushSubscription.create([
       {
-        userId: followerA._id,
+        userId: perEntryFollower._id,
         endpoint: 'https://push.example/member-a',
         keys: { p256dh: 'a', auth: 'a' },
       },
       {
-        userId: followerB._id,
+        userId: offFollower._id,
         endpoint: 'https://push.example/member-b',
         keys: { p256dh: 'b', auth: 'b' },
       },
       {
+        userId: digestFollower._id,
+        endpoint: 'https://push.example/member-c',
+        keys: { p256dh: 'c', auth: 'c' },
+      },
+      {
         userId: creator._id,
         endpoint: 'https://push.example/creator',
-        keys: { p256dh: 'c', auth: 'c' },
+        keys: { p256dh: 'd', auth: 'd' },
       },
     ]);
 
@@ -200,6 +219,44 @@ describe('dispatchNewEntryNotification', () => {
     expect(rows).toBe(0);
   });
 
+  it('treats legacy newEntriesPushEnabled=false members as off', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const legacyOff = await makeUser('legacy-off@test.com', 'follower');
+    const trip = await createTrip({ name: 'Legacy Trip' }, String(creator._id));
+
+    await Trip.updateOne(
+      { _id: trip.id },
+      {
+        $push: {
+          members: {
+            userId: legacyOff._id,
+            tripRole: 'follower',
+            addedAt: new Date(),
+            notificationPreferences: { newEntriesPushEnabled: false },
+          },
+        },
+      },
+    );
+
+    const sendSpy = vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
+
+    await dispatchNewEntryNotification({
+      id: 'entry-legacy',
+      tripId: trip.id,
+      authorId: String(creator._id),
+      authorName: creator.displayName,
+      title: 'Legacy',
+      content: '',
+      images: [],
+      reactions: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    expect(sendSpy).not.toHaveBeenCalled();
+    expect(await Notification.countDocuments({})).toBe(0);
+  });
+
   it('disables stale subscriptions on 410/404 responses', async () => {
     const creator = await makeUser('creator@test.com', 'creator');
     const follower = await makeUser('a@test.com', 'follower');
@@ -213,7 +270,7 @@ describe('dispatchNewEntryNotification', () => {
             userId: follower._id,
             tripRole: 'follower',
             addedAt: new Date(),
-            notificationPreferences: { newEntriesPushEnabled: true },
+            notificationPreferences: { newEntriesMode: 'per_entry' },
           },
         },
       },
