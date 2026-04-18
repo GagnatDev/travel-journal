@@ -10,6 +10,7 @@ import { AuthProvider } from '../context/AuthContext.js';
 import { ThemeProvider } from '../context/ThemeContext.js';
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
 import { AppHeader } from '../components/AppHeader.js';
+import { NOTIFICATIONS_QUERY_KEY } from '../notifications/useNotifications.js';
 
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { server } from './mocks/server.js';
@@ -22,10 +23,19 @@ vi.mock('../notifications/push.js', () => ({
   syncPushSubscriptionIfPermitted: vi.fn(),
 }));
 
-function createTestQueryClient(): QueryClient {
-  return new QueryClient({
+/**
+ * Creates a fresh QueryClient and seeds the notifications cache so
+ * `useNotificationsQuery` resolves synchronously with the given `inbox`.
+ * This avoids depending on the AuthProvider → silent refresh → React Query
+ * enable → fetch → re-render chain, which is long enough on GitHub Actions
+ * runners (~25x slower than local) to blow past any reasonable findBy timeout.
+ */
+function createSeededQueryClient(inbox: ListNotificationsResponse): QueryClient {
+  const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
+  client.setQueryData<ListNotificationsResponse>(NOTIFICATIONS_QUERY_KEY, inbox);
+  return client;
 }
 
 const tripEntryNotification: AppNotification = {
@@ -75,9 +85,10 @@ function installAuthAndInbox(inbox: ListNotificationsResponse) {
   );
 }
 
-function renderHeader() {
+function renderHeader(inbox: ListNotificationsResponse) {
+  installAuthAndInbox(inbox);
   return render(
-    <QueryClientProvider client={createTestQueryClient()}>
+    <QueryClientProvider client={createSeededQueryClient(inbox)}>
       <TestMemoryRouter initialEntries={['/trips']}>
         <AuthProvider>
           <ThemeProvider>
@@ -99,9 +110,10 @@ function PathProbe() {
   );
 }
 
-function renderPanel() {
+function renderPanel(inbox: ListNotificationsResponse) {
+  installAuthAndInbox(inbox);
   return render(
-    <QueryClientProvider client={createTestQueryClient()}>
+    <QueryClientProvider client={createSeededQueryClient(inbox)}>
       <TestMemoryRouter initialEntries={['/trips/trip-abc/timeline']}>
         <AuthProvider>
           <ThemeProvider>
@@ -116,11 +128,10 @@ function renderPanel() {
 
 describe('Notifications inbox (bell badge + panel)', () => {
   it('shows the unread count on the bell and switches aria-label to a localized count', async () => {
-    installAuthAndInbox({
+    renderHeader({
       notifications: [tripEntryNotification, releaseNotification],
       unreadCount: 2,
     });
-    renderHeader();
     const badge = await screen.findByTestId('notifications-badge');
     expect(badge).toHaveTextContent('2');
     expect(
@@ -129,31 +140,28 @@ describe('Notifications inbox (bell badge + panel)', () => {
   });
 
   it('caps the badge at 9+ when more than nine notifications are unread', async () => {
-    installAuthAndInbox({
+    renderHeader({
       notifications: Array.from({ length: 12 }, (_, i) => ({
         ...tripEntryNotification,
         id: `notif-${i}`,
       })),
       unreadCount: 12,
     });
-    renderHeader();
     const badge = await screen.findByTestId('notifications-badge');
     expect(badge).toHaveTextContent('9+');
   });
 
   it('hides the badge when there are no unread notifications', async () => {
-    installAuthAndInbox({ notifications: [], unreadCount: 0 });
-    renderHeader();
+    renderHeader({ notifications: [], unreadCount: 0 });
     await screen.findByRole('button', { name: /^Varsler$|^Notifications$/i });
     expect(screen.queryByTestId('notifications-badge')).not.toBeInTheDocument();
   });
 
   it('renders type-specific copy for each NotificationType', async () => {
-    installAuthAndInbox({
+    renderPanel({
       notifications: [tripEntryNotification, releaseNotification, messageNotification],
       unreadCount: 3,
     });
-    renderPanel();
     await screen.findByTestId('notification-item-notif-trip-1');
     expect(screen.getByText(/Ada Lovelace la til et nytt innlegg/)).toBeInTheDocument();
     expect(screen.getByText(/Fjord sunset · Nordic Loop/)).toBeInTheDocument();
@@ -164,14 +172,13 @@ describe('Notifications inbox (bell badge + panel)', () => {
 
   it('fires mark-all-read on open when there are unread items', async () => {
     let markAllReadCalls = 0;
-    installAuthAndInbox({ notifications: [tripEntryNotification], unreadCount: 1 });
     server.use(
       http.post('/api/v1/notifications/read-all', () => {
         markAllReadCalls += 1;
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    renderPanel();
+    renderPanel({ notifications: [tripEntryNotification], unreadCount: 1 });
     await waitFor(() => expect(markAllReadCalls).toBeGreaterThan(0));
   });
 
@@ -198,7 +205,18 @@ describe('Notifications inbox (bell badge + panel)', () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    renderPanel();
+    render(
+      <QueryClientProvider client={createSeededQueryClient(state)}>
+        <TestMemoryRouter initialEntries={['/trips/trip-abc/timeline']}>
+          <AuthProvider>
+            <ThemeProvider>
+              <PathProbe />
+              <NotificationsPanel isOpen onClose={() => {}} />
+            </ThemeProvider>
+          </AuthProvider>
+        </TestMemoryRouter>
+      </QueryClientProvider>,
+    );
     const item = await screen.findByTestId('notification-item-notif-trip-1');
     const dismissBtn = item.querySelector('button[aria-label="Fjern varsel"]');
     expect(dismissBtn).not.toBeNull();
@@ -210,11 +228,10 @@ describe('Notifications inbox (bell badge + panel)', () => {
   });
 
   it('navigates to the deep link when a trip.new_entry notification is activated', async () => {
-    installAuthAndInbox({ notifications: [tripEntryNotification], unreadCount: 1 });
     server.use(
       http.delete('/api/v1/notifications/notif-trip-1', () => new HttpResponse(null, { status: 204 })),
     );
-    renderPanel();
+    renderPanel({ notifications: [tripEntryNotification], unreadCount: 1 });
     const title = await screen.findByText(/Ada Lovelace la til et nytt innlegg/);
     await userEvent.click(title);
     await waitFor(() =>
@@ -247,7 +264,18 @@ describe('Notifications inbox (bell badge + panel)', () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    renderPanel();
+    render(
+      <QueryClientProvider client={createSeededQueryClient(state)}>
+        <TestMemoryRouter initialEntries={['/trips/trip-abc/timeline']}>
+          <AuthProvider>
+            <ThemeProvider>
+              <PathProbe />
+              <NotificationsPanel isOpen onClose={() => {}} />
+            </ThemeProvider>
+          </AuthProvider>
+        </TestMemoryRouter>
+      </QueryClientProvider>,
+    );
     await screen.findByTestId('notification-item-notif-trip-1');
     await userEvent.click(screen.getByRole('button', { name: /Fjern alle|Clear all/ }));
     await waitFor(() =>
@@ -257,8 +285,7 @@ describe('Notifications inbox (bell badge + panel)', () => {
   });
 
   it('shows the empty state when there are no notifications', async () => {
-    installAuthAndInbox({ notifications: [], unreadCount: 0 });
-    renderPanel();
+    renderPanel({ notifications: [], unreadCount: 0 });
     await waitFor(() => {
       expect(screen.getByTestId('notifications-empty')).toHaveTextContent(
         /Du er à jour|You're all caught up/,
