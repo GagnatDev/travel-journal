@@ -20,10 +20,6 @@ export const authHandlers = [
     return new HttpResponse(null, { status: 204 });
   }),
 
-  http.get('/api/v1/auth/register', () => {
-    return HttpResponse.json({ adminExists: false });
-  }),
-
   http.post('/api/v1/auth/register', async ({ request }) => {
     const body = (await request.json()) as { email: string; displayName: string; password: string };
     const user: PublicUser = {

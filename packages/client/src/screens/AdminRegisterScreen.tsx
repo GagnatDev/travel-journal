@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { AdminExistsResponse } from '@travel-journal/shared';
 
-import { apiJson, apiJsonIfOk } from '../api/client.js';
+import { apiJson } from '../api/client.js';
 import { AuthPageLayout } from '../components/ui/AuthPageLayout.js';
 import { TextField } from '../components/ui/TextField.js';
 import { useAuth } from '../context/AuthContext.js';
@@ -14,7 +13,6 @@ export function AdminRegisterScreen() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  const [checking, setChecking] = useState(true);
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
@@ -27,24 +25,6 @@ export function AdminRegisterScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { login } = useAuth();
-
-  useEffect(() => {
-    apiJsonIfOk<AdminExistsResponse>('/api/v1/auth/register')
-      .then((data) => {
-        if (!data) {
-          navigate('/login', { replace: true });
-          return;
-        }
-        if (data.adminExists) {
-          navigate('/login', { replace: true });
-        } else {
-          setChecking(false);
-        }
-      })
-      .catch(() => {
-        navigate('/login', { replace: true });
-      });
-  }, [navigate]);
 
   function validate(): boolean {
     const newErrors: typeof errors = {};
@@ -77,14 +57,6 @@ export function AdminRegisterScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }
-
-  if (checking) {
-    return (
-    <AuthPageLayout title={t('common.loading')} bodyClassName="w-full max-w-sm text-center">
-      <p className="font-ui text-body">{t('common.loading')}</p>
-    </AuthPageLayout>
-    );
   }
 
   return (

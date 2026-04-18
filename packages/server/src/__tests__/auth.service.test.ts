@@ -49,6 +49,12 @@ describe('generateAccessToken / verifyAccessToken', () => {
 
     expect(() => verifyAccessToken(badToken)).toThrow();
   });
+
+  it('rejects tokens signed with an algorithm other than HS256', () => {
+    const token = jwt.sign(payload, 'test-secret', { algorithm: 'HS512' });
+
+    expect(() => verifyAccessToken(token)).toThrow();
+  });
 });
 
 describe('generateRefreshToken', () => {
