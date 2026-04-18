@@ -29,7 +29,3 @@ export interface PublicUser {
   appRole: AppRole;
   preferredLocale: 'nb' | 'en';
 }
-
-export interface AdminExistsResponse {
-  adminExists: boolean;
-}

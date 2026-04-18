@@ -20,14 +20,39 @@ const authSessionRateLimit = createRateLimit(10);
 
 const COOKIE_NAME = 'refreshToken';
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/** Cookie scope: only auth routes need the refresh token. Must match on clearCookie. */
+const REFRESH_COOKIE_PATH = '/api/v1/auth';
 
-function cookieOptions() {
+function cookieSecure(): boolean {
+  const override = process.env['COOKIE_SECURE'];
+  if (override === 'true') return true;
+  if (override === 'false') return false;
+  return process.env['NODE_ENV'] === 'production';
+}
+
+function refreshCookieOptions(): {
+  httpOnly: true;
+  secure: boolean;
+  sameSite: 'strict';
+  path: string;
+  maxAge: number;
+} {
   return {
     httpOnly: true,
-    secure: process.env['NODE_ENV'] === 'production',
-    sameSite: 'strict' as const,
+    secure: cookieSecure(),
+    sameSite: 'strict',
+    path: REFRESH_COOKIE_PATH,
     maxAge: REFRESH_TOKEN_TTL_MS,
   };
+}
+
+function clearRefreshCookie(res: Response) {
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    secure: cookieSecure(),
+    sameSite: 'strict',
+    path: REFRESH_COOKIE_PATH,
+  });
 }
 
 function toPublicUser(user: { _id: unknown; email: string; displayName: string; appRole: string; preferredLocale: string }): PublicUser {
@@ -47,16 +72,10 @@ async function issueTokens(userId: string, res: Response) {
 
   await Session.create({ tokenHash, userId, expiresAt });
 
-  res.cookie(COOKIE_NAME, rawRefreshToken, cookieOptions());
+  res.cookie(COOKIE_NAME, rawRefreshToken, refreshCookieOptions());
 
   return rawRefreshToken;
 }
-
-// GET /api/v1/auth/register — check if admin exists
-authRouter.get('/register', async (_req: Request, res: Response) => {
-  const count = await User.countDocuments();
-  res.json({ adminExists: count > 0 });
-});
 
 // POST /api/v1/auth/register — admin bootstrap
 authRouter.post('/register', authRateLimit, async (req: Request, res: Response) => {
@@ -146,14 +165,14 @@ authRouter.post('/refresh', authSessionRateLimit, async (req: Request, res: Resp
   const session = await Session.findOne({ tokenHash });
 
   if (!session || session.expiresAt < new Date()) {
-    res.clearCookie(COOKIE_NAME);
+    clearRefreshCookie(res);
     res.status(401).json({ error: { message: 'Invalid or expired session', code: 'UNAUTHORIZED' } });
     return;
   }
 
   const user = await User.findById(session.userId);
   if (!user) {
-    res.clearCookie(COOKIE_NAME);
+    clearRefreshCookie(res);
     res.status(401).json({ error: { message: 'User not found', code: 'UNAUTHORIZED' } });
     return;
   }
@@ -167,7 +186,7 @@ authRouter.post('/refresh', authSessionRateLimit, async (req: Request, res: Resp
   session.expiresAt = newExpiresAt;
   await session.save();
 
-  res.cookie(COOKIE_NAME, newRawToken, cookieOptions());
+  res.cookie(COOKIE_NAME, newRawToken, refreshCookieOptions());
 
   const userId = String(user._id);
   const accessToken = generateAccessToken({
@@ -188,7 +207,7 @@ authRouter.post('/logout', authSessionRateLimit, async (req: Request, res: Respo
     await Session.deleteOne({ tokenHash });
   }
 
-  res.clearCookie(COOKIE_NAME);
+  clearRefreshCookie(res);
   res.status(204).send();
 });
 

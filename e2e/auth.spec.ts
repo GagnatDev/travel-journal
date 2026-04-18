@@ -24,14 +24,21 @@ test.describe('Admin bootstrap', () => {
     expect(page.url()).toContain('/trips');
   });
 
-  test('/register redirects to /login once admin exists', async ({ page }) => {
+  test('/register stays available without probing admin existence (bootstrap POST still returns 403)', async ({
+    page,
+  }) => {
     await registerAdmin(page);
 
-    // Open a new page (fresh session)
     const page2 = await page.context().newPage();
     await page2.goto('/register');
-    await page2.waitForURL('**/login');
-    expect(page2.url()).toContain('/login');
+    await expect(page2.getByLabel(/e-post|email/i)).toBeVisible();
+
+    await page2.getByLabel(/e-post|email/i).fill(ADMIN_EMAIL);
+    await page2.getByLabel(/visningsnavn|display name/i).fill('Other');
+    await page2.getByLabel(/passord|password/i).fill(ADMIN_PASSWORD);
+    await page2.getByRole('button', { name: /opprett konto|create account/i }).click();
+
+    await expect(page2.getByRole('alert')).toBeVisible();
   });
 });
 

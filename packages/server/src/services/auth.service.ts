@@ -22,11 +22,11 @@ export async function verifyPassword(plain: string, hash: string): Promise<boole
 }
 
 export function generateAccessToken(payload: AccessTokenPayload): string {
-  return jwt.sign(payload, getJwtSecret(), { expiresIn: ACCESS_TOKEN_TTL });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: ACCESS_TOKEN_TTL, algorithm: 'HS256' });
 }
 
 export function verifyAccessToken(token: string): AccessTokenPayload {
-  const decoded = jwt.verify(token, getJwtSecret());
+  const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] });
   if (typeof decoded === 'string') throw new Error('Invalid token payload');
   return decoded as AccessTokenPayload;
 }

@@ -27,35 +27,34 @@ function renderRegisterScreen() {
 }
 
 describe('AdminRegisterScreen', () => {
-  it('redirects to /login when admin already exists', async () => {
-    server.use(
-      refresh401,
-      http.get('/api/v1/auth/register', () => HttpResponse.json({ adminExists: true })),
-    );
+  it('renders email, displayName, and password fields immediately (no admin-exists probe)', async () => {
+    server.use(refresh401);
 
     renderRegisterScreen();
 
-    await waitFor(() => {
-      expect(screen.getByText('Login page')).toBeInTheDocument();
-    });
-
-    expect(screen.queryByLabelText(/e-post/i)).not.toBeInTheDocument();
-  });
-
-  it('renders email, displayName, and password fields when no admin exists', async () => {
-    server.use(
-      refresh401,
-      http.get('/api/v1/auth/register', () => HttpResponse.json({ adminExists: false })),
-    );
-
-    renderRegisterScreen();
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/e-post/i)).toBeInTheDocument();
-    });
-
+    expect(screen.getByLabelText(/e-post/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/visningsnavn/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/passord/i)).toBeInTheDocument();
+  });
+
+  it('shows an error when bootstrap POST is forbidden', async () => {
+    server.use(
+      refresh401,
+      http.post('/api/v1/auth/register', () =>
+        HttpResponse.json({ error: { message: 'Forbidden', code: 'FORBIDDEN' } }, { status: 403 }),
+      ),
+    );
+
+    renderRegisterScreen();
+
+    await userEvent.type(screen.getByLabelText(/e-post/i), 'admin@test.com');
+    await userEvent.type(screen.getByLabelText(/visningsnavn/i), 'Admin');
+    await userEvent.type(screen.getByLabelText(/passord/i), 'password123');
+    await userEvent.click(screen.getByRole('button', { name: /opprett konto/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/forbidden/i);
+    });
   });
 
   it('auto-logs in and navigates to /trips after successful registration', async () => {
@@ -69,7 +68,6 @@ describe('AdminRegisterScreen', () => {
 
     server.use(
       refresh401,
-      http.get('/api/v1/auth/register', () => HttpResponse.json({ adminExists: false })),
       http.post('/api/v1/auth/register', () =>
         HttpResponse.json({ accessToken: 'admin-tok', user: mockAdminUser }, { status: 201 }),
       ),

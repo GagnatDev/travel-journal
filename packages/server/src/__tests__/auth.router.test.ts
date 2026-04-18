@@ -27,27 +27,6 @@ afterAll(async () => {
 
 const app = createApp();
 
-describe('GET /api/v1/auth/register', () => {
-  it('returns adminExists: false when no users exist', async () => {
-    const res = await request(app).get('/api/v1/auth/register');
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ adminExists: false });
-  });
-
-  it('returns adminExists: true when an admin exists', async () => {
-    await User.create({
-      email: 'admin@test.com',
-      passwordHash: await hashPassword('pass'),
-      displayName: 'Admin',
-      appRole: 'admin',
-    });
-
-    const res = await request(app).get('/api/v1/auth/register');
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ adminExists: true });
-  });
-});
-
 describe('POST /api/v1/auth/register', () => {
   it('rejects registration when an admin already exists', async () => {
     await User.create({
