@@ -13,6 +13,8 @@ export default {
         body: 'var(--color-body)',
         caption: 'var(--color-caption)',
         'sage-bg': 'var(--color-sage-bg)',
+        'toggle-track-off': 'var(--color-toggle-track-off)',
+        'toggle-track-off-border': 'var(--color-toggle-track-off-border)',
       },
       fontFamily: {
         display: ['Noto Serif', 'Georgia', 'serif'],

@@ -27,7 +27,10 @@ export function ToggleSwitch({ checked, onChange, label, id, disabled = false }:
           className="sr-only peer"
         />
         {/* Track */}
-        <div className="w-10 h-6 rounded-full bg-caption/30 peer-checked:bg-accent transition-colors" />
+        <div
+          data-switch-track
+          className="w-10 h-6 rounded-full border border-toggle-track-off-border bg-toggle-track-off transition-colors peer-checked:border-transparent peer-checked:bg-accent"
+        />
         {/* Thumb */}
         <div
           className="absolute left-1 top-1 w-4 h-4 rounded-full bg-white transition-transform peer-checked:translate-x-4 pointer-events-none"

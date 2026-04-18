@@ -6,6 +6,9 @@
   --color-body: #58624a;
   --color-caption: #70573f;
   --color-sage-bg: #e8ede1;
+  /* Toggle track (off): visible on primary/secondary surfaces; not derived from diluted text color */
+  --color-toggle-track-off: #c9c0b2;
+  --color-toggle-track-off-border: #a89a88;
 }
 
 .dark {
@@ -16,4 +19,6 @@
   --color-body: #d6d3d1;
   --color-caption: #a8a29e;
   --color-sage-bg: #2d3328;
+  --color-toggle-track-off: #3f3e3b;
+  --color-toggle-track-off-border: #52504c;
 }
