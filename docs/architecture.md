@@ -130,6 +130,16 @@ Every request is assigned a UUID `requestId` at the middleware layer:
 
 Required by Scaleway Serverless Containers for zero-downtime rolling deployments.
 
+### HTTP security middleware
+
+The Express app applies **helmet** (with Content-Security-Policy disabled at the app layer so the SPA can be tuned independently), a configurable **JSON body size limit** on `express.json`, optional **CORS** when the API is used from other browser origins, and **trust proxy** when the process sits behind a reverse proxy that sets `X-Forwarded-*`.
+
+| Variable | Purpose |
+|----------|---------|
+| `TRUST_PROXY` | Set to a positive integer (e.g. `1`) for the number of trusted proxy hops so `req.ip`, rate limiting, and secure cookies respect `X-Forwarded-For` / `X-Forwarded-Proto`. Omit or set `0` / `false` for local development without a proxy. |
+| `CORS_ORIGINS` | Comma-separated list of allowed browser origins (e.g. `https://app.example.com,http://localhost:5173`). When unset, cross-origin CORS headers are not sent (typical same-origin SPA + API). |
+| `JSON_BODY_LIMIT` | Max JSON body size (e.g. `1mb`, `512kb`). Defaults to `1mb`. |
+
 ### Image Ordering
 Images within an entry are stored as an ordered array (max 10). On save the client sends the complete array in display order; the backend normalizes `order` values to sequential integers (0–9) and atomically replaces the array. No fractional indexing required at this scale.
 
@@ -203,6 +213,9 @@ Environment variables required at runtime:
 - `JWT_SECRET` — signs and verifies tokens
 - `MONGODB_URI` — Atlas connection string
 - `S3_BUCKET`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` — object storage credentials
+- `TRUST_PROXY` — set to `1` (or the number of proxy hops) in production behind Scaleway’s ingress so forwarded headers and secure cookies behave correctly (see **HTTP security middleware** above)
+- `CORS_ORIGINS` — optional; only if the web client is hosted on a different origin than the API
+- `JSON_BODY_LIMIT` — optional; override default JSON body size if needed
 
 ### 5.2 Local Development — Docker Compose
 

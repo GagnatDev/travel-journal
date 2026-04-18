@@ -61,6 +61,7 @@ jobs:
           cpu_limit: '560'
           secret_environment_variables: |
             NODE_ENV: production
+            TRUST_PROXY: '1'
             MONGODB_URI: ${{ secrets.APP_MONGODB_URI }}
             JWT_SECRET: ${{ secrets.APP_JWT_SECRET }}
             ADMIN_EMAIL: ${{ secrets.APP_ADMIN_EMAIL }}
