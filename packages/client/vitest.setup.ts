@@ -122,14 +122,17 @@ const nb = {
   menu: { openMenu: 'Åpne meny', theme: 'Mørk modus', language: 'Språk', profile: 'Profil' },
   notifications: {
     openPanel: 'Varsler',
-    panelTitle: 'Varsler om nye innlegg',
+    panelTitle: 'Varsler',
     closePanel: 'Lukk varselspanelet',
-    intro:
-      'Når noen publiserer et dagboksinlegg på en tur du er med på, sendes varsler via nettleserens eller systemets push-varsler (Web Push). Appen har foreløpig ikke en egen varselinnboks.',
-    tripSettingsHint:
-      'Slå varsler om nye innlegg av eller på for hver tur fra den turens innstillinger (samme skjerm som medlemmer og personvern).',
+    empty: 'Du er à jour. Nye varsler dukker opp her.',
+    dismiss: 'Fjern varsel',
+    clearAll: 'Fjern alle',
+    unreadBadge_one: '{{count}} ulest varsel',
+    unreadBadge_other: '{{count}} uleste varsler',
     openTripSettings: 'Åpne innstillinger for denne turen',
     goToTrips: 'Gå til Mine turer',
+    pushStatusHeading: 'Leveringsstatus for push',
+    pushStatusSummary: 'Hvordan push-varsler når denne enheten',
     statusHeading: 'Denne enheten',
     serverHeading: 'Server',
     loadingServer: 'Sjekker om push er tilgjengelig…',
@@ -142,6 +145,22 @@ const nb = {
     deviceGranted: 'Nettleservarsler er tillatt på denne enheten.',
     deviceDefault:
       'Nettleservarsler er ikke tillatt ennå. Du kan tillate dem når du slår på varsler i turinnstillingene, eller fra nettleserens nettstedinnstillinger for denne appen.',
+    item: {
+      tripNewEntry: {
+        title: '{{authorName}} la til et nytt innlegg',
+        body: '{{entryTitle}} · {{tripName}}',
+      },
+      releaseAnnouncement: {
+        title: 'Travel Journal er oppdatert til {{version}}',
+        body: 'En ny versjon er klar. Last siden på nytt for å få de siste forbedringene.',
+        updateAction: 'Oppdater nå',
+      },
+      privateMessage: {
+        title: 'Ny melding fra {{fromUserName}}',
+        body: '{{preview}}',
+        openAction: 'Åpne samtalen',
+      },
+    },
   },
   profile: {
     title: 'Profil',

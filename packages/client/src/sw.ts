@@ -18,10 +18,17 @@ registerRoute(
   new StaleWhileRevalidate({ cacheName: 'media' }),
 );
 
+interface PushPayload {
+  title?: string;
+  body?: string;
+  url?: string;
+  type?: string;
+  data?: unknown;
+  notificationId?: string;
+}
+
 self.addEventListener('push', (event) => {
-  const payload = event.data?.json() as
-    | { title?: string; body?: string; url?: string; type?: string }
-    | undefined;
+  const payload = event.data?.json() as PushPayload | undefined;
   const title = payload?.title ?? 'Travel Journal';
   const body = payload?.body ?? 'You have a new notification';
   const url = payload?.url ?? '/trips';
@@ -29,7 +36,12 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
-      data: { url, type: payload?.type },
+      data: {
+        url,
+        type: payload?.type,
+        notificationId: payload?.notificationId,
+        payload: payload?.data,
+      },
       badge: '/icons/icon-192.png',
       icon: '/icons/icon-192.png',
     }),
@@ -38,14 +50,18 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = String(event.notification.data?.url ?? '/trips');
+  const data = event.notification.data as
+    | { url?: string; notificationId?: string }
+    | undefined;
+  const url = String(data?.url ?? '/trips');
+  const notificationId = data?.notificationId;
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {
         const windowClient = client as WindowClient;
         if ('focus' in windowClient) {
-          windowClient.postMessage({ type: 'notification-clicked', url });
+          windowClient.postMessage({ type: 'notification-clicked', url, notificationId });
           if (windowClient.url.includes(self.location.origin)) {
             return windowClient.focus();
           }

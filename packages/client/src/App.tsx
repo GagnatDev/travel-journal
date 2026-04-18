@@ -19,6 +19,7 @@ import { TripDashboardScreen } from './screens/TripDashboardScreen.js';
 import { TripSettingsScreen } from './screens/TripSettingsScreen.js';
 import { syncPendingEntries } from './offline/entrySync.js';
 import { syncPushSubscriptionIfPermitted } from './notifications/push.js';
+import { useNotificationClickListener } from './notifications/useNotificationClickListener.js';
 
 const MapScreen = lazy(() =>
   import('./screens/MapScreen.js').then((m) => ({ default: m.MapScreen })),
@@ -48,6 +49,8 @@ export function App() {
     if (status !== 'authenticated' || !accessToken) return;
     void syncPushSubscriptionIfPermitted(accessToken);
   }, [status, accessToken]);
+
+  useNotificationClickListener();
 
   return (
     <ThemeProvider>

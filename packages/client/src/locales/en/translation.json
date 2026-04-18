@@ -100,12 +100,17 @@
   },
   "notifications": {
     "openPanel": "Notifications",
-    "panelTitle": "New entry alerts",
+    "panelTitle": "Notifications",
     "closePanel": "Close notifications",
-    "intro": "When someone publishes a journal entry on a trip you belong to, alerts are delivered through your browser or system notifications (Web Push). The app does not keep a separate in-app inbox yet.",
-    "tripSettingsHint": "Turn new-entry alerts on or off for each trip from that trip’s settings (the same screen as members and privacy).",
+    "empty": "You're all caught up. New alerts show up here.",
+    "dismiss": "Dismiss notification",
+    "clearAll": "Clear all",
+    "unreadBadge_one": "{{count}} unread notification",
+    "unreadBadge_other": "{{count}} unread notifications",
     "openTripSettings": "Open this trip’s settings",
     "goToTrips": "Go to My Trips",
+    "pushStatusHeading": "Push delivery status",
+    "pushStatusSummary": "How push alerts reach this device",
     "statusHeading": "This device",
     "serverHeading": "Server",
     "loadingServer": "Checking push availability…",
@@ -113,7 +118,23 @@
     "serverUnavailable": "Push is not configured on this server, so new-entry alerts cannot be delivered until the deployment provides Web Push (VAPID) keys.",
     "serverError": "Could not verify whether push is available. Alerts may not work until this check succeeds.",
     "deviceGranted": "Browser notifications are allowed on this device.",
-    "deviceDefault": "Browser notifications are not allowed yet. You can allow them when you enable new-entry alerts in trip settings, or from your browser’s site settings for this app."
+    "deviceDefault": "Browser notifications are not allowed yet. You can allow them when you enable new-entry alerts in trip settings, or from your browser’s site settings for this app.",
+    "item": {
+      "tripNewEntry": {
+        "title": "{{authorName}} posted a new entry",
+        "body": "{{entryTitle}} · {{tripName}}"
+      },
+      "releaseAnnouncement": {
+        "title": "Travel Journal updated to {{version}}",
+        "body": "A newer version is ready. Reload to get the latest improvements.",
+        "updateAction": "Update now"
+      },
+      "privateMessage": {
+        "title": "New message from {{fromUserName}}",
+        "body": "{{preview}}",
+        "openAction": "Open conversation"
+      }
+    }
   },
   "profile": {
     "title": "Profile",
