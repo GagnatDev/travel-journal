@@ -49,7 +49,7 @@ Dockerfile
 | Language | TypeScript | Strict mode; types shared with server via `@travel-journal/shared` |
 | Framework | React | |
 | Styling | Tailwind CSS | Tokens derived from `docs/design_guidelines.md`; implemented as CSS variables for theming |
-| i18n | `react-i18next` + `i18next` | Locales: `nb` (default), `en`; translation files at `public/locales/{nb,en}/translation.json` |
+| i18n | `react-i18next` + `i18next` | Locales: `nb` (default), `en`; default namespace bundled from `packages/client/src/locales/{nb,en}/translation.json` for instant first paint (HTTP lazy-load can be reintroduced if namespaces are split) |
 | PWA | Service Worker + Web App Manifest | Offline caching, background sync (Phase 2), push (Phase 2) |
 | State | TBD (React Query recommended) | Server-state caching aligns well with offline sync requirements |
 
