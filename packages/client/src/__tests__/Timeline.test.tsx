@@ -182,6 +182,7 @@ describe('TimelineScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('story-mode-toggle')).toBeInTheDocument();
     });
+    expect(screen.getByTestId('trip-notification-mode-trigger')).toBeInTheDocument();
   });
 
   it('shows timeline shell and skeleton rows while first entries page is loading', async () => {

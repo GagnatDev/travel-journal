@@ -124,6 +124,12 @@
         "title": "{{authorName}} posted a new entry",
         "body": "{{entryTitle}} · {{tripName}}"
       },
+      "tripNewEntryDigest": {
+        "title_one": "1 new entry in {{tripName}}",
+        "title_other": "{{count}} new entries in {{tripName}}",
+        "body_one": "Catch up on today's 1 new entry.",
+        "body_other": "Catch up on today's {{count}} new entries."
+      },
       "releaseAnnouncement": {
         "title": "Travel Journal updated to {{version}}",
         "body": "A newer version is ready. Reload to get the latest improvements.",
@@ -208,12 +214,19 @@
       "privacyPublic": "Entire Circle",
       "privacyPrivate": "Private Journal",
       "allowContributorInvites": "Allow contributors to invite others",
-      "notificationsNewEntriesToggle": "Notify me when new entries are posted in this trip",
-      "notificationsUnsupported": "This browser does not support push notifications.",
-      "notificationsDenied": "Push notifications are blocked. Enable notifications in browser settings to turn this on.",
-      "notificationsPermissionRequired": "Please allow browser notifications to enable this setting.",
       "collaborativeChaptersTitle": "Collaborative Chapters",
       "collaborativeChaptersInfo": "Members can co-author entries and share memories together."
+    },
+    "notificationMode": {
+      "triggerLabel": "New-entry notifications ({{current}})",
+      "popoverTitle": "New entry notifications",
+      "perEntry": "Notify me on new entries",
+      "perEntryDescription": "Get a push and an inbox item each time a member posts.",
+      "dailyDigest": "Notify me once a day (evening)",
+      "dailyDigestDescription": "One summary each evening if there were new entries.",
+      "off": "Do not notify me",
+      "offDescription": "No push, no inbox items for this trip.",
+      "permissionRequired": "Please allow browser notifications to enable this setting."
     },
     "nav": {
       "timeline": "Timeline",
