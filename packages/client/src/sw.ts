@@ -2,16 +2,11 @@
 
 import { precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import { NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
 
 declare let self: ServiceWorkerGlobalScope;
 
 precacheAndRoute(self.__WB_MANIFEST);
-
-registerRoute(
-  ({ url }) => url.pathname.startsWith('/locales/'),
-  new CacheFirst({ cacheName: 'locales' }),
-);
 
 registerRoute(
   ({ url }) => url.pathname.startsWith('/api/v1/trips'),
