@@ -14,8 +14,9 @@ const analyze = process.env['ANALYZE'] === '1';
 /** Dev server API target. Playwright sets E2E_API_ORIGIN so the client proxies to the e2e global-setup server. */
 const apiProxyTarget = process.env['E2E_API_ORIGIN'] ?? 'http://localhost:3100';
 
-const e2eEnvDir =
-  process.env['TRAVEL_JOURNAL_E2E'] === '1' ? path.resolve(__dirname, 'e2e-env') : undefined;
+const isE2E = process.env['TRAVEL_JOURNAL_E2E'] === '1';
+
+const e2eEnvDir = isE2E ? path.resolve(__dirname, 'e2e-env') : undefined;
 
 /** Split heavy libs so precache stays under per-file limits; align with `injectManifest.maximumFileSizeToCacheInBytes`. */
 function manualChunks(id: string): string | undefined {
@@ -40,8 +41,15 @@ export default defineConfig({
       // Without this, `navigator.serviceWorker.ready` never resolves in `pnpm dev`,
       // which in turn makes push-enabled features (e.g. per-trip notification mode)
       // hang silently when they call `ensurePushSubscription`.
+      //
+      // Disabled under Playwright (`TRAVEL_JOURNAL_E2E=1`): the Workbox runtime
+      // routes intercept `/api/v1/trips/*` (NetworkFirst) which adds install /
+      // activation latency to every new browser context and causes the multi-
+      // context notification flows to flake under CI load. E2E does not
+      // exercise push delivery, and `ensurePushSubscription` already fails
+      // fast when the SW is absent, so tests don't need it.
       devOptions: {
-        enabled: true,
+        enabled: !isE2E,
         type: 'module',
         navigateFallback: 'index.html',
       },
