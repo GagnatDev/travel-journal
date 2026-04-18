@@ -16,6 +16,7 @@ import {
 export const authRouter: Router = Router();
 
 const authRateLimit = createRateLimit(10);
+const authSessionRateLimit = createRateLimit(10);
 
 const COOKIE_NAME = 'refreshToken';
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -133,7 +134,7 @@ authRouter.post('/login', authRateLimit, async (req: Request, res: Response) => 
 });
 
 // POST /api/v1/auth/refresh
-authRouter.post('/refresh', async (req: Request, res: Response) => {
+authRouter.post('/refresh', authSessionRateLimit, async (req: Request, res: Response) => {
   const rawToken = req.cookies[COOKIE_NAME] as string | undefined;
 
   if (!rawToken) {
@@ -179,7 +180,7 @@ authRouter.post('/refresh', async (req: Request, res: Response) => {
 });
 
 // POST /api/v1/auth/logout — cookie-based; no Bearer required (client may only have refresh cookie)
-authRouter.post('/logout', async (req: Request, res: Response) => {
+authRouter.post('/logout', authSessionRateLimit, async (req: Request, res: Response) => {
   const rawToken = req.cookies[COOKIE_NAME] as string | undefined;
 
   if (rawToken) {
