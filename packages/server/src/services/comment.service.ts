@@ -3,6 +3,7 @@ import type { Comment } from '@travel-journal/shared';
 
 import { Comment as CommentModel } from '../models/Comment.model.js';
 import { User } from '../models/User.model.js';
+import { getEntryById } from './entry.service.js';
 
 function createHttpError(message: string, status: number, code: string): Error {
   const err = new Error(message) as Error & { status: number; code: string };
@@ -39,6 +40,8 @@ export async function addComment(
   if (content.length > 1000) {
     throw createHttpError('Comment must be 1000 characters or fewer', 400, 'VALIDATION_ERROR');
   }
+
+  await getEntryById(tripId, entryId);
 
   const doc = await CommentModel.create({
     entryId: new mongoose.Types.ObjectId(entryId),

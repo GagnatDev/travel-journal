@@ -83,6 +83,17 @@ describe('addComment', () => {
       addComment(trip.id, entry.id, String(user._id), 'a'.repeat(1001)),
     ).rejects.toMatchObject({ status: 400 });
   });
+
+  it('throws 404 when entryId does not belong to tripId', async () => {
+    const user = await makeUser('user@test.com');
+    const tripA = await createTrip({ name: 'A' }, String(user._id));
+    const tripB = await createTrip({ name: 'B' }, String(user._id));
+    const entryInA = await createEntry(tripA.id, String(user._id), { title: 'E', content: 'c' });
+
+    await expect(
+      addComment(tripB.id, entryInA.id, String(user._id), 'cross trip'),
+    ).rejects.toMatchObject({ status: 404 });
+  });
 });
 
 describe('listComments', () => {

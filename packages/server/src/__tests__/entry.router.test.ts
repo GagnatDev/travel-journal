@@ -603,6 +603,29 @@ describe('POST /api/v1/trips/:id/entries/:entryId/comments', () => {
 
     expect(res.status).toBe(400);
   });
+
+  it('returns 404 when entryId belongs to another trip; does not attach comment to that entry', async () => {
+    const memberA = await makeUser('memberA@test.com', 'creator');
+    const ownerB = await makeUser('ownerB@test.com', 'creator');
+
+    const tripA = await createTrip({ name: 'Trip A' }, String(memberA._id));
+    const tripB = await createTrip({ name: 'Trip B' }, String(ownerB._id));
+    const entryB = await createEntry(tripB.id, String(ownerB._id), { title: 'B entry', content: 'c' });
+
+    const res = await request(app)
+      .post(`/api/v1/trips/${tripA.id}/entries/${entryB.id}/comments`)
+      .set('Authorization', authHeader(String(memberA._id), memberA.email, 'creator'))
+      .send({ content: 'Injected' });
+
+    expect(res.status).toBe(404);
+
+    const listB = await request(app)
+      .get(`/api/v1/trips/${tripB.id}/entries/${entryB.id}/comments`)
+      .set('Authorization', authHeader(String(ownerB._id), ownerB.email, 'creator'));
+
+    expect(listB.status).toBe(200);
+    expect(listB.body).toHaveLength(0);
+  });
 });
 
 describe('DELETE /api/v1/trips/:id/entries/:entryId/comments/:commentId', () => {
