@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 
 import { fetchPushServerAvailability } from '../api/notifications.js';
@@ -12,6 +13,12 @@ import { NotificationsPanel } from '../components/NotificationsPanel.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { server } from './mocks/server.js';
 import { mockUser } from './mocks/handlers.js';
+
+function createTestQueryClient(): QueryClient {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+}
 
 vi.mock('../api/notifications.js', async (importOriginal) => {
   const orig = await importOriginal<typeof import('../api/notifications.js')>();
@@ -35,13 +42,15 @@ function renderPanel(initialPath = '/trips/trip-1/timeline') {
     ),
   );
   return render(
-    <TestMemoryRouter initialEntries={[initialPath]}>
-      <AuthProvider>
-        <ThemeProvider>
-          <NotificationsPanel isOpen onClose={() => {}} />
-        </ThemeProvider>
-      </AuthProvider>
-    </TestMemoryRouter>,
+    <QueryClientProvider client={createTestQueryClient()}>
+      <TestMemoryRouter initialEntries={[initialPath]}>
+        <AuthProvider>
+          <ThemeProvider>
+            <NotificationsPanel isOpen onClose={() => {}} />
+          </ThemeProvider>
+        </AuthProvider>
+      </TestMemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -63,13 +72,15 @@ describe('NotificationsPanel', () => {
       ),
     );
     render(
-      <TestMemoryRouter initialEntries={['/trips']}>
-        <AuthProvider>
-          <ThemeProvider>
-            <NotificationsPanel isOpen onClose={() => {}} />
-          </ThemeProvider>
-        </AuthProvider>
-      </TestMemoryRouter>,
+      <QueryClientProvider client={createTestQueryClient()}>
+        <TestMemoryRouter initialEntries={['/trips']}>
+          <AuthProvider>
+            <ThemeProvider>
+              <NotificationsPanel isOpen onClose={() => {}} />
+            </ThemeProvider>
+          </AuthProvider>
+        </TestMemoryRouter>
+      </QueryClientProvider>,
     );
 
     await waitFor(
@@ -94,14 +105,16 @@ describe('NotificationsPanel', () => {
       ),
     );
     render(
-      <TestMemoryRouter initialEntries={['/trips/trip-42/timeline']}>
-        <AuthProvider>
-          <ThemeProvider>
-            <PathProbe />
-            <NotificationsPanel isOpen onClose={() => {}} />
-          </ThemeProvider>
-        </AuthProvider>
-      </TestMemoryRouter>,
+      <QueryClientProvider client={createTestQueryClient()}>
+        <TestMemoryRouter initialEntries={['/trips/trip-42/timeline']}>
+          <AuthProvider>
+            <ThemeProvider>
+              <PathProbe />
+              <NotificationsPanel isOpen onClose={() => {}} />
+            </ThemeProvider>
+          </AuthProvider>
+        </TestMemoryRouter>
+      </QueryClientProvider>,
     );
 
     await userEvent.click(

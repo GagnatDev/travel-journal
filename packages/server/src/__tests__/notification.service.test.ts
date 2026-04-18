@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import mongoose from 'mongoose';
 import webpush from 'web-push';
 
+import { Notification } from '../models/Notification.model.js';
 import { PushSubscription } from '../models/PushSubscription.model.js';
 import { Trip } from '../models/Trip.model.js';
 import { User } from '../models/User.model.js';
@@ -25,6 +26,7 @@ beforeEach(async () => {
   await User.deleteMany({});
   await Trip.deleteMany({});
   await PushSubscription.deleteMany({});
+  await Notification.deleteMany({});
   vi.restoreAllMocks();
 });
 
@@ -43,7 +45,67 @@ async function makeUser(email: string, appRole: 'admin' | 'creator' | 'follower'
 }
 
 describe('dispatchNewEntryNotification', () => {
-  it('notifies eligible members and excludes author/disabled recipients', async () => {
+  it('enqueues inbox notifications for eligible recipients only', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const followerA = await makeUser('a@test.com', 'follower');
+    const followerB = await makeUser('b@test.com', 'follower');
+    const trip = await createTrip({ name: 'Nordic Adventure' }, String(creator._id));
+
+    await Trip.updateOne(
+      { _id: trip.id },
+      {
+        $push: {
+          members: [
+            {
+              userId: followerA._id,
+              tripRole: 'follower',
+              addedAt: new Date(),
+              notificationPreferences: { newEntriesPushEnabled: true },
+            },
+            {
+              userId: followerB._id,
+              tripRole: 'follower',
+              addedAt: new Date(),
+              notificationPreferences: { newEntriesPushEnabled: false },
+            },
+          ],
+        },
+      },
+    );
+
+    vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
+
+    await dispatchNewEntryNotification({
+      id: 'entry-1',
+      tripId: trip.id,
+      authorId: String(creator._id),
+      authorName: creator.displayName,
+      title: 'New Story',
+      content: 'Hello world',
+      images: [],
+      reactions: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const stored = await Notification.find({}).lean();
+    expect(stored).toHaveLength(1);
+    const [row] = stored;
+    expect(String(row!.userId)).toBe(String(followerA._id));
+    expect(row!.type).toBe('trip.new_entry');
+    expect(row!.readAt).toBeNull();
+    expect(row!.dismissedAt).toBeNull();
+    expect(row!.data).toMatchObject({
+      type: 'trip.new_entry',
+      tripId: trip.id,
+      entryId: 'entry-1',
+      entryTitle: 'New Story',
+      authorName: creator.displayName,
+      tripName: 'Nordic Adventure',
+    });
+  });
+
+  it('delivers web push with structured data and notificationId to eligible members', async () => {
     const creator = await makeUser('creator@test.com', 'creator');
     const followerA = await makeUser('a@test.com', 'follower');
     const followerB = await makeUser('b@test.com', 'follower');
@@ -89,9 +151,7 @@ describe('dispatchNewEntryNotification', () => {
       },
     ]);
 
-    const sendSpy = vi
-      .spyOn(webpush, 'sendNotification')
-      .mockResolvedValue({} as never);
+    const sendSpy = vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
 
     await dispatchNewEntryNotification({
       id: 'entry-1',
@@ -107,8 +167,37 @@ describe('dispatchNewEntryNotification', () => {
     });
 
     expect(sendSpy).toHaveBeenCalledTimes(1);
-    const [subscriptionArg] = sendSpy.mock.calls[0]!;
+    const [subscriptionArg, payloadArg] = sendSpy.mock.calls[0]!;
     expect(subscriptionArg.endpoint).toBe('https://push.example/member-a');
+    const payload = JSON.parse(String(payloadArg));
+    expect(payload.type).toBe('trip.new_entry');
+    expect(payload.url).toBe(`/trips/${trip.id}/timeline?entryId=entry-1`);
+    expect(payload.data.tripName).toBe('Nordic Adventure');
+    expect(typeof payload.notificationId).toBe('string');
+    expect(payload.notificationId.length).toBeGreaterThan(0);
+  });
+
+  it('is a no-op when the only trip member is the author', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const trip = await createTrip({ name: 'Solo Trip' }, String(creator._id));
+    const sendSpy = vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
+
+    await dispatchNewEntryNotification({
+      id: 'entry-solo',
+      tripId: trip.id,
+      authorId: String(creator._id),
+      authorName: creator.displayName,
+      title: 'Alone',
+      content: '',
+      images: [],
+      reactions: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    expect(sendSpy).not.toHaveBeenCalled();
+    const rows = await Notification.countDocuments({});
+    expect(rows).toBe(0);
   });
 
   it('disables stale subscriptions on 410/404 responses', async () => {

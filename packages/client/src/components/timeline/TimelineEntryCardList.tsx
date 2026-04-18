@@ -24,7 +24,7 @@ function TimelineEntryCardListFlat({
   return (
     <>
       {entries.map((entry) => (
-        <div key={entry.id} className="pb-4">
+        <div key={entry.id} className="pb-4" data-entry-id={entry.id}>
           <EntryCard
             entry={entry}
             tripId={tripId}
@@ -58,6 +58,7 @@ function TimelineEntryCardListVirtual({
         return (
           <div
             key={entry.id}
+            data-entry-id={entry.id}
             data-index={virtualRow.index}
             ref={rowVirtualizer.measureElement}
             className="absolute left-0 top-0 w-full pb-4"

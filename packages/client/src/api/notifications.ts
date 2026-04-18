@@ -1,9 +1,42 @@
-import type { PushSubscriptionInput } from '@travel-journal/shared';
+import type { ListNotificationsResponse, PushSubscriptionInput } from '@travel-journal/shared';
 
 import { apiJson } from './client.js';
 import { VAPID_PUBLIC_KEY_PATH } from './notificationPaths.js';
 export type PushServerAvailability = 'available' | 'unavailable' | 'error';
 export { VAPID_PUBLIC_KEY_PATH } from './notificationPaths.js';
+
+const NOTIFICATIONS_BASE = '/api/v1/notifications';
+
+export function fetchNotifications(
+  token: string,
+  signal?: AbortSignal,
+): Promise<ListNotificationsResponse> {
+  const options: Parameters<typeof apiJson<ListNotificationsResponse>>[1] = { token };
+  if (signal !== undefined) options.signal = signal;
+  return apiJson<ListNotificationsResponse>(NOTIFICATIONS_BASE, options);
+}
+
+export function markAllNotificationsRead(token: string): Promise<void> {
+  return apiJson<void>(`${NOTIFICATIONS_BASE}/read-all`, { token, method: 'POST' });
+}
+
+export function markNotificationRead(token: string, id: string): Promise<void> {
+  return apiJson<void>(`${NOTIFICATIONS_BASE}/${encodeURIComponent(id)}/read`, {
+    token,
+    method: 'POST',
+  });
+}
+
+export function dismissNotification(token: string, id: string): Promise<void> {
+  return apiJson<void>(`${NOTIFICATIONS_BASE}/${encodeURIComponent(id)}`, {
+    token,
+    method: 'DELETE',
+  });
+}
+
+export function clearAllNotifications(token: string): Promise<void> {
+  return apiJson<void>(NOTIFICATIONS_BASE, { token, method: 'DELETE' });
+}
 
 /**
  * Probes whether the server exposes Web Push (VAPID) for subscription flows.

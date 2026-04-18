@@ -1,10 +1,19 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { AppNotification } from '@travel-journal/shared';
 import { useMatch, useNavigate } from 'react-router-dom';
 
 import { fetchPushServerAvailability, type PushServerAvailability } from '../api/notifications.js';
 import { useAuth } from '../context/AuthContext.js';
 import { getPushPermissionState, type PushPermissionState } from '../notifications/push.js';
+import {
+  useClearAllNotifications,
+  useDismissNotification,
+  useMarkNotificationsRead,
+  useNotifications,
+} from '../notifications/useNotifications.js';
+
+import { NotificationItem } from './notifications/NotificationItem.js';
 
 interface NotificationsPanelProps {
   isOpen: boolean;
@@ -27,15 +36,35 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
 
   const [deviceState, setDeviceState] = useState<PushPermissionState>(() => getPushPermissionState());
   const [serverAvail, setServerAvail] = useState<PushServerAvailability | 'loading'>('loading');
+  const [pushStatusOpen, setPushStatusOpen] = useState(false);
+
+  const { notifications, isLoading } = useNotifications();
+  const markAllRead = useMarkNotificationsRead();
+  const dismiss = useDismissNotification();
+  const clearAll = useClearAllNotifications();
+  const markAllReadMutate = markAllRead.mutate;
+
+  const hasMarkedOnOpenRef = useRef(false);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      hasMarkedOnOpenRef.current = false;
+      return;
+    }
     setDeviceState(getPushPermissionState());
   }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
-    // Avoid treating a null token during the initial refresh as a push probe failure (flaky in CI).
+    if (hasMarkedOnOpenRef.current) return;
+    if (notifications.some((n) => n.readAt === null)) {
+      hasMarkedOnOpenRef.current = true;
+      markAllReadMutate();
+    }
+  }, [isOpen, notifications, markAllReadMutate]);
+
+  useEffect(() => {
+    if (!isOpen) return;
     if (authStatus === 'loading') {
       setServerAvail('loading');
       return;
@@ -88,6 +117,30 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
           ? t('notifications.serverUnavailable')
           : t('notifications.serverError');
 
+  const pushStatusNeedsAttention =
+    deviceState === 'denied' ||
+    deviceState === 'unsupported' ||
+    serverAvail === 'unavailable' ||
+    serverAvail === 'error';
+
+  useEffect(() => {
+    if (pushStatusNeedsAttention) setPushStatusOpen(true);
+  }, [pushStatusNeedsAttention]);
+
+  const handleActivate = (notification: AppNotification, href: string) => {
+    dismiss.mutate(notification.id);
+    onClose();
+    navigate(href);
+  };
+
+  const handleDismiss = (notification: AppNotification) => {
+    dismiss.mutate(notification.id);
+  };
+
+  const handleClearAll = () => {
+    clearAll.mutate();
+  };
+
   const goTripSettings = () => {
     if (tripId) {
       navigate(`/trips/${tripId}/settings`);
@@ -122,45 +175,60 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
           <h2 id={titleId} className="font-display text-base text-heading truncate">
             {t('notifications.panelTitle')}
           </h2>
-          <button
-            type="button"
-            aria-label={t('notifications.closePanel')}
-            onClick={onClose}
-            className="shrink-0 text-caption hover:text-body transition-colors p-1 min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-lg"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
+          <div className="flex items-center gap-1 shrink-0">
+            {notifications.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="font-ui text-xs text-caption hover:text-heading transition-colors px-2 py-1 rounded-md"
+              >
+                {t('notifications.clearAll')}
+              </button>
+            )}
+            <button
+              type="button"
+              aria-label={t('notifications.closePanel')}
+              onClick={onClose}
+              className="shrink-0 text-caption hover:text-body transition-colors p-1 min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-lg"
             >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
         </div>
 
-        <div className="flex-1 px-4 py-4 overflow-y-auto space-y-5 font-ui text-sm text-body">
-          <p>{t('notifications.intro')}</p>
-          <p>{t('notifications.tripSettingsHint')}</p>
+        <div className="flex-1 px-4 py-4 overflow-y-auto space-y-4 font-ui text-sm text-body">
+          {notifications.length === 0 ? (
+            <p className="text-caption text-center py-6" data-testid="notifications-empty">
+              {isLoading ? '' : t('notifications.empty')}
+            </p>
+          ) : (
+            <ul className="space-y-2" data-testid="notifications-list">
+              {notifications.map((n) => (
+                <NotificationItem
+                  key={n.id}
+                  notification={n}
+                  onActivate={handleActivate}
+                  onDismiss={handleDismiss}
+                />
+              ))}
+            </ul>
+          )}
 
-          <div>
-            <h3 className="font-ui font-medium text-heading text-sm mb-2">{t('notifications.statusHeading')}</h3>
-            <p className="text-body">{deviceMessage}</p>
-          </div>
-
-          <div>
-            <h3 className="font-ui font-medium text-heading text-sm mb-2">{t('notifications.serverHeading')}</h3>
-            <p className="text-body">{serverMessage}</p>
-          </div>
-
-          <div className="flex flex-col gap-2 pt-1">
+          <div className="pt-2 border-t border-caption/10 flex flex-col gap-1">
             {tripId && (
               <button
                 type="button"
@@ -178,6 +246,31 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
               {t('notifications.goToTrips')}
             </button>
           </div>
+
+          <details
+            className="rounded-lg border border-caption/10 bg-bg-secondary px-3 py-2"
+            open={pushStatusOpen}
+            onToggle={(e) => setPushStatusOpen((e.currentTarget as HTMLDetailsElement).open)}
+          >
+            <summary className="cursor-pointer font-ui text-xs font-medium text-heading">
+              {t('notifications.pushStatusHeading')}
+            </summary>
+            <div className="mt-3 space-y-3">
+              <div>
+                <h3 className="font-ui font-medium text-heading text-xs mb-1">
+                  {t('notifications.statusHeading')}
+                </h3>
+                <p className="text-body text-xs">{deviceMessage}</p>
+              </div>
+
+              <div>
+                <h3 className="font-ui font-medium text-heading text-xs mb-1">
+                  {t('notifications.serverHeading')}
+                </h3>
+                <p className="text-body text-xs">{serverMessage}</p>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
     </>

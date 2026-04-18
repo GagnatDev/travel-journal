@@ -67,7 +67,11 @@ function StoryModeTimelineListFlat({
             {...(row.locationSummary !== undefined ? { locationSummary: row.locationSummary } : {})}
           />
         ) : (
-          <div key={row.key} className={row.isFirstInDay ? 'pt-4 pb-4' : 'pb-4'}>
+          <div
+            key={row.key}
+            data-entry-id={row.entry.id}
+            className={row.isFirstInDay ? 'pt-4 pb-4' : 'pb-4'}
+          >
             <EntryCard
               entry={row.entry}
               tripId={tripId}
@@ -124,6 +128,7 @@ function StoryModeTimelineListVirtual({
         return (
           <div
             key={row.key}
+            data-entry-id={row.entry.id}
             data-index={virtualRow.index}
             ref={rowVirtualizer.measureElement}
             className={`absolute left-0 top-0 w-full ${row.isFirstInDay ? 'pt-4 pb-4' : 'pb-4'}`}
