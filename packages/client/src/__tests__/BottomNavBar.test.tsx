@@ -28,12 +28,25 @@ describe('BottomNavBar', () => {
     expect(screen.queryByText('Tidslinje')).not.toBeInTheDocument();
   });
 
-  it('renders timeline, map, and settings items when tripId is given without addEntry', () => {
+  it('renders only timeline and map for followers (no settings, no FAB)', () => {
     renderNav({ tripId: 'trip-1', tripRole: 'follower' });
     expect(screen.getByText('Tidslinje')).toBeInTheDocument();
     expect(screen.getByText('Kart')).toBeInTheDocument();
-    expect(screen.getByText('Innstillinger')).toBeInTheDocument();
+    expect(screen.queryByText('Innstillinger')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Legg til innlegg' })).not.toBeInTheDocument();
+  });
+
+  it('renders timeline, map, and settings items for creator and contributor', () => {
+    const { unmount } = renderNav({ tripId: 'trip-1', tripRole: 'creator' });
+    expect(screen.getByText('Tidslinje')).toBeInTheDocument();
+    expect(screen.getByText('Kart')).toBeInTheDocument();
+    expect(screen.getByText('Innstillinger')).toBeInTheDocument();
+    unmount();
+
+    renderNav({ tripId: 'trip-1', tripRole: 'contributor' });
+    expect(screen.getByText('Tidslinje')).toBeInTheDocument();
+    expect(screen.getByText('Kart')).toBeInTheDocument();
+    expect(screen.getByText('Innstillinger')).toBeInTheDocument();
   });
 
   it('renders FAB when tripId and canAddEntry (creator)', () => {

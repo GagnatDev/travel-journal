@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TripRole } from '@travel-journal/shared';
 
+import { canAccessTripSettingsScreen } from '../screens/tripSettings/tripSettingsPermissions.js';
+
 import { HomeIcon, MapPinIcon, PeopleIcon, PlusIcon, TimelineIcon } from './icons/index.js';
 import { SyncStatus } from './SyncStatus.js';
 
@@ -17,6 +19,7 @@ export function BottomNavBar({ tripId, tripRole }: BottomNavBarProps) {
   const location = useLocation();
 
   const canAddEntry = tripRole === 'creator' || tripRole === 'contributor';
+  const canOpenTripSettings = canAccessTripSettingsScreen(tripRole);
 
   function navItem(label: string, path: string, icon: ReactNode) {
     const isActive = location.pathname === path;
@@ -47,7 +50,7 @@ export function BottomNavBar({ tripId, tripRole }: BottomNavBarProps) {
         <div className="flex items-center px-4 py-2 relative">
           {tripId ? (
             canAddEntry ? (
-              // FAB layout: Timeline | Map | [FAB spacer] | Settings | People
+              // FAB layout: Timeline | Map | [FAB spacer] | Settings
               <>
                 <div className="flex-1 flex justify-around">
                   {navItem(
@@ -63,15 +66,16 @@ export function BottomNavBar({ tripId, tripRole }: BottomNavBarProps) {
                 </div>
                 <div className="w-14 shrink-0" />
                 <div className="flex-1 flex justify-around">
-                  {navItem(
-                    t('trips.nav.settings'),
-                    `/trips/${tripId}/settings`,
-                    <PeopleIcon width={20} height={20} aria-hidden="true" />,
-                  )}
+                  {canOpenTripSettings &&
+                    navItem(
+                      t('trips.nav.settings'),
+                      `/trips/${tripId}/settings`,
+                      <PeopleIcon width={20} height={20} aria-hidden="true" />,
+                    )}
                 </div>
               </>
             ) : (
-              // No FAB: evenly distribute all items
+              // No FAB: evenly distribute allowed items (followers see only timeline + map)
               <div className="flex-1 flex justify-around">
                 {navItem(
                   t('trips.nav.timeline'),
@@ -83,11 +87,12 @@ export function BottomNavBar({ tripId, tripRole }: BottomNavBarProps) {
                   `/trips/${tripId}/map`,
                   <MapPinIcon width={20} height={20} aria-hidden="true" />,
                 )}
-                {navItem(
-                  t('trips.nav.settings'),
-                  `/trips/${tripId}/settings`,
-                  <PeopleIcon width={20} height={20} aria-hidden="true" />,
-                )}
+                {canOpenTripSettings &&
+                  navItem(
+                    t('trips.nav.settings'),
+                    `/trips/${tripId}/settings`,
+                    <PeopleIcon width={20} height={20} aria-hidden="true" />,
+                  )}
               </div>
             )
           ) : (
