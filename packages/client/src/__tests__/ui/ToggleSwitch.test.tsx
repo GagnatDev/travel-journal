@@ -42,4 +42,15 @@ describe('ToggleSwitch', () => {
     const label = container.querySelector('label[for="my-toggle"]');
     expect(label).toBeInTheDocument();
   });
+
+  it('uses theme-backed off-state track styles when unchecked (visibility contract)', () => {
+    const { container } = render(
+      <div className="bg-bg-primary p-4">
+        <ToggleSwitch id="test-toggle" checked={false} onChange={vi.fn()} label="Enable feature" />
+      </div>,
+    );
+    const track = container.querySelector('[data-switch-track]');
+    expect(track).toBeTruthy();
+    expect(track).toHaveClass('bg-toggle-track-off', 'border-toggle-track-off-border');
+  });
 });
