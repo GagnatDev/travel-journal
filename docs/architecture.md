@@ -53,6 +53,8 @@ Dockerfile
 | PWA | Service Worker + Web App Manifest | Offline caching, background sync (Phase 2), push (Phase 2) |
 | State | TBD (React Query recommended) | Server-state caching aligns well with offline sync requirements |
 
+For production bundle size, use the treemap report described in [`docs/client-bundle-analysis.md`](client-bundle-analysis.md).
+
 ### Language Detection Order
 1. `preferredLocale` from the authenticated user's profile (synced from the database on login; cached in `localStorage` for immediate access on subsequent loads)
 2. Browser `Accept-Language` header (first visit only, before any account exists)
