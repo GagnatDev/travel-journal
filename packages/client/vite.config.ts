@@ -37,6 +37,14 @@ export default defineConfig({
       includeAssets: ['*.png', '*.webmanifest'],
       // Reuse the existing manifest.webmanifest in public/
       manifest: false,
+      // Without this, `navigator.serviceWorker.ready` never resolves in `pnpm dev`,
+      // which in turn makes push-enabled features (e.g. per-trip notification mode)
+      // hang silently when they call `ensurePushSubscription`.
+      devOptions: {
+        enabled: true,
+        type: 'module',
+        navigateFallback: 'index.html',
+      },
       injectManifest: {
         // Default Workbox cap is 2 MiB; the main bundle (e.g. Mapbox) is larger — precache it explicitly.
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
