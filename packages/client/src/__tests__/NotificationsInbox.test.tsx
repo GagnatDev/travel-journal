@@ -62,6 +62,21 @@ const releaseNotification: AppNotification = {
   data: { type: 'system.release_announcement', version: '2.3.0' },
 };
 
+const digestNotification: AppNotification = {
+  id: 'notif-digest-1',
+  type: 'trip.new_entry_digest',
+  createdAt: new Date(Date.now() - 3 * 60_000).toISOString(),
+  readAt: null,
+  data: {
+    type: 'trip.new_entry_digest',
+    tripId: 'trip-abc',
+    tripName: 'Nordic Loop',
+    entryCount: 3,
+    windowStart: new Date(Date.now() - 24 * 60 * 60_000).toISOString(),
+    windowEnd: new Date().toISOString(),
+  },
+};
+
 const messageNotification: AppNotification = {
   id: 'notif-msg-1',
   type: 'user.private_message',
@@ -225,6 +240,28 @@ describe('Notifications inbox (bell badge + panel)', () => {
       expect(screen.queryByTestId('notification-item-notif-trip-1')).not.toBeInTheDocument(),
     );
     await waitFor(() => expect(dismissCalled).toBe(true));
+  });
+
+  it('renders a trip.new_entry_digest item with count + trip name and deep-links to the timeline', async () => {
+    server.use(
+      http.delete(
+        '/api/v1/notifications/notif-digest-1',
+        () => new HttpResponse(null, { status: 204 }),
+      ),
+    );
+    renderPanel({ notifications: [digestNotification], unreadCount: 1 });
+
+    const item = await screen.findByTestId('notification-item-notif-digest-1');
+    expect(item).toHaveTextContent(/Nordic Loop/);
+    expect(item).toHaveTextContent(/3/);
+
+    const titleButton = item.querySelector('button');
+    expect(titleButton).not.toBeNull();
+    await userEvent.click(titleButton!);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('router-path')).toHaveTextContent('/trips/trip-abc/timeline'),
+    );
   });
 
   it('navigates to the deep link when a trip.new_entry notification is activated', async () => {
