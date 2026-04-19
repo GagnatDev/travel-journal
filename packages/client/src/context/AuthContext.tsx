@@ -7,6 +7,31 @@ import { registerRefresh } from '../api/tokenStore.js';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
+type BootstrapRefreshResponse = { accessToken: string; user: PublicUser };
+
+/**
+ * Module-level dedupe for the bootstrap refresh call. Under `<React.StrictMode>`
+ * the mount effect is invoked twice; without dedupe this issues two concurrent
+ * `POST /auth/refresh` requests with the same cookie. The rotation logic on the
+ * server is not atomic with the cookie lookup, so the losing request either
+ * double-rotates or hits "session not found" and clears the refresh cookie.
+ * Either way the second `.catch` overwrites the authenticated state and the
+ * user is silently kicked to `/login`, which surfaces as flaky e2e tests on CI.
+ */
+let bootstrapRefreshInFlight: Promise<BootstrapRefreshResponse> | null = null;
+
+function bootstrapRefresh(): Promise<BootstrapRefreshResponse> {
+  if (!bootstrapRefreshInFlight) {
+    bootstrapRefreshInFlight = apiJson<BootstrapRefreshResponse>('/api/v1/auth/refresh', {
+      method: 'POST',
+      credentials: 'include',
+    }).finally(() => {
+      bootstrapRefreshInFlight = null;
+    });
+  }
+  return bootstrapRefreshInFlight;
+}
+
 interface AuthState {
   accessToken: string | null;
   user: PublicUser | null;
@@ -35,16 +60,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('preferredLocale', user.preferredLocale);
   }, []);
 
-  // Attempt silent refresh on mount
+  // Attempt silent refresh on mount. The `bootstrapRefresh` dedupe guards
+  // against StrictMode double-invocation; the `cancelled` flag guards against
+  // late resolutions after a real unmount.
   useEffect(() => {
-    apiJson<{ accessToken: string; user: PublicUser }>('/api/v1/auth/refresh', {
-      method: 'POST',
-      credentials: 'include',
-    })
-      .then((data) => setAuthenticated(data.accessToken, data.user))
+    let cancelled = false;
+    bootstrapRefresh()
+      .then((data) => {
+        if (cancelled) return;
+        setAuthenticated(data.accessToken, data.user);
+      })
       .catch(() => {
+        if (cancelled) return;
         setState({ accessToken: null, user: null, status: 'unauthenticated' });
       });
+    return () => {
+      cancelled = true;
+    };
   }, [setAuthenticated]);
 
   // Register the refresh function with the API client when authenticated
