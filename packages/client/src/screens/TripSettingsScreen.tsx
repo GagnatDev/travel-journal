@@ -26,6 +26,7 @@ export function TripSettingsScreen() {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
 
   const [addMemberInput, setAddMemberInput] = useState('');
   const [addMemberRole, setAddMemberRole] = useState<'contributor' | 'follower'>('follower');
@@ -62,6 +63,7 @@ export function TripSettingsScreen() {
   useEffect(() => {
     if (!trip) return;
     setName(trip.name);
+    setDescription(trip.description ?? '');
   }, [trip?.id]);
 
   const myMember = trip?.members.find((m) => m.userId === user?.id);
@@ -95,7 +97,14 @@ export function TripSettingsScreen() {
 
       <main className="px-4 space-y-8">
         {canEditTripDetailsAndLifecycle(myRole) ? (
-          <TripDetailsSection t={t} name={name} setName={setName} updateMutation={updateMutation} />
+          <TripDetailsSection
+            t={t}
+            name={name}
+            setName={setName}
+            description={description}
+            setDescription={setDescription}
+            updateMutation={updateMutation}
+          />
         ) : null}
         {canEditTripDetailsAndLifecycle(myRole) ? (
           <TripStatusSection t={t} tripStatus={trip.status} statusMutation={statusMutation} />

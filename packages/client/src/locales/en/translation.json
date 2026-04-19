@@ -268,6 +268,7 @@
     "loadError": "Could not load entries.",
     "retryLoad": "Try again",
     "tripNameFallback": "Trip",
+    "tripIntroTitle": "About this trip",
     "moreOptions": "More options",
     "saveEntry": "SAVE ENTRY",
     "titleLabel": "Title",

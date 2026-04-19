@@ -175,6 +175,34 @@ describe('TripSettingsScreen', () => {
     });
   });
 
+  it('creator save sends description in PATCH body', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    renderSettings(makeTrip('active'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/^Beskrivelse|Description$/i)).toBeInTheDocument();
+    });
+
+    const desc = screen.getByLabelText(/^Beskrivelse|Description$/i);
+    await userEvent.clear(desc);
+    await userEvent.type(desc, 'Family reunion in Oslo');
+    await userEvent.click(screen.getByRole('button', { name: /lagre|save/i }));
+
+    await waitFor(() => {
+      const patchCalls = fetchSpy.mock.calls.filter(
+        (c) => String(c[0]).includes('/api/v1/trips/trip-1') && (c[1] as RequestInit)?.method === 'PATCH',
+      );
+      expect(patchCalls.length).toBeGreaterThan(0);
+      const last = patchCalls[patchCalls.length - 1]!;
+      const init = last[1] as RequestInit;
+      expect(JSON.parse(String(init.body))).toMatchObject({
+        name: 'My Trip',
+        description: 'Family reunion in Oslo',
+      });
+    });
+    fetchSpy.mockRestore();
+  });
+
   it('shows creator settings after timeline using one QueryClient (trip cache matches useQuery shape)', async () => {
     vi.stubGlobal(
       'IntersectionObserver',

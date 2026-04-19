@@ -196,6 +196,25 @@ describe('PATCH /api/v1/trips/:id', () => {
     expect(res.status).toBe(200);
     expect(res.body.name).toBe('Updated Name');
   });
+
+  it('returns 200 and persists description for creator', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'My Trip' });
+
+    const tripId = createRes.body.id as string;
+
+    const res = await request(app)
+      .patch(`/api/v1/trips/${tripId}`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ description: '  Weekend in Bergen  ' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.description).toBe('Weekend in Bergen');
+  });
 });
 
 describe('PATCH /api/v1/trips/:id/members/me/notification-preferences', () => {

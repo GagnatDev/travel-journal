@@ -43,13 +43,14 @@ function makeEntry(overrides: Partial<Entry> = {}): Entry {
   };
 }
 
-function renderTimeline(user = mockUser) {
+function renderTimeline(user = mockUser, tripPartial?: Partial<Trip>) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const trip = { ...mockTrip, ...tripPartial };
   server.use(
     http.post('/api/v1/auth/refresh', () =>
       HttpResponse.json({ accessToken: 'mock-token', user }),
     ),
-    http.get('/api/v1/trips/:id', () => HttpResponse.json(mockTrip)),
+    http.get('/api/v1/trips/:id', () => HttpResponse.json(trip)),
   );
   return render(
     <QueryClientProvider client={qc}>
@@ -110,6 +111,39 @@ describe('TimelineScreen', () => {
         screen.getByText(/ingen innlegg ennå|no entries yet/i),
       ).toBeInTheDocument();
     });
+  });
+
+  it('renders trip intro below empty state when trip has a description', async () => {
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries`, () =>
+        HttpResponse.json({ entries: [], total: 0 }),
+      ),
+    );
+
+    renderTimeline(mockUser, { description: 'Summit weekend in the Alps.' });
+
+    await waitFor(() => {
+      expect(screen.getByText('Summit weekend in the Alps.')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('trip-timeline-intro')).toBeInTheDocument();
+  });
+
+  it('renders trip intro after entry cards when trip has a description', async () => {
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries`, () =>
+        HttpResponse.json({ entries: [makeEntry()], total: 1 }),
+      ),
+    );
+
+    renderTimeline(mockUser, { description: 'Coastal road trip.' });
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Entry')).toBeInTheDocument();
+    });
+
+    const intro = screen.getByTestId('trip-timeline-intro');
+    const entryTitle = screen.getByText('Test Entry');
+    expect(entryTitle.compareDocumentPosition(intro)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it('shows Add Entry FAB for creators', async () => {

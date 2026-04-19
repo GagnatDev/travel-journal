@@ -8,6 +8,7 @@ import {
   createTrip,
   getTripById,
   listTripsForUser,
+  updateTrip,
   updateTripStatus,
   assertTripCreator,
   isValidStatusTransition,
@@ -78,6 +79,34 @@ describe('createTrip', () => {
     expect(trip.members[0]!.userId).toBe(userId);
     expect(trip.members[0]!.tripRole).toBe('creator');
     expect(trip.status).toBe('planned');
+  });
+
+  it('stores trimmed description and omits when blank', async () => {
+    const user = await makeUser('creator@test.com');
+    const userId = String(user._id);
+
+    const withDesc = await createTrip({ name: 'T', description: '  Alps  ' }, userId);
+    expect(withDesc.description).toBe('Alps');
+
+    const noDesc = await createTrip({ name: 'T2', description: '   ' }, userId);
+    expect(noDesc.description).toBeUndefined();
+  });
+});
+
+describe('updateTrip', () => {
+  it('updates and clears description', async () => {
+    const user = await makeUser('creator@test.com');
+    const userId = String(user._id);
+    const trip = await createTrip({ name: 'T', description: 'Original' }, userId);
+
+    const updated = await updateTrip(trip.id, { description: '  Next  ' }, userId);
+    expect(updated.description).toBe('Next');
+
+    const cleared = await updateTrip(trip.id, { description: '  ' }, userId);
+    expect(cleared.description).toBeUndefined();
+
+    const raw = await Trip.findById(trip.id).lean();
+    expect(raw?.description).toBeUndefined();
   });
 });
 

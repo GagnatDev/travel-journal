@@ -11,6 +11,12 @@ function createHttpError(message: string, status: number, code: string): Error {
   return err;
 }
 
+function normalizeTripDescription(input: string | undefined): string | undefined {
+  if (input === undefined) return undefined;
+  const trimmed = input.trim();
+  return trimmed === '' ? undefined : trimmed;
+}
+
 async function toTrip(doc: ITrip): Promise<Trip> {
   const userIds = doc.members.map((m) => m.userId);
   const users = await User.find({ _id: { $in: userIds } }).lean();
@@ -34,7 +40,9 @@ async function toTrip(doc: ITrip): Promise<Trip> {
     updatedAt: doc.updatedAt.toISOString(),
   };
 
-  if (doc.description !== undefined) trip.description = doc.description;
+  if (typeof doc.description === 'string' && doc.description.trim() !== '') {
+    trip.description = doc.description.trim();
+  }
   if (doc.departureDate !== undefined) trip.departureDate = doc.departureDate.toISOString();
   if (doc.returnDate !== undefined) trip.returnDate = doc.returnDate.toISOString();
 
@@ -61,7 +69,7 @@ export async function createTrip(data: CreateTripRequest, creatorId: string): Pr
 
   const doc = await TripModel.create({
     name: data.name.trim(),
-    description: data.description,
+    description: normalizeTripDescription(data.description),
     departureDate: data.departureDate ? new Date(data.departureDate) : undefined,
     returnDate: data.returnDate ? new Date(data.returnDate) : undefined,
     createdBy: new mongoose.Types.ObjectId(creatorId),
@@ -109,7 +117,14 @@ export async function updateTrip(
   assertTripCreator(trip, requesterId);
 
   if (data.name !== undefined) doc.name = data.name.trim();
-  if (data.description !== undefined) doc.description = data.description;
+  if (data.description !== undefined) {
+    const next = normalizeTripDescription(data.description);
+    if (next === undefined) {
+      doc.set('description', undefined);
+    } else {
+      doc.description = next;
+    }
+  }
   if (data.departureDate !== undefined) {
     if (data.departureDate) {
       doc.departureDate = new Date(data.departureDate);

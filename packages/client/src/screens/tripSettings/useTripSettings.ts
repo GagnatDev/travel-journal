@@ -70,7 +70,8 @@ export function useTripSettings({
   };
 
   const updateMutation = useMutation({
-    mutationFn: (data: { name?: string }) => patchTrip(tripId!, data, accessToken!),
+    mutationFn: (data: { name?: string; description?: string }) =>
+      patchTrip(tripId!, data, accessToken!),
     onSuccess: invalidateTripListsAndDetail,
   });
 

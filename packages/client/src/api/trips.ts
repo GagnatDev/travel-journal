@@ -3,6 +3,7 @@ import type {
   Trip,
   TripStatus,
   UpdateTripMemberNotificationPreferencesRequest,
+  UpdateTripRequest,
 } from '@travel-journal/shared';
 
 import { apiJson, apiJsonIfOk } from './client.js';
@@ -25,7 +26,7 @@ export async function fetchTripInvites(tripId: string, token: string): Promise<I
 
 export function patchTrip(
   tripId: string,
-  body: { name?: string },
+  body: Pick<UpdateTripRequest, 'name' | 'description'>,
   token: string,
 ): Promise<Trip> {
   return apiJson<Trip>(`/api/v1/trips/${tripId}`, { method: 'PATCH', token, body });
