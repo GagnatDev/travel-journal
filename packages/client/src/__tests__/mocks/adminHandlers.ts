@@ -42,6 +42,13 @@ export const adminHandlers = [
     }),
   ),
 
+  http.post('/api/v1/users/:id/password-reset-link', ({ params }) =>
+    HttpResponse.json(
+      { resetLink: `/password-reset?token=mock-reset-${params['id']}` },
+      { status: 201 },
+    ),
+  ),
+
   http.patch('/api/v1/users/me', async ({ request }) => {
     const body = (await request.json()) as Partial<typeof mockUser>;
     return HttpResponse.json({ ...mockUser, ...body });

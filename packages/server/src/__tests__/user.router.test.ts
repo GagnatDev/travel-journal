@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import mongoose from 'mongoose';
 
 import { createApp } from '../app.js';
+import { AdminPasswordResetToken } from '../models/AdminPasswordResetToken.model.js';
 import { User } from '../models/User.model.js';
 import { generateAccessToken, hashPassword } from '../services/auth.service.js';
 
@@ -16,6 +17,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await User.deleteMany({});
+  await AdminPasswordResetToken.deleteMany({});
 });
 
 afterAll(async () => {
@@ -100,6 +102,41 @@ describe('PATCH /api/v1/users/:id/promote', () => {
       .set('Authorization', authHeader(String(admin._id), admin.email, 'admin'));
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /api/v1/users/:id/password-reset-link', () => {
+  it('returns 403 for non-admin', async () => {
+    const user = await makeUser('user@test.com', 'creator');
+
+    const res = await request(app)
+      .post(`/api/v1/users/${String(user._id)}/password-reset-link`)
+      .set('Authorization', authHeader(String(user._id), user.email, 'creator'));
+
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 404 when user does not exist', async () => {
+    const admin = await makeUser('admin@test.com', 'admin');
+    const fakeId = new mongoose.Types.ObjectId();
+
+    const res = await request(app)
+      .post(`/api/v1/users/${String(fakeId)}/password-reset-link`)
+      .set('Authorization', authHeader(String(admin._id), admin.email, 'admin'));
+
+    expect(res.status).toBe(404);
+  });
+
+  it('returns resetLink for admin', async () => {
+    const admin = await makeUser('admin@test.com', 'admin');
+    const target = await makeUser('target@test.com', 'follower');
+
+    const res = await request(app)
+      .post(`/api/v1/users/${String(target._id)}/password-reset-link`)
+      .set('Authorization', authHeader(String(admin._id), admin.email, 'admin'));
+
+    expect(res.status).toBe(201);
+    expect(res.body.resetLink).toMatch(/^\/password-reset\?token=[a-f0-9]+$/);
   });
 });
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -8,17 +8,30 @@ import { useAuth } from '../context/AuthContext.js';
 
 const fieldErrorClass = 'mt-1 text-xs text-accent font-ui';
 
+type LoginLocationState = {
+  sessionExpired?: boolean;
+  passwordResetComplete?: boolean;
+  email?: string;
+} | null;
+
 export function LoginScreen() {
   const { t } = useTranslation();
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const sessionExpired = (location.state as { sessionExpired?: boolean } | null)?.sessionExpired === true;
+  const locState = location.state as LoginLocationState;
+  const sessionExpired = locState?.sessionExpired === true;
+  const passwordResetComplete = locState?.passwordResetComplete === true;
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(locState?.email ?? '');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string; api?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const s = location.state as LoginLocationState;
+    if (s?.email) setEmail(s.email);
+  }, [location.state]);
 
   function validate(): boolean {
     const newErrors: typeof errors = {};
@@ -50,6 +63,11 @@ export function LoginScreen() {
       {sessionExpired && (
         <p role="alert" className="mb-4 text-sm text-center font-ui text-accent">
           {t('auth.login.sessionExpired')}
+        </p>
+      )}
+      {passwordResetComplete && (
+        <p role="status" className="mb-4 text-sm text-center font-ui text-body">
+          {t('auth.login.passwordResetComplete')}
         </p>
       )}
 

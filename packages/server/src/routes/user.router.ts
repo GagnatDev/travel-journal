@@ -3,6 +3,7 @@ import type { AccessTokenPayload } from '@travel-journal/shared';
 
 import { requireAppRole, requireAuth } from '../middleware/auth.middleware.js';
 import { User } from '../models/User.model.js';
+import { createAdminPasswordResetLink } from '../services/adminPasswordReset.service.js';
 
 export const userRouter: Router = Router();
 
@@ -113,6 +114,22 @@ userRouter.patch(
       await user.save();
 
       res.json(toPublicUser(user));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// POST /:id/password-reset-link — Mint single-use reset link (admin only)
+userRouter.post(
+  '/:id/password-reset-link',
+  requireAppRole('admin'),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const auth = res.locals['auth'] as AccessTokenPayload;
+      const userId = req.params['id']!;
+      const { resetLink } = await createAdminPasswordResetLink(userId, auth.userId);
+      res.status(201).json({ resetLink });
     } catch (err) {
       next(err);
     }
