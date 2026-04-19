@@ -7,7 +7,7 @@ import { PillButton } from '../../components/ui/PillButton.js';
 import { ImageReorder } from '../../components/ImageReorder.js';
 import { entryTextControlClass } from '../../components/ui/fieldStyles.js';
 
-import type { EntryFormState } from './entryFormState.js';
+import type { EntryFormState, EntryLocationSource } from './entryFormState.js';
 
 export interface CreateEntryFormProps {
   form: EntryFormState;
@@ -21,8 +21,9 @@ export interface CreateEntryFormProps {
   uploadingCount: number;
   uploadError: string;
   handleRemoveLocalFile: (index: number) => void;
-  handleLocationToggle: () => void;
-  handleSubmit: (e: React.FormEvent) => void;
+  handleLocationSourceChange: (source: EntryLocationSource) => void;
+  exifPreviewCoords: { lat: number; lng: number } | null;
+  handleSubmit: (e: React.FormEvent) => void | Promise<void>;
   handleDiscard: () => void;
   isPending: boolean;
   savedOffline: boolean;
@@ -42,7 +43,8 @@ export function CreateEntryForm({
   uploadingCount,
   uploadError,
   handleRemoveLocalFile,
-  handleLocationToggle,
+  handleLocationSourceChange,
+  exifPreviewCoords,
   handleSubmit,
   handleDiscard,
   isPending,
@@ -52,6 +54,12 @@ export function CreateEntryForm({
 }: CreateEntryFormProps) {
   const { t } = useTranslation();
   const hasImages = images.length > 0 || localPreviews.length > 0;
+
+  const showLocationDetails = form.locationSource !== 'off';
+  const displayLat =
+    form.locationSource === 'device' ? form.locationLat : exifPreviewCoords?.lat ?? null;
+  const displayLng =
+    form.locationSource === 'device' ? form.locationLng : exifPreviewCoords?.lng ?? null;
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col min-h-full">
@@ -183,22 +191,53 @@ export function CreateEntryForm({
         <IconBadge>
           <MapPinIcon width={16} height={16} className="text-body" />
         </IconBadge>
-        <div className="flex-1">
-          <label className="flex items-center gap-2 cursor-pointer" htmlFor="location-toggle">
-            <p className="font-ui text-xs text-caption uppercase tracking-wide">{t('entries.locationToggle')}</p>
-            <input
-              id="location-toggle"
-              type="checkbox"
-              checked={form.locationEnabled}
-              onChange={handleLocationToggle}
-              className="w-4 h-4 accent-accent"
-            />
-          </label>
-          {form.locationEnabled && (
+        <fieldset className="flex-1 min-w-0 border-0 p-0 m-0">
+          <legend className="font-ui text-xs text-caption uppercase tracking-wide mb-2">
+            {t('entries.locationSectionLabel')}
+          </legend>
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-2 cursor-pointer font-ui text-sm text-body">
+              <input
+                type="radio"
+                name="entry-location-source"
+                checked={form.locationSource === 'off'}
+                onChange={() => handleLocationSourceChange('off')}
+                className="w-4 h-4 accent-accent shrink-0"
+                aria-label={t('entries.locationSourceOff')}
+              />
+              <span>{t('entries.locationSourceOff')}</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer font-ui text-sm text-body">
+              <input
+                type="radio"
+                name="entry-location-source"
+                checked={form.locationSource === 'device'}
+                onChange={() => handleLocationSourceChange('device')}
+                className="w-4 h-4 accent-accent shrink-0"
+                aria-label={t('entries.locationSourceDevice')}
+              />
+              <span>{t('entries.locationSourceDevice')}</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer font-ui text-sm text-body">
+              <input
+                type="radio"
+                name="entry-location-source"
+                checked={form.locationSource === 'exif'}
+                onChange={() => handleLocationSourceChange('exif')}
+                className="w-4 h-4 accent-accent shrink-0"
+                aria-label={t('entries.locationSourceExif')}
+              />
+              <span>{t('entries.locationSourceExif')}</span>
+            </label>
+          </div>
+          {showLocationDetails && (
             <div className="mt-2 space-y-1">
-              {form.locationLat !== null && form.locationLng !== null && (
+              {form.locationSource === 'exif' && (
+                <p className="font-ui text-xs text-caption">{t('entries.locationFromPhotoHint')}</p>
+              )}
+              {displayLat !== null && displayLng !== null && (
                 <p className="font-ui text-xs text-caption">
-                  {form.locationLat.toFixed(5)}, {form.locationLng.toFixed(5)}
+                  {displayLat.toFixed(5)}, {displayLng.toFixed(5)}
                 </p>
               )}
               <input
@@ -211,7 +250,7 @@ export function CreateEntryForm({
               />
             </div>
           )}
-        </div>
+        </fieldset>
       </div>
 
       {/* Footer */}

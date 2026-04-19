@@ -10,6 +10,7 @@ import { AuthProvider } from '../context/AuthContext.js';
 import { CreateEntryScreen } from '../screens/CreateEntryScreen.js';
 import { getPendingEntry } from '../offline/db.js';
 import { saveOfflineEntry } from '../offline/entrySync.js';
+import { extractImageGps } from '../utils/extractImageGps.js';
 
 import { server } from './mocks/server.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
@@ -30,6 +31,16 @@ vi.mock('../offline/entrySync.js', async (importOriginal) => {
     saveOfflineEntry: vi.fn(() => Promise.resolve()),
   };
 });
+
+vi.mock('../utils/extractImageGps.js', () => ({
+  extractImageGps: vi.fn(() => Promise.resolve(null)),
+}));
+
+vi.mock('../utils/compressImage.js', () => ({
+  compressImage: vi.fn(() =>
+    Promise.resolve({ blob: new Blob([new Uint8Array([1])], { type: 'image/jpeg' }), width: 1, height: 1 }),
+  ),
+}));
 
 const TRIP_ID = 'trip-1';
 const FIXED_CREATED_AT = 1_700_000_000_000;
@@ -73,6 +84,8 @@ function renderCreate(initialPath = `/trips/${TRIP_ID}/entries/new`) {
 describe('CreateEntryScreen', () => {
   beforeEach(() => {
     vi.mocked(getPendingEntry).mockReset();
+    vi.mocked(extractImageGps).mockReset();
+    vi.mocked(extractImageGps).mockResolvedValue(null);
     // Mock geolocation
     const mockGetCurrentPosition = vi.fn((success: PositionCallback) => {
       success({
@@ -82,6 +95,7 @@ describe('CreateEntryScreen', () => {
     });
     vi.stubGlobal('navigator', {
       ...navigator,
+      onLine: true,
       geolocation: { getCurrentPosition: mockGetCurrentPosition },
     });
   });
@@ -110,18 +124,102 @@ describe('CreateEntryScreen', () => {
     expect(postSpy).not.toHaveBeenCalled();
   });
 
-  it('enabling location toggle calls geolocation.getCurrentPosition and shows coordinates', async () => {
+  it('selecting current location calls geolocation.getCurrentPosition and shows coordinates', async () => {
     renderCreate();
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/legg til plassering|add location/i)).toBeInTheDocument();
+      expect(screen.getByRole('radio', { name: /nåværende posisjon|current location/i })).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByLabelText(/legg til plassering|add location/i));
+    await userEvent.click(screen.getByRole('radio', { name: /nåværende posisjon|current location/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/59.91390|59\.9139/i)).toBeInTheDocument();
     });
+  });
+
+  it('EXIF location sends coordinates when first photo has GPS metadata', async () => {
+    vi.mocked(extractImageGps).mockResolvedValue({ lat: 48.8584, lng: 2.2945 });
+    let postedBody: unknown;
+    server.use(
+      http.post(`/api/v1/trips/${TRIP_ID}/entries`, async ({ request }) => {
+        postedBody = await request.json();
+        return HttpResponse.json({ ...mockEntry, id: 'new-entry' }, { status: 201 });
+      }),
+    );
+
+    renderCreate();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('entry-media-file-input')).toBeInTheDocument();
+    });
+
+    const file = new File([new Uint8Array([1, 2, 3])], 'photo.jpg', { type: 'image/jpeg' });
+    await userEvent.upload(screen.getByTestId('entry-media-file-input'), file);
+
+    await waitFor(() => {
+      expect(extractImageGps).toHaveBeenCalled();
+    });
+
+    await userEvent.click(screen.getByRole('radio', { name: /første bilde|first photo/i }));
+
+    await userEvent.type(screen.getByLabelText(/tittel|title/i), 'With GPS');
+    await userEvent.type(screen.getByLabelText(/innhold|content/i), 'Body text');
+    await userEvent.click(screen.getByRole('button', { name: /lagre innlegg|save entry/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('timeline')).toBeInTheDocument();
+    });
+
+    expect(postedBody).toEqual(
+      expect.objectContaining({
+        title: 'With GPS',
+        content: 'Body text',
+        location: expect.objectContaining({ lat: 48.8584, lng: 2.2945 }),
+      }),
+    );
+  });
+
+  it('EXIF location omits location when photo has no GPS metadata', async () => {
+    vi.mocked(extractImageGps).mockResolvedValue(null);
+    let postedBody: unknown;
+    server.use(
+      http.post(`/api/v1/trips/${TRIP_ID}/entries`, async ({ request }) => {
+        postedBody = await request.json();
+        return HttpResponse.json({ ...mockEntry, id: 'new-entry' }, { status: 201 });
+      }),
+    );
+
+    renderCreate();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('entry-media-file-input')).toBeInTheDocument();
+    });
+
+    const file = new File([new Uint8Array([1, 2, 3])], 'photo.jpg', { type: 'image/jpeg' });
+    await userEvent.upload(screen.getByTestId('entry-media-file-input'), file);
+
+    await waitFor(() => {
+      expect(extractImageGps).toHaveBeenCalled();
+    });
+
+    await userEvent.click(screen.getByRole('radio', { name: /første bilde|first photo/i }));
+
+    await userEvent.type(screen.getByLabelText(/tittel|title/i), 'No GPS');
+    await userEvent.type(screen.getByLabelText(/innhold|content/i), 'Body text');
+    await userEvent.click(screen.getByRole('button', { name: /lagre innlegg|save entry/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('timeline')).toBeInTheDocument();
+    });
+
+    expect(postedBody).toEqual(
+      expect.objectContaining({
+        title: 'No GPS',
+        content: 'Body text',
+      }),
+    );
+    expect((postedBody as { location?: unknown }).location).toBeUndefined();
   });
 
   it('navigating away with unsaved changes triggers a confirmation dialog', async () => {

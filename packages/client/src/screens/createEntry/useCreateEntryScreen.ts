@@ -2,18 +2,28 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import type { CreateEntryRequest, EntryImage, UpdateEntryRequest } from '@travel-journal/shared';
+import type {
+  CreateEntryRequest,
+  EntryImage,
+  EntryLocation,
+  UpdateEntryRequest,
+} from '@travel-journal/shared';
 
 import { createEntry, fetchEntry, updateEntry } from '../../api/entries.js';
 import { uploadMedia } from '../../api/media.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { compressImage } from '../../utils/compressImage.js';
+import { extractImageGps } from '../../utils/extractImageGps.js';
 import { getPendingEntry } from '../../offline/db.js';
 import { saveOfflineEntry } from '../../offline/entrySync.js';
 import { QUERY_STALE_MS } from '../../lib/appQueryClient.js';
 
 import { EMPTY_ENTRY_FORM, type EntryFormState } from './entryFormState.js';
 import { useEntryForm } from './useEntryForm.js';
+
+function firstImageByOrder(images: EntryImage[]): EntryImage | undefined {
+  return [...images].sort((a, b) => a.order - b.order)[0];
+}
 
 export function useCreateEntryScreen() {
   const { id: tripId, entryId, localId: pendingLocalId } = useParams<{
@@ -44,6 +54,13 @@ export function useCreateEntryScreen() {
   const [uploadingCount, setUploadingCount] = useState(0);
   const [uploadError, setUploadError] = useState('');
   const [savedOffline, setSavedOffline] = useState(false);
+  const [gpsByMediaKey, setGpsByMediaKey] = useState<Record<string, { lat: number; lng: number } | null>>(
+    {},
+  );
+  const [offlineFirstPhotoGps, setOfflineFirstPhotoGps] = useState<{ lat: number; lng: number } | null>(
+    null,
+  );
+  const [submitBusy, setSubmitBusy] = useState(false);
 
   const localPreviews = useMemo(
     () => localFiles.map((f) => URL.createObjectURL(f)),
@@ -66,7 +83,42 @@ export function useCreateEntryScreen() {
     setLocalFiles([]);
     setInitialLocalFiles([]);
     setSavedOffline(false);
+    setGpsByMediaKey({});
+    setOfflineFirstPhotoGps(null);
   }, [tripId, location.pathname]);
+
+  useEffect(() => {
+    setGpsByMediaKey((prev) => {
+      const keys = new Set(images.map((i) => i.key));
+      let changed = false;
+      const next = { ...prev };
+      for (const k of Object.keys(next)) {
+        if (!keys.has(k)) {
+          delete next[k];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [images]);
+
+  useEffect(() => {
+    if (images.length > 0) {
+      setOfflineFirstPhotoGps(null);
+      return;
+    }
+    if (localFiles.length === 0) {
+      setOfflineFirstPhotoGps(null);
+      return;
+    }
+    let cancelled = false;
+    void extractImageGps(localFiles[0]!).then((g) => {
+      if (!cancelled) setOfflineFirstPhotoGps(g);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [images.length, localFiles]);
 
   const { data: existingEntry } = useQuery({
     queryKey: ['entry', tripId, entryId],
@@ -80,7 +132,7 @@ export function useCreateEntryScreen() {
     const loaded: EntryFormState = {
       title: existingEntry.title,
       content: existingEntry.content,
-      locationEnabled: !!existingEntry.location,
+      locationSource: existingEntry.location ? 'device' : 'off',
       locationLat: existingEntry.location?.lat ?? null,
       locationLng: existingEntry.location?.lng ?? null,
       locationName: existingEntry.location?.name ?? '',
@@ -92,6 +144,7 @@ export function useCreateEntryScreen() {
     setInitialImages(loadedImages);
     setLocalFiles([]);
     setInitialLocalFiles([]);
+    setGpsByMediaKey({});
   }, [existingEntry?.id]);
 
   useEffect(() => {
@@ -108,7 +161,7 @@ export function useCreateEntryScreen() {
       const loaded: EntryFormState = {
         title: p.payload.title,
         content: p.payload.content,
-        locationEnabled: !!p.payload.location,
+        locationSource: p.payload.location ? 'device' : 'off',
         locationLat: p.payload.location?.lat ?? null,
         locationLng: p.payload.location?.lng ?? null,
         locationName: p.payload.location?.name ?? '',
@@ -121,6 +174,7 @@ export function useCreateEntryScreen() {
       const files = [...p.images];
       setLocalFiles(files);
       setInitialLocalFiles(files);
+      setGpsByMediaKey({});
     });
 
     return () => {
@@ -167,8 +221,10 @@ export function useCreateEntryScreen() {
       await Promise.all(
         toProcess.map(async (file) => {
           try {
+            const gpsResult = await extractImageGps(file);
             const { blob, width, height } = await compressImage(file);
             const result = await uploadMedia(tripId!, blob, width, height, accessToken!);
+            setGpsByMediaKey((prev) => ({ ...prev, [result.key]: gpsResult }));
             setImages((prev) => [
               ...prev,
               {
@@ -195,7 +251,48 @@ export function useCreateEntryScreen() {
     setLocalFiles((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const { handleLocationToggle, handleDiscard, validateRequiredFields } = useEntryForm(
+  const resolveSubmitLocation = useCallback(async (): Promise<EntryLocation | undefined> => {
+    if (form.locationSource === 'off') return undefined;
+
+    const name = form.locationName.trim() ? form.locationName.trim() : undefined;
+
+    if (form.locationSource === 'device') {
+      if (form.locationLat !== null && form.locationLng !== null) {
+        return {
+          lat: form.locationLat,
+          lng: form.locationLng,
+          ...(name !== undefined && { name }),
+        };
+      }
+      return undefined;
+    }
+
+    const first = firstImageByOrder(images);
+    let coords: { lat: number; lng: number } | null = null;
+    if (first) {
+      coords = gpsByMediaKey[first.key] ?? null;
+    } else if (localFiles[0]) {
+      coords = await extractImageGps(localFiles[0]);
+    }
+
+    if (!coords) return undefined;
+    return {
+      lat: coords.lat,
+      lng: coords.lng,
+      ...(name !== undefined && { name }),
+    };
+  }, [form.locationSource, form.locationLat, form.locationLng, form.locationName, images, localFiles, gpsByMediaKey]);
+
+  const exifPreviewCoords = useMemo((): { lat: number; lng: number } | null => {
+    if (form.locationSource !== 'exif') return null;
+    const first = firstImageByOrder(images);
+    if (first) {
+      return gpsByMediaKey[first.key] ?? null;
+    }
+    return offlineFirstPhotoGps;
+  }, [form.locationSource, images, gpsByMediaKey, offlineFirstPhotoGps]);
+
+  const { handleLocationSourceChange, handleDiscard, validateRequiredFields } = useEntryForm(
     form,
     setForm,
     initialForm,
@@ -211,67 +308,65 @@ export function useCreateEntryScreen() {
   );
 
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
 
       if (!validateRequiredFields()) return;
 
-      const location =
-        form.locationEnabled && form.locationLat !== null && form.locationLng !== null
-          ? {
-              lat: form.locationLat,
-              lng: form.locationLng,
-              ...(form.locationName.trim() && { name: form.locationName.trim() }),
-            }
-          : undefined;
+      setSubmitBusy(true);
+      try {
+        const location = await resolveSubmitLocation();
 
-      const createData: CreateEntryRequest = {
-        title: form.title.trim(),
-        content: form.content,
-        images,
-        ...(location !== undefined && { location }),
-      };
-
-      if (isServerEdit) {
-        updateMutation.mutate({
+        const createData: CreateEntryRequest = {
           title: form.title.trim(),
           content: form.content,
           images,
-          location: form.locationEnabled ? (location ?? null) : null,
-        });
-        return;
-      }
+          ...(location !== undefined && { location }),
+        };
 
-      if (isPendingEdit) {
-        if (!pendingOfflineMeta) return;
-        void saveOfflineEntry({
-          localId: pendingOfflineMeta.localId,
-          tripId: tripId!,
-          status: 'pending',
-          payload: createData,
-          images: localFiles,
-          createdAt: pendingOfflineMeta.createdAt,
-        });
-        setSavedOffline(true);
-        setTimeout(() => navigate(`/trips/${tripId}/timeline`), 1500);
-        return;
-      }
+        if (isServerEdit) {
+          await updateMutation.mutateAsync({
+            title: form.title.trim(),
+            content: form.content,
+            images,
+            location: form.locationSource !== 'off' ? (location ?? null) : null,
+          });
+          return;
+        }
 
-      if (navigator.onLine === false) {
-        void saveOfflineEntry({
-          localId: crypto.randomUUID(),
-          tripId: tripId!,
-          status: 'pending',
-          payload: createData,
-          images: localFiles,
-          createdAt: Date.now(),
-        });
-        setSavedOffline(true);
-        setTimeout(() => navigate(`/trips/${tripId}/timeline`), 1500);
-        return;
-      }
+        if (isPendingEdit) {
+          if (!pendingOfflineMeta) return;
+          await saveOfflineEntry({
+            localId: pendingOfflineMeta.localId,
+            tripId: tripId!,
+            status: 'pending',
+            payload: createData,
+            images: localFiles,
+            createdAt: pendingOfflineMeta.createdAt,
+          });
+          setSavedOffline(true);
+          setTimeout(() => navigate(`/trips/${tripId}/timeline`), 1500);
+          return;
+        }
 
-      createMutation.mutate(createData);
+        if (navigator.onLine === false) {
+          await saveOfflineEntry({
+            localId: crypto.randomUUID(),
+            tripId: tripId!,
+            status: 'pending',
+            payload: createData,
+            images: localFiles,
+            createdAt: Date.now(),
+          });
+          setSavedOffline(true);
+          setTimeout(() => navigate(`/trips/${tripId}/timeline`), 1500);
+          return;
+        }
+
+        await createMutation.mutateAsync(createData);
+      } finally {
+        setSubmitBusy(false);
+      }
     },
     [
       form,
@@ -285,6 +380,7 @@ export function useCreateEntryScreen() {
       localFiles,
       images,
       validateRequiredFields,
+      resolveSubmitLocation,
     ],
   );
 
@@ -292,6 +388,7 @@ export function useCreateEntryScreen() {
     createMutation.isPending ||
     updateMutation.isPending ||
     uploadingCount > 0 ||
+    submitBusy ||
     (isPendingEdit && !pendingOfflineMeta);
 
   return {
@@ -308,7 +405,8 @@ export function useCreateEntryScreen() {
     uploadingCount,
     uploadError,
     handleRemoveLocalFile,
-    handleLocationToggle,
+    handleLocationSourceChange,
+    exifPreviewCoords,
     handleSubmit,
     handleDiscard,
     isPending,

@@ -1,9 +1,11 @@
 import type { EntryImage } from '@travel-journal/shared';
 
+export type EntryLocationSource = 'off' | 'device' | 'exif';
+
 export interface EntryFormState {
   title: string;
   content: string;
-  locationEnabled: boolean;
+  locationSource: EntryLocationSource;
   locationLat: number | null;
   locationLng: number | null;
   locationName: string;
@@ -12,7 +14,7 @@ export interface EntryFormState {
 export const EMPTY_ENTRY_FORM: EntryFormState = {
   title: '',
   content: '',
-  locationEnabled: false,
+  locationSource: 'off',
   locationLat: null,
   locationLng: null,
   locationName: '',
@@ -40,7 +42,7 @@ export function entryFormIsDirty(
     localFilesDirty ||
     form.title !== initial.title ||
     form.content !== initial.content ||
-    form.locationEnabled !== initial.locationEnabled ||
+    form.locationSource !== initial.locationSource ||
     form.locationLat !== initial.locationLat ||
     form.locationLng !== initial.locationLng ||
     form.locationName !== initial.locationName
