@@ -210,7 +210,9 @@ describe('MapScreen', () => {
   });
 
   it('shows token-missing banner and does not initialise Mapbox when token is unset', async () => {
-    vi.unstubAllEnvs();
+    // Stub empty explicitly: vi.unstubAllEnvs() restores the worker's real env, so a
+    // host/CI VITE_MAPBOX_TOKEN would make this test fail intermittently.
+    vi.stubEnv('VITE_MAPBOX_TOKEN', '');
     server.use(
       http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, () =>
         HttpResponse.json(mockPins),
