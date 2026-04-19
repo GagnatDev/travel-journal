@@ -166,9 +166,11 @@ export async function dispatchNewEntryNotification(entry: Entry): Promise<void> 
 
   const notificationIdByUser = await enqueueNotifications(recipientUserIds, data);
 
+  const authorLabel = entry.authorName?.trim() || 'En deltaker';
+
   await deliverWebPush(recipientUserIds, {
-    title: `New entry in ${trip.name}`,
-    body: `${entry.authorName || 'A trip member'}: ${entry.title}`,
+    title: `Nytt innlegg i ${trip.name}`,
+    body: `${authorLabel}: ${entry.title}`,
     data,
     notificationIdByUser,
   });

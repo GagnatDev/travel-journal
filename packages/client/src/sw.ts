@@ -29,8 +29,8 @@ interface PushPayload {
 
 self.addEventListener('push', (event) => {
   const payload = event.data?.json() as PushPayload | undefined;
-  const title = payload?.title ?? 'Travel Journal';
-  const body = payload?.body ?? 'You have a new notification';
+  const title = payload?.title ?? 'Reisedagbok';
+  const body = payload?.body ?? 'Du har et nytt varsel';
   const url = payload?.url ?? '/trips';
 
   event.waitUntil(

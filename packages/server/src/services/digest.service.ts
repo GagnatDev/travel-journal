@@ -80,11 +80,9 @@ export async function runDailyEntryDigest(options: RunDigestOptions = {}): Promi
       const notificationIdByUser = await enqueueNotifications([userObjectId], data);
       recipients += 1;
 
-      const title = `Today in ${trip.name}`;
+      const title = `I dag i ${trip.name}`;
       const body =
-        entryCount === 1
-          ? '1 new entry today'
-          : `${entryCount} new entries today`;
+        entryCount === 1 ? '1 nytt innlegg i dag' : `${entryCount} nye innlegg i dag`;
 
       const pushesBefore = pushesSent;
       await deliverWebPush([userObjectId], {

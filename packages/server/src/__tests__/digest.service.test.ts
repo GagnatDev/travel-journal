@@ -123,7 +123,7 @@ describe('runDailyEntryDigest', () => {
     const payload = JSON.parse(String(payloadArg));
     expect(payload.type).toBe('trip.new_entry_digest');
     expect(payload.url).toBe(`/trips/${trip.id}/timeline`);
-    expect(payload.body).toBe('2 new entries today');
+    expect(payload.body).toBe('2 nye innlegg i dag');
   });
 
   it('excludes entries authored by the digest recipient', async () => {
