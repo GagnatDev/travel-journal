@@ -33,11 +33,12 @@ export const tripHandlers = [
   }),
 
   http.patch('/api/v1/trips/:id', async ({ params, request }) => {
-    const body = (await request.json()) as Record<string, string>;
+    const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({
       ...mockTrip,
       id: params['id'],
-      name: body['name'] ?? 'Mock Trip',
+      name: typeof body['name'] === 'string' ? body['name'] : 'Mock Trip',
+      ...(typeof body['description'] === 'string' ? { description: body['description'] } : {}),
     });
   }),
 
