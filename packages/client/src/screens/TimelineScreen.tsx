@@ -139,9 +139,10 @@ export function TimelineScreen() {
     () => ({
       tripId: tripId!,
       currentUserId: user?.id ?? '',
+      canManageEntries: tripRole === 'creator' || tripRole === 'contributor',
       onDelete: requestDeleteEntry,
     }),
-    [tripId, user?.id, requestDeleteEntry],
+    [tripId, user?.id, tripRole, requestDeleteEntry],
   );
 
   const entriesErrorMessage =

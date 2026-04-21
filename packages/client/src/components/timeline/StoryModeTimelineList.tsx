@@ -46,6 +46,7 @@ interface StoryModeTimelineListProps {
   dayGroups: DayGroup[];
   tripId: string;
   currentUserId: string;
+  canManageEntries: boolean;
   onDelete: (entryId: string) => void;
 }
 
@@ -53,6 +54,7 @@ function StoryModeTimelineListFlat({
   dayGroups,
   tripId,
   currentUserId,
+  canManageEntries,
   onDelete,
 }: StoryModeTimelineListProps) {
   const rows = useMemo(() => flattenDayGroups(dayGroups), [dayGroups]);
@@ -76,6 +78,7 @@ function StoryModeTimelineListFlat({
               entry={row.entry}
               tripId={tripId}
               currentUserId={currentUserId}
+              canManageEntries={canManageEntries}
               onDelete={onDelete}
             />
           </div>
@@ -89,6 +92,7 @@ function StoryModeTimelineListVirtual({
   dayGroups,
   tripId,
   currentUserId,
+  canManageEntries,
   onDelete,
 }: StoryModeTimelineListProps) {
   const rows = useMemo(() => flattenDayGroups(dayGroups), [dayGroups]);
@@ -138,6 +142,7 @@ function StoryModeTimelineListVirtual({
               entry={row.entry}
               tripId={tripId}
               currentUserId={currentUserId}
+              canManageEntries={canManageEntries}
               onDelete={onDelete}
             />
           </div>
