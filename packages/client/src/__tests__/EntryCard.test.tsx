@@ -52,6 +52,7 @@ function renderCard(
   entry: Entry,
   currentUserId: string,
   onDelete = vi.fn(),
+  canManageEntries = false,
 ): ReturnType<typeof render> {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -66,6 +67,7 @@ function renderCard(
                   entry={entry}
                   tripId="trip-1"
                   currentUserId={currentUserId}
+                  canManageEntries={canManageEntries}
                   onDelete={onDelete}
                 />
               }
@@ -120,11 +122,18 @@ describe('EntryCard', () => {
     expect(screen.queryByRole('button', { name: /slett|delete/i })).not.toBeInTheDocument();
   });
 
-  it('overflow menu is not shown for non-authors', () => {
+  it('overflow menu is not shown for followers viewing another user entry', () => {
     const entry = makeEntry({ authorId: 'user-1' });
-    renderCard(entry, 'user-99');
+    renderCard(entry, 'user-99', vi.fn(), false);
 
     expect(screen.queryByRole('button', { name: /flere valg|more options/i })).not.toBeInTheDocument();
+  });
+
+  it('shows overflow menu for trip manager viewing another user entry', () => {
+    const entry = makeEntry({ authorId: 'user-1' });
+    renderCard(entry, 'user-99', vi.fn(), true);
+
+    expect(screen.getByRole('button', { name: /flere valg|more options/i })).toBeInTheDocument();
   });
 
   it('shows Edit and Delete after opening overflow menu', async () => {
@@ -322,8 +331,18 @@ describe('EntryCard', () => {
                 path="/trips/:id/timeline"
                 element={
                   <>
-                    <EntryCard entry={firstEntry} tripId="trip-1" currentUserId="other-user" />
-                    <EntryCard entry={secondEntry} tripId="trip-1" currentUserId="other-user" />
+                    <EntryCard
+                      entry={firstEntry}
+                      tripId="trip-1"
+                      currentUserId="other-user"
+                      canManageEntries={false}
+                    />
+                    <EntryCard
+                      entry={secondEntry}
+                      tripId="trip-1"
+                      currentUserId="other-user"
+                      canManageEntries={false}
+                    />
                   </>
                 }
               />

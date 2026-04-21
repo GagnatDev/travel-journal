@@ -7,6 +7,7 @@ import { Entry } from '../models/Entry.model.js';
 import { hashPassword } from '../services/auth.service.js';
 import { createTrip } from '../services/trip.service.js';
 import {
+  assertCanManageTripEntry,
   assertEntryAuthor,
   createEntry,
   getEntryById,
@@ -85,6 +86,19 @@ describe('normalizeImageOrder', () => {
     normalizeImageOrder(images);
     expect(images[0]!.order).toBe(5);
     expect(images[1]!.order).toBe(0);
+  });
+});
+
+describe('assertCanManageTripEntry', () => {
+  it('throws for follower', () => {
+    expect(() => assertCanManageTripEntry('follower')).toThrow(
+      expect.objectContaining({ status: 403, code: 'FORBIDDEN' }),
+    );
+  });
+
+  it('allows creator and contributor', () => {
+    expect(() => assertCanManageTripEntry('creator')).not.toThrow();
+    expect(() => assertCanManageTripEntry('contributor')).not.toThrow();
   });
 });
 
@@ -181,7 +195,7 @@ describe('listEntries', () => {
       title: 'Deleted',
       content: 'gone',
     });
-    await softDeleteEntry(trip.id, e2.id, String(user._id));
+    await softDeleteEntry(trip.id, e2.id, 'creator');
 
     const { entries, total } = await listEntries(trip.id, 1, 20);
     expect(entries).toHaveLength(1);
@@ -222,9 +236,8 @@ describe('listEntries', () => {
 });
 
 describe('updateEntry', () => {
-  it('throws 403 when requesterId !== entry.authorId', async () => {
+  it('throws 403 for follower trip role', async () => {
     const creator = await makeUser('creator@test.com');
-    const other = await makeUser('other@test.com', 'follower');
     const trip = await makeTrip(String(creator._id));
 
     const entry = await createEntry(trip.id, String(creator._id), {
@@ -232,12 +245,32 @@ describe('updateEntry', () => {
       content: 'content',
     });
 
-    await expect(
-      updateEntry(trip.id, entry.id, String(other._id), { title: 'Changed' }),
-    ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });
+    await expect(updateEntry(trip.id, entry.id, 'follower', { title: 'Changed' })).rejects.toMatchObject({
+      status: 403,
+      code: 'FORBIDDEN',
+    });
   });
 
-  it('updates title and content for the author', async () => {
+  it('allows contributor to update another member entry', async () => {
+    const creator = await makeUser('creator@test.com');
+    const trip = await makeTrip(String(creator._id));
+
+    const entry = await createEntry(trip.id, String(creator._id), {
+      title: 'Original',
+      content: 'old',
+    });
+
+    const updated = await updateEntry(trip.id, entry.id, 'contributor', {
+      title: 'Updated',
+      content: 'new',
+    });
+
+    expect(updated.title).toBe('Updated');
+    expect(updated.content).toBe('new');
+    expect(updated.authorId).toBe(String(creator._id));
+  });
+
+  it('updates title and content for trip creator role', async () => {
     const user = await makeUser('creator@test.com');
     const trip = await makeTrip(String(user._id));
 
@@ -246,7 +279,7 @@ describe('updateEntry', () => {
       content: 'old',
     });
 
-    const updated = await updateEntry(trip.id, entry.id, String(user._id), {
+    const updated = await updateEntry(trip.id, entry.id, 'creator', {
       title: 'Updated',
       content: 'new',
     });
@@ -267,7 +300,7 @@ describe('updateEntry', () => {
 
     expect(entry.location).toBeDefined();
 
-    const updated = await updateEntry(trip.id, entry.id, String(user._id), {
+    const updated = await updateEntry(trip.id, entry.id, 'creator', {
       location: null,
     });
 
@@ -285,7 +318,7 @@ describe('softDeleteEntry', () => {
       content: 'content',
     });
 
-    await softDeleteEntry(trip.id, entry.id, String(user._id));
+    await softDeleteEntry(trip.id, entry.id, 'creator');
 
     const doc = await Entry.findById(entry.id);
     expect(doc).not.toBeNull();
@@ -301,15 +334,14 @@ describe('softDeleteEntry', () => {
       content: 'content',
     });
 
-    await softDeleteEntry(trip.id, entry.id, String(user._id));
+    await softDeleteEntry(trip.id, entry.id, 'creator');
 
     const { entries } = await listEntries(trip.id, 1, 20);
     expect(entries.find((e) => e.id === entry.id)).toBeUndefined();
   });
 
-  it('throws 403 when requesterId is not the author', async () => {
+  it('throws 403 for follower trip role', async () => {
     const creator = await makeUser('creator@test.com');
-    const other = await makeUser('other@test.com', 'follower');
     const trip = await makeTrip(String(creator._id));
 
     const entry = await createEntry(trip.id, String(creator._id), {
@@ -317,7 +349,7 @@ describe('softDeleteEntry', () => {
       content: 'content',
     });
 
-    await expect(softDeleteEntry(trip.id, entry.id, String(other._id))).rejects.toMatchObject({
+    await expect(softDeleteEntry(trip.id, entry.id, 'follower')).rejects.toMatchObject({
       status: 403,
     });
   });
@@ -346,7 +378,7 @@ describe('getEntryById', () => {
       title: 'Gone',
       content: 'content',
     });
-    await softDeleteEntry(trip.id, entry.id, String(user._id));
+    await softDeleteEntry(trip.id, entry.id, 'creator');
 
     await expect(getEntryById(trip.id, entry.id)).rejects.toMatchObject({
       status: 404,

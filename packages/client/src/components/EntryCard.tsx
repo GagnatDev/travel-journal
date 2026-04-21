@@ -24,6 +24,8 @@ interface EntryCardProps {
   entry: Entry;
   tripId: string;
   currentUserId: string;
+  /** When true (trip creator or contributor), edit/delete any entry on the trip. */
+  canManageEntries?: boolean;
   onDelete?: (entryId: string) => void;
 }
 
@@ -45,7 +47,13 @@ function getRelativeTime(dateStr: string, language: string): string {
   return date.toLocaleDateString(language, { month: 'short', day: 'numeric' });
 }
 
-export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId, onDelete }: EntryCardProps) {
+export const EntryCard = memo(function EntryCard({
+  entry,
+  tripId,
+  currentUserId,
+  canManageEntries = false,
+  onDelete,
+}: EntryCardProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { accessToken } = useAuth();
@@ -56,6 +64,7 @@ export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId,
   const carouselOwnsHistoryRef = useRef(false);
 
   const isAuthor = entry.authorId === currentUserId;
+  const showEntryActions = canManageEntries || isAuthor;
 
   const relativeTime = useMemo(
     () => getRelativeTime(entry.createdAt, i18n.language),
@@ -159,7 +168,7 @@ export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId,
         </span>
         <span className="font-ui text-xs text-caption shrink-0">{relativeTime}</span>
 
-        {isAuthor && (
+        {showEntryActions && (
           <div className="relative shrink-0">
             <button
               type="button"

@@ -1,5 +1,11 @@
 import mongoose from 'mongoose';
-import type { CreateEntryRequest, Entry, EntryImage, UpdateEntryRequest } from '@travel-journal/shared';
+import type {
+  CreateEntryRequest,
+  Entry,
+  EntryImage,
+  TripRole,
+  UpdateEntryRequest,
+} from '@travel-journal/shared';
 
 import { Entry as EntryModel, IEntry } from '../models/Entry.model.js';
 import { logger } from '../logger.js';
@@ -70,6 +76,13 @@ export function normalizeImageOrder(images: EntryImage[]): EntryImage[] {
 
 export function assertEntryAuthor(entry: Entry, userId: string): void {
   if (entry.authorId !== userId) {
+    throw createHttpError('Forbidden', 403, 'FORBIDDEN');
+  }
+}
+
+/** Trip creator and contributors may edit or delete any entry on the trip; followers may not. */
+export function assertCanManageTripEntry(tripRole: TripRole): void {
+  if (tripRole === 'follower') {
     throw createHttpError('Forbidden', 403, 'FORBIDDEN');
   }
 }
@@ -162,7 +175,7 @@ export async function getEntryById(tripId: string, entryId: string): Promise<Ent
 export async function updateEntry(
   tripId: string,
   entryId: string,
-  requesterId: string,
+  tripRole: TripRole,
   data: UpdateEntryRequest,
 ): Promise<Entry> {
   if (!mongoose.Types.ObjectId.isValid(entryId)) {
@@ -177,8 +190,7 @@ export async function updateEntry(
 
   if (!doc) throw createHttpError('Entry not found', 404, 'NOT_FOUND');
 
-  const entry = await toEntry(doc);
-  assertEntryAuthor(entry, requesterId);
+  assertCanManageTripEntry(tripRole);
 
   if (data.title !== undefined) doc.title = data.title.trim();
   if (data.content !== undefined) doc.content = data.content;
@@ -228,7 +240,7 @@ export async function listEntryLocations(tripId: string): Promise<EntryLocationP
 export async function softDeleteEntry(
   tripId: string,
   entryId: string,
-  requesterId: string,
+  tripRole: TripRole,
 ): Promise<void> {
   if (!mongoose.Types.ObjectId.isValid(entryId)) {
     throw createHttpError('Entry not found', 404, 'NOT_FOUND');
@@ -242,8 +254,7 @@ export async function softDeleteEntry(
 
   if (!doc) throw createHttpError('Entry not found', 404, 'NOT_FOUND');
 
-  const entry = await toEntry(doc);
-  assertEntryAuthor(entry, requesterId);
+  assertCanManageTripEntry(tripRole);
 
   doc.deletedAt = new Date();
   await doc.save();
