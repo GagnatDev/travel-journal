@@ -44,7 +44,7 @@ describe('toggleReaction', () => {
     const trip = await createTrip({ name: 'Test' }, String(user._id));
     const entry = await createEntry(trip.id, String(user._id), { title: 'E', content: 'c' });
 
-    const reactions = await toggleReaction(trip.id, entry.id, String(user._id), '❤️');
+    const reactions = await toggleReaction(trip.id, entry.id, String(user._id), '❤️', 'creator');
 
     expect(reactions).toHaveLength(1);
     expect(reactions[0]!.emoji).toBe('❤️');
@@ -56,8 +56,8 @@ describe('toggleReaction', () => {
     const trip = await createTrip({ name: 'Test' }, String(user._id));
     const entry = await createEntry(trip.id, String(user._id), { title: 'E', content: 'c' });
 
-    await toggleReaction(trip.id, entry.id, String(user._id), '👍');
-    const reactions = await toggleReaction(trip.id, entry.id, String(user._id), '👍');
+    await toggleReaction(trip.id, entry.id, String(user._id), '👍', 'creator');
+    const reactions = await toggleReaction(trip.id, entry.id, String(user._id), '👍', 'creator');
 
     expect(reactions).toHaveLength(0);
   });
@@ -67,8 +67,8 @@ describe('toggleReaction', () => {
     const trip = await createTrip({ name: 'Test' }, String(user._id));
     const entry = await createEntry(trip.id, String(user._id), { title: 'E', content: 'c' });
 
-    await toggleReaction(trip.id, entry.id, String(user._id), '❤️');
-    const reactions = await toggleReaction(trip.id, entry.id, String(user._id), '😂');
+    await toggleReaction(trip.id, entry.id, String(user._id), '❤️', 'creator');
+    const reactions = await toggleReaction(trip.id, entry.id, String(user._id), '😂', 'creator');
 
     expect(reactions).toHaveLength(2);
     expect(reactions.map((r) => r.emoji).sort()).toEqual(['❤️', '😂'].sort());
@@ -80,8 +80,8 @@ describe('toggleReaction', () => {
     const trip = await createTrip({ name: 'Test' }, String(user1._id));
     const entry = await createEntry(trip.id, String(user1._id), { title: 'E', content: 'c' });
 
-    await toggleReaction(trip.id, entry.id, String(user1._id), '❤️');
-    const reactions = await toggleReaction(trip.id, entry.id, String(user2._id), '❤️');
+    await toggleReaction(trip.id, entry.id, String(user1._id), '❤️', 'creator');
+    const reactions = await toggleReaction(trip.id, entry.id, String(user2._id), '❤️', 'creator');
 
     expect(reactions).toHaveLength(2);
     expect(reactions.every((r) => r.emoji === '❤️')).toBe(true);
@@ -93,7 +93,7 @@ describe('toggleReaction', () => {
     const fakeId = new mongoose.Types.ObjectId().toHexString();
 
     await expect(
-      toggleReaction(trip.id, fakeId, String(user._id), '❤️'),
+      toggleReaction(trip.id, fakeId, String(user._id), '❤️', 'creator'),
     ).rejects.toMatchObject({ status: 404 });
   });
 
@@ -102,7 +102,7 @@ describe('toggleReaction', () => {
     const trip = await createTrip({ name: 'Test' }, String(user._id));
 
     await expect(
-      toggleReaction(trip.id, 'not-an-id', String(user._id), '❤️'),
+      toggleReaction(trip.id, 'not-an-id', String(user._id), '❤️', 'creator'),
     ).rejects.toMatchObject({ status: 404 });
   });
 });

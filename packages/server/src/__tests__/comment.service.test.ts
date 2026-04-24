@@ -46,7 +46,7 @@ describe('addComment', () => {
     const trip = await createTrip({ name: 'Test' }, String(user._id));
     const entry = await createEntry(trip.id, String(user._id), { title: 'E', content: 'c' });
 
-    const comment = await addComment(trip.id, entry.id, String(user._id), 'Hello world');
+    const comment = await addComment(trip.id, entry.id, String(user._id), 'Hello world', 'creator');
 
     expect(comment.content).toBe('Hello world');
     expect(comment.authorId).toBe(String(user._id));
@@ -60,7 +60,7 @@ describe('addComment', () => {
     const trip = await createTrip({ name: 'Test' }, String(user._id));
     const entry = await createEntry(trip.id, String(user._id), { title: 'E', content: 'c' });
 
-    const comment = await addComment(trip.id, entry.id, String(user._id), '  trimmed  ');
+    const comment = await addComment(trip.id, entry.id, String(user._id), '  trimmed  ', 'creator');
     expect(comment.content).toBe('trimmed');
   });
 
@@ -70,7 +70,7 @@ describe('addComment', () => {
     const entry = await createEntry(trip.id, String(user._id), { title: 'E', content: 'c' });
 
     await expect(
-      addComment(trip.id, entry.id, String(user._id), '   '),
+      addComment(trip.id, entry.id, String(user._id), '   ', 'creator'),
     ).rejects.toMatchObject({ status: 400 });
   });
 
@@ -80,7 +80,7 @@ describe('addComment', () => {
     const entry = await createEntry(trip.id, String(user._id), { title: 'E', content: 'c' });
 
     await expect(
-      addComment(trip.id, entry.id, String(user._id), 'a'.repeat(1001)),
+      addComment(trip.id, entry.id, String(user._id), 'a'.repeat(1001), 'creator'),
     ).rejects.toMatchObject({ status: 400 });
   });
 
@@ -91,7 +91,7 @@ describe('addComment', () => {
     const entryInA = await createEntry(tripA.id, String(user._id), { title: 'E', content: 'c' });
 
     await expect(
-      addComment(tripB.id, entryInA.id, String(user._id), 'cross trip'),
+      addComment(tripB.id, entryInA.id, String(user._id), 'cross trip', 'creator'),
     ).rejects.toMatchObject({ status: 404 });
   });
 });
@@ -102,22 +102,24 @@ describe('listComments', () => {
     const trip = await createTrip({ name: 'Test' }, String(user._id));
     const entry = await createEntry(trip.id, String(user._id), { title: 'E', content: 'c' });
 
-    const c1 = await addComment(trip.id, entry.id, String(user._id), 'First');
-    const c2 = await addComment(trip.id, entry.id, String(user._id), 'Second');
+    const c1 = await addComment(trip.id, entry.id, String(user._id), 'First', 'creator');
+    const c2 = await addComment(trip.id, entry.id, String(user._id), 'Second', 'creator');
 
     // Soft-delete c1
     await Comment.updateOne({ _id: c1.id }, { deletedAt: new Date() });
 
-    const comments = await listComments(entry.id);
+    const comments = await listComments(trip.id, entry.id, 'creator');
 
     expect(comments).toHaveLength(1);
     expect(comments[0]!.id).toBe(c2.id);
     expect(comments[0]!.content).toBe('Second');
   });
 
-  it('returns empty array for unknown entryId', async () => {
-    const comments = await listComments(new mongoose.Types.ObjectId().toHexString());
-    expect(comments).toEqual([]);
+  it('throws 404 for unknown entryId', async () => {
+    const user = await makeUser('solo@test.com');
+    const trip = await createTrip({ name: 'T' }, String(user._id));
+    const fakeId = new mongoose.Types.ObjectId().toHexString();
+    await expect(listComments(trip.id, fakeId, 'creator')).rejects.toMatchObject({ status: 404 });
   });
 });
 
@@ -127,10 +129,10 @@ describe('deleteComment', () => {
     const trip = await createTrip({ name: 'Test' }, String(user._id));
     const entry = await createEntry(trip.id, String(user._id), { title: 'E', content: 'c' });
 
-    const comment = await addComment(trip.id, entry.id, String(user._id), 'To delete');
-    await deleteComment(comment.id, String(user._id));
+    const comment = await addComment(trip.id, entry.id, String(user._id), 'To delete', 'creator');
+    await deleteComment(trip.id, entry.id, comment.id, String(user._id), 'creator');
 
-    const remaining = await listComments(entry.id);
+    const remaining = await listComments(trip.id, entry.id, 'creator');
     expect(remaining).toHaveLength(0);
 
     // Document still exists with deletedAt set
@@ -145,17 +147,21 @@ describe('deleteComment', () => {
     const trip = await createTrip({ name: 'Test' }, String(author._id));
     const entry = await createEntry(trip.id, String(author._id), { title: 'E', content: 'c' });
 
-    const comment = await addComment(trip.id, entry.id, String(author._id), 'Mine');
+    const comment = await addComment(trip.id, entry.id, String(author._id), 'Mine', 'creator');
 
     await expect(
-      deleteComment(comment.id, String(other._id)),
+      deleteComment(trip.id, entry.id, comment.id, String(other._id), 'creator'),
     ).rejects.toMatchObject({ status: 403 });
   });
 
   it('throws 404 for a non-existent comment', async () => {
     const user = await makeUser('user@test.com');
+    const trip = await createTrip({ name: 'Test' }, String(user._id));
+    const entry = await createEntry(trip.id, String(user._id), { title: 'E', content: 'c' });
     const fakeId = new mongoose.Types.ObjectId().toHexString();
 
-    await expect(deleteComment(fakeId, String(user._id))).rejects.toMatchObject({ status: 404 });
+    await expect(
+      deleteComment(trip.id, entry.id, fakeId, String(user._id), 'creator'),
+    ).rejects.toMatchObject({ status: 404 });
   });
 });

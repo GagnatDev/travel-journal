@@ -135,6 +135,29 @@ describe('POST /api/v1/trips/:id/entries', () => {
     expect(res.body.title).toBe('Creator Entry');
   });
 
+  it('creator → 201 with publicationStatus draft', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+
+    const res = await request(app)
+      .post(`/api/v1/trips/${trip.id}/entries`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ title: 'Draft Entry', content: 'WIP', publicationStatus: 'draft' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.publicationStatus).toBe('draft');
+  });
+
+  it('returns 400 for invalid publicationStatus on create', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+
+    const res = await request(app)
+      .post(`/api/v1/trips/${trip.id}/entries`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ title: 'Bad', content: 'x', publicationStatus: 'pending' });
+
+    expect(res.status).toBe(400);
+  });
+
   it('creator → 201 with clientCreatedAt preserves createdAt in response', async () => {
     const { creator, trip } = await setupTripWithMember('creator');
     const clientAt = new Date(Date.now() - 2 * 24 * 60 * 60_000).toISOString();
@@ -238,6 +261,38 @@ describe('GET /api/v1/trips/:id/entries', () => {
       .set('Authorization', authHeader(String(stranger._id), stranger.email, 'creator'));
 
     expect(res.status).toBe(404);
+  });
+
+  it('follower does not see draft entries; creator sees both', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+    const follower = await makeUser('flw-list@test.com', 'follower');
+    await Trip.updateOne(
+      { _id: trip.id },
+      { $push: { members: { userId: follower._id, tripRole: 'follower', addedAt: new Date() } } },
+    );
+
+    await createEntry(trip.id, String(creator._id), {
+      title: 'Live',
+      content: 'a',
+    });
+    await createEntry(trip.id, String(creator._id), {
+      title: 'Hidden',
+      content: 'b',
+      publicationStatus: 'draft',
+    });
+
+    const creatorRes = await request(app)
+      .get(`/api/v1/trips/${trip.id}/entries`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+    expect(creatorRes.status).toBe(200);
+    expect(creatorRes.body.total).toBe(2);
+
+    const followerRes = await request(app)
+      .get(`/api/v1/trips/${trip.id}/entries`)
+      .set('Authorization', authHeader(String(follower._id), follower.email, 'follower'));
+    expect(followerRes.status).toBe(200);
+    expect(followerRes.body.total).toBe(1);
+    expect(followerRes.body.entries[0].title).toBe('Live');
   });
 });
 
@@ -354,6 +409,40 @@ describe('PATCH /api/v1/trips/:id/entries/:entryId', () => {
     expect(res.status).toBe(200);
     expect(res.body.title).toBe('Updated');
     expect(res.body.content).toBe('new content');
+  });
+
+  it('publishes a draft with publicationStatus published', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+
+    const entry = await createEntry(trip.id, String(creator._id), {
+      title: 'WIP',
+      content: 'body',
+      publicationStatus: 'draft',
+    });
+
+    const res = await request(app)
+      .patch(`/api/v1/trips/${trip.id}/entries/${entry.id}`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ publicationStatus: 'published' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.publicationStatus).toBeUndefined();
+  });
+
+  it('returns 400 for invalid publicationStatus on patch', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+
+    const entry = await createEntry(trip.id, String(creator._id), {
+      title: 'E',
+      content: 'c',
+    });
+
+    const res = await request(app)
+      .patch(`/api/v1/trips/${trip.id}/entries/${entry.id}`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ publicationStatus: 'draft' });
+
+    expect(res.status).toBe(400);
   });
 });
 
@@ -650,6 +739,28 @@ describe('POST /api/v1/trips/:id/entries/:entryId/comments', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.content).toBe('Great post!');
+  });
+
+  it('follower cannot comment on a draft entry', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+    const follower = await makeUser('follower-draft@test.com', 'follower');
+    await Trip.updateOne(
+      { _id: trip.id },
+      { $push: { members: { userId: follower._id, tripRole: 'follower', addedAt: new Date() } } },
+    );
+
+    const entry = await createEntry(trip.id, String(creator._id), {
+      title: 'Draft',
+      content: 'c',
+      publicationStatus: 'draft',
+    });
+
+    const res = await request(app)
+      .post(`/api/v1/trips/${trip.id}/entries/${entry.id}/comments`)
+      .set('Authorization', authHeader(String(follower._id), follower.email, 'follower'))
+      .send({ content: 'Nope' });
+
+    expect(res.status).toBe(404);
   });
 
   it('returns 400 for empty content', async () => {

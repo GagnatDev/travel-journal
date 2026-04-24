@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
-import type { Reaction, ReactionEmoji } from '@travel-journal/shared';
+import type { Reaction, ReactionEmoji, TripRole } from '@travel-journal/shared';
 
-import { Entry as EntryModel } from '../models/Entry.model.js';
+import { findEntryDocumentForTripMember } from './entry.service.js';
 
 function createHttpError(message: string, status: number, code: string): Error {
   const err = new Error(message) as Error & { status: number; code: string };
@@ -21,17 +21,9 @@ export async function toggleReaction(
   entryId: string,
   userId: string,
   emoji: ReactionEmoji,
+  tripRole: TripRole,
 ): Promise<Reaction[]> {
-  if (!mongoose.Types.ObjectId.isValid(entryId)) {
-    throw createHttpError('Entry not found', 404, 'NOT_FOUND');
-  }
-
-  const doc = await EntryModel.findOne({
-    _id: new mongoose.Types.ObjectId(entryId),
-    tripId: new mongoose.Types.ObjectId(tripId),
-    deletedAt: null,
-  });
-
+  const doc = await findEntryDocumentForTripMember(tripId, entryId, tripRole);
   if (!doc) throw createHttpError('Entry not found', 404, 'NOT_FOUND');
 
   const userIdObj = new mongoose.Types.ObjectId(userId);

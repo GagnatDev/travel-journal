@@ -3,6 +3,7 @@ import type {
   CreateEntryRequest,
   Entry,
   EntryImage,
+  EntryPublicationStatus,
   TripRole,
   UpdateEntryRequest,
 } from '@travel-journal/shared';
@@ -12,6 +13,33 @@ import { logger } from '../logger.js';
 import { User } from '../models/User.model.js';
 
 import { dispatchNewEntryNotification } from './notification.service.js';
+
+function entryIsPublished(doc: Pick<IEntry, 'publicationStatus'>): boolean {
+  return doc.publicationStatus !== 'draft';
+}
+
+/** Resolves an entry for a member; followers cannot see drafts (returns null). */
+export async function findEntryDocumentForTripMember(
+  tripId: string,
+  entryId: string,
+  tripRole: TripRole,
+): Promise<IEntry | null> {
+  if (!mongoose.Types.ObjectId.isValid(entryId)) return null;
+  const doc = await EntryModel.findOne({
+    _id: new mongoose.Types.ObjectId(entryId),
+    tripId: new mongoose.Types.ObjectId(tripId),
+    deletedAt: null,
+  });
+  if (!doc) return null;
+  if (tripRole === 'follower' && !entryIsPublished(doc)) return null;
+  return doc;
+}
+
+function parseCreatePublicationStatus(input: unknown): EntryPublicationStatus {
+  if (input === undefined || input === null) return 'published';
+  if (input === 'draft' || input === 'published') return input;
+  throw createHttpError('Invalid publicationStatus', 400, 'VALIDATION_ERROR');
+}
 
 export interface EntryLocationPin {
   entryId: string;
@@ -40,6 +68,7 @@ async function toEntry(doc: IEntry): Promise<Entry> {
     authorName,
     title: doc.title,
     content: doc.content,
+    ...(doc.publicationStatus === 'draft' && { publicationStatus: 'draft' as const }),
     images: doc.images.map((img) => ({
       key: img.key,
       ...(img.thumbnailKey !== undefined && { thumbnailKey: img.thumbnailKey }),
@@ -103,7 +132,9 @@ export async function createEntry(
   authorId: string,
   data: CreateEntryRequest,
 ): Promise<Entry> {
-  const { clientCreatedAt: clientCreatedAtRaw, ...rest } = data;
+  const { clientCreatedAt: clientCreatedAtRaw, publicationStatus: publicationStatusRaw, ...rest } =
+    data;
+  const publicationStatus = parseCreatePublicationStatus(publicationStatusRaw);
   const normalizedImages = rest.images ? normalizeImageOrder(rest.images) : [];
 
   const now = new Date();
@@ -121,6 +152,7 @@ export async function createEntry(
     authorId: new mongoose.Types.ObjectId(authorId),
     title: rest.title.trim(),
     content: rest.content,
+    publicationStatus,
     images: normalizedImages.map((img) => ({
       ...img,
       uploadedAt: new Date(img.uploadedAt),
@@ -131,9 +163,11 @@ export async function createEntry(
   });
 
   const entry = await toEntry(doc);
-  void dispatchNewEntryNotification(entry).catch((err: unknown) => {
-    logger.warn({ err, entryId: entry.id }, 'Failed to dispatch new-entry notifications');
-  });
+  if (publicationStatus === 'published') {
+    void dispatchNewEntryNotification(entry).catch((err: unknown) => {
+      logger.warn({ err, entryId: entry.id }, 'Failed to dispatch new-entry notifications');
+    });
+  }
   return entry;
 }
 
@@ -141,8 +175,15 @@ export async function listEntries(
   tripId: string,
   page: number,
   limit: number,
+  tripRole: TripRole,
 ): Promise<{ entries: Entry[]; total: number }> {
-  const filter = { tripId: new mongoose.Types.ObjectId(tripId), deletedAt: null };
+  const filter: Record<string, unknown> = {
+    tripId: new mongoose.Types.ObjectId(tripId),
+    deletedAt: null,
+  };
+  if (tripRole === 'follower') {
+    filter['publicationStatus'] = { $ne: 'draft' };
+  }
 
   const [docs, total] = await Promise.all([
     EntryModel.find(filter)
@@ -156,19 +197,13 @@ export async function listEntries(
   return { entries, total };
 }
 
-export async function getEntryById(tripId: string, entryId: string): Promise<Entry> {
-  if (!mongoose.Types.ObjectId.isValid(entryId)) {
-    throw createHttpError('Entry not found', 404, 'NOT_FOUND');
-  }
-
-  const doc = await EntryModel.findOne({
-    _id: new mongoose.Types.ObjectId(entryId),
-    tripId: new mongoose.Types.ObjectId(tripId),
-    deletedAt: null,
-  });
-
+export async function getEntryById(
+  tripId: string,
+  entryId: string,
+  tripRole: TripRole,
+): Promise<Entry> {
+  const doc = await findEntryDocumentForTripMember(tripId, entryId, tripRole);
   if (!doc) throw createHttpError('Entry not found', 404, 'NOT_FOUND');
-
   return toEntry(doc);
 }
 
@@ -192,6 +227,8 @@ export async function updateEntry(
 
   assertCanManageTripEntry(tripRole);
 
+  const wasDraft = doc.publicationStatus === 'draft';
+
   if (data.title !== undefined) doc.title = data.title.trim();
   if (data.content !== undefined) doc.content = data.content;
   if (data.images !== undefined) {
@@ -208,19 +245,39 @@ export async function updateEntry(
       doc.location = data.location;
     }
   }
+  if (data.publicationStatus !== undefined) {
+    if (data.publicationStatus !== 'published') {
+      throw createHttpError('Invalid publicationStatus', 400, 'VALIDATION_ERROR');
+    }
+    doc.publicationStatus = 'published';
+  }
 
   doc.syncVersion += 1;
   await doc.save();
 
-  return toEntry(doc);
+  const entry = await toEntry(doc);
+  if (wasDraft && doc.publicationStatus === 'published') {
+    void dispatchNewEntryNotification(entry).catch((err: unknown) => {
+      logger.warn({ err, entryId: entry.id }, 'Failed to dispatch new-entry notifications');
+    });
+  }
+  return entry;
 }
 
-export async function listEntryLocations(tripId: string): Promise<EntryLocationPin[]> {
-  const docs = await EntryModel.find({
+export async function listEntryLocations(
+  tripId: string,
+  tripRole: TripRole,
+): Promise<EntryLocationPin[]> {
+  const filter: Record<string, unknown> = {
     tripId: new mongoose.Types.ObjectId(tripId),
     deletedAt: null,
     location: { $exists: true },
-  })
+  };
+  if (tripRole === 'follower') {
+    filter['publicationStatus'] = { $ne: 'draft' };
+  }
+
+  const docs = await EntryModel.find(filter)
     .select('_id title location createdAt')
     .sort({ createdAt: -1 })
     .lean();
