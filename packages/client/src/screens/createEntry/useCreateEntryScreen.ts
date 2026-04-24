@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import type { CreateEntryRequest, EntryImage, UpdateEntryRequest } from '@travel-journal/shared';
+import type { CreateEntryRequest, EntryImage, TripRole, UpdateEntryRequest } from '@travel-journal/shared';
 
 import { createEntry, fetchEntry, updateEntry } from '../../api/entries.js';
+import { fetchTrip } from '../../api/trips.js';
 import { uploadMedia } from '../../api/media.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { compressImage } from '../../utils/compressImage.js';
@@ -22,13 +23,14 @@ export function useCreateEntryScreen() {
     entryId?: string;
     localId?: string;
   }>();
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const isPendingEdit = Boolean(pendingLocalId);
   const isServerEdit = Boolean(entryId) && !isPendingEdit;
+  const isOnlineCreate = !isServerEdit && !isPendingEdit;
 
   const [form, setForm] = useState<EntryFormState>(EMPTY_ENTRY_FORM);
   const [initialForm, setInitialForm] = useState<EntryFormState>(EMPTY_ENTRY_FORM);
@@ -46,6 +48,28 @@ export function useCreateEntryScreen() {
   const [uploadError, setUploadError] = useState('');
   const [savedOffline, setSavedOffline] = useState(false);
   const [isFlushingLocalUploads, setIsFlushingLocalUploads] = useState(false);
+  /** New entry (server): draft = collaborators only; published = followers see it. */
+  const [createPublicationStatus, setCreatePublicationStatus] = useState<'draft' | 'published'>(
+    'published',
+  );
+  /** Edit server draft: when true, PATCH includes publicationStatus published. */
+  const [publishForFollowersOnSave, setPublishForFollowersOnSave] = useState(false);
+
+  const { data: tripForRole } = useQuery({
+    queryKey: ['trip', tripId],
+    queryFn: () => fetchTrip(tripId!, accessToken!),
+    enabled: isOnlineCreate && !!accessToken && !!tripId,
+    staleTime: QUERY_STALE_MS.tripDetail,
+  });
+
+  const myTripRole: TripRole | undefined = useMemo(() => {
+    if (!tripForRole || !user?.id) return undefined;
+    return tripForRole.members.find((m) => m.userId === user.id)?.tripRole;
+  }, [tripForRole, user?.id]);
+
+  const canChoosePublicationOnCreate =
+    isOnlineCreate &&
+    (myTripRole === 'creator' || myTripRole === 'contributor' || myTripRole === undefined);
 
   const localPreviews = useMemo(
     () => localFiles.map((f) => URL.createObjectURL(f)),
@@ -68,6 +92,8 @@ export function useCreateEntryScreen() {
     setLocalFiles([]);
     setInitialLocalFiles([]);
     setSavedOffline(false);
+    setCreatePublicationStatus('published');
+    setPublishForFollowersOnSave(false);
   }, [tripId, location.pathname]);
 
   const { data: existingEntry } = useQuery({
@@ -94,6 +120,7 @@ export function useCreateEntryScreen() {
     setInitialImages(loadedImages);
     setLocalFiles([]);
     setInitialLocalFiles([]);
+    setPublishForFollowersOnSave(false);
   }, [existingEntry?.id]);
 
   useEffect(() => {
@@ -249,15 +276,21 @@ export function useCreateEntryScreen() {
         content: form.content,
         images: imageList,
         ...(location !== undefined && { location }),
+        ...(navigator.onLine !== false &&
+          canChoosePublicationOnCreate && { publicationStatus: createPublicationStatus }),
       });
 
       if (isServerEdit) {
-        updateMutation.mutate({
+        const patch: UpdateEntryRequest = {
           title: form.title.trim(),
           content: form.content,
           images,
           location: form.locationEnabled ? (location ?? null) : null,
-        });
+        };
+        if (existingEntry?.publicationStatus === 'draft' && publishForFollowersOnSave) {
+          patch.publicationStatus = 'published';
+        }
+        updateMutation.mutate(patch);
         return;
       }
 
@@ -344,6 +377,10 @@ export function useCreateEntryScreen() {
       accessToken,
       queueOfflineAfterNetworkFailure,
       t,
+      canChoosePublicationOnCreate,
+      createPublicationStatus,
+      publishForFollowersOnSave,
+      existingEntry?.publicationStatus,
     ],
   );
 
@@ -354,9 +391,21 @@ export function useCreateEntryScreen() {
     isFlushingLocalUploads ||
     (isPendingEdit && !pendingOfflineMeta);
 
+  const isServerDraftEdit =
+    isServerEdit && existingEntry?.publicationStatus === 'draft';
+  /** Anyone who can load this draft from the API may publish (creators/contributors only server-side). */
+  const showCollaboratorPublishOnEdit = Boolean(isServerDraftEdit);
+
   return {
     isServerEdit,
     isPendingEdit,
+    isServerDraftEdit,
+    canChoosePublicationOnCreate,
+    createPublicationStatus,
+    setCreatePublicationStatus,
+    publishForFollowersOnSave,
+    setPublishForFollowersOnSave,
+    showCollaboratorPublishOnEdit,
     form,
     setForm,
     titleError,

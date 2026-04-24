@@ -65,6 +65,7 @@ export const EntryCard = memo(function EntryCard({
 
   const isAuthor = entry.authorId === currentUserId;
   const showEntryActions = canManageEntries || isAuthor;
+  const isCollaboratorDraft = entry.publicationStatus === 'draft' && canManageEntries;
 
   const relativeTime = useMemo(
     () => getRelativeTime(entry.createdAt, i18n.language),
@@ -167,6 +168,11 @@ export const EntryCard = memo(function EntryCard({
           {entry.authorName}
         </span>
         <span className="font-ui text-xs text-caption shrink-0">{relativeTime}</span>
+        {isCollaboratorDraft && (
+          <span className="font-ui text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded shrink-0">
+            {t('entries.draftBadge')}
+          </span>
+        )}
 
         {showEntryActions && (
           <div className="relative shrink-0">
@@ -247,11 +253,13 @@ export const EntryCard = memo(function EntryCard({
         dangerouslySetInnerHTML={{ __html: formatEntryContent(entry.content) }}
       />
 
-      {/* Reactions and Comments */}
-      <div className="px-4 pb-4 mt-2 space-y-2">
-        <ReactionBar tripId={tripId} entryId={entry.id} reactions={entry.reactions} />
-        <CommentSection tripId={tripId} entryId={entry.id} />
-      </div>
+      {/* Reactions and comments only after publish (followers never see drafts) */}
+      {!isCollaboratorDraft && (
+        <div className="px-4 pb-4 mt-2 space-y-2">
+          <ReactionBar tripId={tripId} entryId={entry.id} reactions={entry.reactions} />
+          <CommentSection tripId={tripId} entryId={entry.id} />
+        </div>
+      )}
 
       <EntryImageCarouselModal
         images={carouselImages}
