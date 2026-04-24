@@ -22,7 +22,7 @@ export interface CreateEntryFormProps {
   uploadError: string;
   handleRemoveLocalFile: (index: number) => void;
   handleLocationToggle: () => void;
-  handleSubmit: (e: React.FormEvent) => void;
+  handleSubmit: (e: React.FormEvent) => void | Promise<void>;
   handleDiscard: () => void;
   isPending: boolean;
   savedOffline: boolean;
