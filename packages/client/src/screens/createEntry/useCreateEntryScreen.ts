@@ -8,6 +8,7 @@ import { createEntry, fetchEntry, updateEntry } from '../../api/entries.js';
 import { uploadMedia } from '../../api/media.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { compressImage } from '../../utils/compressImage.js';
+import { uploadEntryLocalFiles } from '../../utils/uploadEntryLocalFiles.js';
 import { getPendingEntry } from '../../offline/db.js';
 import { saveOfflineEntry } from '../../offline/entrySync.js';
 import { QUERY_STALE_MS } from '../../lib/appQueryClient.js';
@@ -44,6 +45,7 @@ export function useCreateEntryScreen() {
   const [uploadingCount, setUploadingCount] = useState(0);
   const [uploadError, setUploadError] = useState('');
   const [savedOffline, setSavedOffline] = useState(false);
+  const [isFlushingLocalUploads, setIsFlushingLocalUploads] = useState(false);
 
   const localPreviews = useMemo(
     () => localFiles.map((f) => URL.createObjectURL(f)),
@@ -181,7 +183,8 @@ export function useCreateEntryScreen() {
               },
             ]);
           } catch {
-            setUploadError(t('entries.uploadFailed'));
+            setLocalFiles((prev) => [...prev, file]);
+            setUploadError(t('entries.uploadQueuedOffline'));
           } finally {
             setUploadingCount((prev) => prev - 1);
           }
@@ -189,6 +192,22 @@ export function useCreateEntryScreen() {
       );
     },
     [images.length, localFiles.length, tripId, accessToken, t],
+  );
+
+  const queueOfflineAfterNetworkFailure = useCallback(
+    (payload: CreateEntryRequest, files: File[]) => {
+      void saveOfflineEntry({
+        localId: crypto.randomUUID(),
+        tripId: tripId!,
+        status: 'pending',
+        payload,
+        images: files,
+        createdAt: Date.now(),
+      });
+      setSavedOffline(true);
+      setTimeout(() => navigate(`/trips/${tripId}/timeline`), 1500);
+    },
+    [navigate, tripId],
   );
 
   const handleRemoveLocalFile = useCallback((index: number) => {
@@ -211,7 +230,7 @@ export function useCreateEntryScreen() {
   );
 
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
 
       if (!validateRequiredFields()) return;
@@ -225,12 +244,12 @@ export function useCreateEntryScreen() {
             }
           : undefined;
 
-      const createData: CreateEntryRequest = {
+      const buildCreatePayload = (imageList: EntryImage[]): CreateEntryRequest => ({
         title: form.title.trim(),
         content: form.content,
-        images,
+        images: imageList,
         ...(location !== undefined && { location }),
-      };
+      });
 
       if (isServerEdit) {
         updateMutation.mutate({
@@ -248,7 +267,7 @@ export function useCreateEntryScreen() {
           localId: pendingOfflineMeta.localId,
           tripId: tripId!,
           status: 'pending',
-          payload: createData,
+          payload: buildCreatePayload(images),
           images: localFiles,
           createdAt: pendingOfflineMeta.createdAt,
         });
@@ -262,7 +281,7 @@ export function useCreateEntryScreen() {
           localId: crypto.randomUUID(),
           tripId: tripId!,
           status: 'pending',
-          payload: createData,
+          payload: buildCreatePayload(images),
           images: localFiles,
           createdAt: Date.now(),
         });
@@ -271,7 +290,44 @@ export function useCreateEntryScreen() {
         return;
       }
 
-      createMutation.mutate(createData);
+      if (!tripId || !accessToken) return;
+
+      setUploadError('');
+      createMutation.reset();
+
+      let nextImages = images;
+      let nextLocalFiles = localFiles;
+
+      if (nextLocalFiles.length > 0) {
+        setIsFlushingLocalUploads(true);
+        try {
+          const result = await uploadEntryLocalFiles(
+            tripId,
+            accessToken,
+            nextImages,
+            nextLocalFiles,
+          );
+          nextImages = result.images;
+          nextLocalFiles = result.failedFiles;
+          setImages(nextImages);
+          setLocalFiles(nextLocalFiles);
+          if (result.failedFiles.length > 0) {
+            setUploadError(t('entries.uploadQueuedOffline'));
+            queueOfflineAfterNetworkFailure(buildCreatePayload(nextImages), nextLocalFiles);
+            return;
+          }
+        } finally {
+          setIsFlushingLocalUploads(false);
+        }
+      }
+
+      const createData = buildCreatePayload(nextImages);
+
+      try {
+        await createMutation.mutateAsync(createData);
+      } catch {
+        queueOfflineAfterNetworkFailure(createData, nextLocalFiles);
+      }
     },
     [
       form,
@@ -285,6 +341,9 @@ export function useCreateEntryScreen() {
       localFiles,
       images,
       validateRequiredFields,
+      accessToken,
+      queueOfflineAfterNetworkFailure,
+      t,
     ],
   );
 
@@ -292,6 +351,7 @@ export function useCreateEntryScreen() {
     createMutation.isPending ||
     updateMutation.isPending ||
     uploadingCount > 0 ||
+    isFlushingLocalUploads ||
     (isPendingEdit && !pendingOfflineMeta);
 
   return {
