@@ -65,50 +65,52 @@ export function TripDashboardScreen() {
   const currentUserId = user?.id ?? '';
 
   return (
-    <div
-      ref={dashboardRootRef}
-      className="min-h-screen bg-bg-primary pb-24 pt-14"
-      id="trip-dashboard-root"
-    >
-      <header className="px-4 pt-8 pb-4 flex items-center justify-between">
-        <h1 className="font-display text-2xl text-heading">{t('trips.dashboard.title')}</h1>
-        {canCreate && (
-          <button
-            onClick={() => setShowCreate(true)}
-            className="px-4 py-2 bg-accent text-white font-ui text-sm font-semibold rounded-round-eight hover:opacity-90 active:scale-95 transition-all"
-          >
-            {t('trips.dashboard.createButton')}
-          </button>
-        )}
-      </header>
+    <>
+      <div
+        ref={dashboardRootRef}
+        className="min-h-screen bg-bg-primary pb-24 pt-14"
+        id="trip-dashboard-root"
+      >
+        <header className="px-4 pt-8 pb-4 flex items-center justify-between">
+          <h1 className="font-display text-2xl text-heading">{t('trips.dashboard.title')}</h1>
+          {canCreate && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="px-4 py-2 bg-accent text-white font-ui text-sm font-semibold rounded-round-eight hover:opacity-90 active:scale-95 transition-all"
+            >
+              {t('trips.dashboard.createButton')}
+            </button>
+          )}
+        </header>
 
-      <main className="px-4 space-y-6">
-        {isLoading ? (
-          <p className="font-ui text-body text-center py-12">{t('common.loading')}</p>
-        ) : trips.length === 0 ? (
-          <p className="font-ui text-body text-center py-12">{t('trips.dashboard.emptyState')}</p>
-        ) : (
-          <>
-            <TripGroup
-              label={t('trips.dashboard.statusGroup.active')}
-              items={active}
-              currentUserId={currentUserId}
-            />
-            <TripGroup
-              label={t('trips.dashboard.statusGroup.planned')}
-              items={planned}
-              currentUserId={currentUserId}
-            />
-            <TripGroup
-              label={t('trips.dashboard.statusGroup.completed')}
-              items={completed}
-              currentUserId={currentUserId}
-            />
-          </>
-        )}
-      </main>
+        <main className="px-4 space-y-6">
+          {isLoading ? (
+            <p className="font-ui text-body text-center py-12">{t('common.loading')}</p>
+          ) : trips.length === 0 ? (
+            <p className="font-ui text-body text-center py-12">{t('trips.dashboard.emptyState')}</p>
+          ) : (
+            <>
+              <TripGroup
+                label={t('trips.dashboard.statusGroup.active')}
+                items={active}
+                currentUserId={currentUserId}
+              />
+              <TripGroup
+                label={t('trips.dashboard.statusGroup.planned')}
+                items={planned}
+                currentUserId={currentUserId}
+              />
+              <TripGroup
+                label={t('trips.dashboard.statusGroup.completed')}
+                items={completed}
+                currentUserId={currentUserId}
+              />
+            </>
+          )}
+        </main>
+      </div>
 
       {showCreate && <CreateTripModal onClose={() => setShowCreate(false)} />}
-    </div>
+    </>
   );
 }
