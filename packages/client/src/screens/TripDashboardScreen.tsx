@@ -53,7 +53,11 @@ export function TripDashboardScreen() {
   const currentUserId = user?.id ?? '';
 
   return (
-    <div className="min-h-screen bg-bg-primary pb-24 pt-14">
+    <div
+      className="min-h-screen bg-bg-primary pb-24 pt-14"
+      id="trip-dashboard-root"
+      inert={showCreate ? true : undefined}
+    >
       <header className="px-4 pt-8 pb-4 flex items-center justify-between">
         <h1 className="font-display text-2xl text-heading">{t('trips.dashboard.title')}</h1>
         {canCreate && (
