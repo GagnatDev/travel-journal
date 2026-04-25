@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { Trip } from '@travel-journal/shared';
@@ -37,6 +37,18 @@ export function TripDashboardScreen() {
   const { t } = useTranslation();
   const { accessToken, user } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
+  const dashboardRootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = dashboardRootRef.current;
+    if (!el) return;
+    if (showCreate) {
+      el.setAttribute('inert', '');
+      return () => {
+        el.removeAttribute('inert');
+      };
+    }
+  }, [showCreate]);
 
   const { data: trips = [], isLoading } = useQuery({
     queryKey: ['trips'],
@@ -54,9 +66,9 @@ export function TripDashboardScreen() {
 
   return (
     <div
+      ref={dashboardRootRef}
       className="min-h-screen bg-bg-primary pb-24 pt-14"
       id="trip-dashboard-root"
-      inert={showCreate ? true : undefined}
     >
       <header className="px-4 pt-8 pb-4 flex items-center justify-between">
         <h1 className="font-display text-2xl text-heading">{t('trips.dashboard.title')}</h1>
