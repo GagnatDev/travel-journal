@@ -10,6 +10,7 @@ import { AuthProvider } from '../context/AuthContext.js';
 import { CreateEntryScreen } from '../screens/CreateEntryScreen.js';
 import { getPendingEntry } from '../offline/db.js';
 import { saveOfflineEntry } from '../offline/entrySync.js';
+import { compressImage } from '../utils/compressImage.js';
 
 import { server } from './mocks/server.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
@@ -30,6 +31,16 @@ vi.mock('../offline/entrySync.js', async (importOriginal) => {
     saveOfflineEntry: vi.fn(() => Promise.resolve()),
   };
 });
+
+vi.mock('../utils/compressImage.js', () => ({
+  compressImage: vi.fn(() =>
+    Promise.resolve({
+      blob: new Blob(['x'], { type: 'image/jpeg' }),
+      width: 10,
+      height: 10,
+    }),
+  ),
+}));
 
 const TRIP_ID = 'trip-1';
 const FIXED_CREATED_AT = 1_700_000_000_000;
@@ -73,6 +84,13 @@ function renderCreate(initialPath = `/trips/${TRIP_ID}/entries/new`) {
 describe('CreateEntryScreen', () => {
   beforeEach(() => {
     vi.mocked(getPendingEntry).mockReset();
+    vi.mocked(compressImage).mockImplementation(() =>
+      Promise.resolve({
+        blob: new Blob(['x'], { type: 'image/jpeg' }),
+        width: 10,
+        height: 10,
+      }),
+    );
     // Mock geolocation
     const mockGetCurrentPosition = vi.fn((success: PositionCallback) => {
       success({
@@ -272,6 +290,45 @@ describe('CreateEntryScreen', () => {
           }),
         }),
       );
+    });
+  });
+
+  it('shows upload progress banner when adding photos from the empty state', async () => {
+    let resolveUpload: (() => void) | undefined;
+    const uploadGate = new Promise<void>((r) => {
+      resolveUpload = r;
+    });
+    server.use(
+      http.post('/api/v1/media/upload', async () => {
+        await uploadGate;
+        return HttpResponse.json(
+          {
+            key: 'media/trip-1/deferred.jpg',
+            thumbnailKey: 'media/trip-1/deferred.thumb.webp',
+            url: '/api/v1/media/media/trip-1/deferred.jpg',
+          },
+          { status: 201 },
+        );
+      }),
+    );
+
+    renderCreate();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/tittel|title/i)).toBeInTheDocument();
+    });
+
+    const file = new File(['fake'], 'shot.jpg', { type: 'image/jpeg' });
+    await userEvent.upload(screen.getByTestId('entry-media-file-input'), file);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('entry-photo-upload-progress')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
+
+    resolveUpload?.();
+    await waitFor(() => {
+      expect(screen.queryByTestId('entry-photo-upload-progress')).not.toBeInTheDocument();
     });
   });
 });

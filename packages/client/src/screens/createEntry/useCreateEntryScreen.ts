@@ -42,10 +42,17 @@ export function useCreateEntryScreen() {
     localId: string;
     createdAt: number;
   } | null>(null);
-  const [uploadingCount, setUploadingCount] = useState(0);
+  const [uploadSession, setUploadSession] = useState<{
+    total: number;
+    remaining: number;
+  } | null>(null);
   const [uploadError, setUploadError] = useState('');
   const [savedOffline, setSavedOffline] = useState(false);
   const [isFlushingLocalUploads, setIsFlushingLocalUploads] = useState(false);
+  const [flushUploadProgress, setFlushUploadProgress] = useState<{
+    completed: number;
+    total: number;
+  } | null>(null);
 
   const localPreviews = useMemo(
     () => localFiles.map((f) => URL.createObjectURL(f)),
@@ -165,7 +172,13 @@ export function useCreateEntryScreen() {
         return;
       }
 
-      setUploadingCount((prev) => prev + toProcess.length);
+      if (toProcess.length > 0) {
+        setUploadSession((prev) => {
+          const n = toProcess.length;
+          if (!prev) return { total: n, remaining: n };
+          return { total: prev.total + n, remaining: prev.remaining + n };
+        });
+      }
       await Promise.all(
         toProcess.map(async (file) => {
           try {
@@ -186,7 +199,12 @@ export function useCreateEntryScreen() {
             setLocalFiles((prev) => [...prev, file]);
             setUploadError(t('entries.uploadQueuedOffline'));
           } finally {
-            setUploadingCount((prev) => prev - 1);
+            setUploadSession((prev) => {
+              if (!prev) return null;
+              const nextRem = prev.remaining - 1;
+              if (nextRem <= 0) return null;
+              return { total: prev.total, remaining: nextRem };
+            });
           }
         }),
       );
@@ -300,12 +318,14 @@ export function useCreateEntryScreen() {
 
       if (nextLocalFiles.length > 0) {
         setIsFlushingLocalUploads(true);
+        setFlushUploadProgress({ completed: 0, total: nextLocalFiles.length });
         try {
           const result = await uploadEntryLocalFiles(
             tripId,
             accessToken,
             nextImages,
             nextLocalFiles,
+            (completed, total) => setFlushUploadProgress({ completed, total }),
           );
           nextImages = result.images;
           nextLocalFiles = result.failedFiles;
@@ -318,6 +338,7 @@ export function useCreateEntryScreen() {
           }
         } finally {
           setIsFlushingLocalUploads(false);
+          setFlushUploadProgress(null);
         }
       }
 
@@ -350,9 +371,20 @@ export function useCreateEntryScreen() {
   const isPending =
     createMutation.isPending ||
     updateMutation.isPending ||
-    uploadingCount > 0 ||
+    uploadSession !== null ||
     isFlushingLocalUploads ||
     (isPendingEdit && !pendingOfflineMeta);
+
+  const uploadProgress =
+    uploadSession !== null
+      ? {
+          completed: uploadSession.total - uploadSession.remaining,
+          total: uploadSession.total,
+          phase: 'adding' as const,
+        }
+      : flushUploadProgress !== null
+        ? { ...flushUploadProgress, phase: 'finishing' as const }
+        : null;
 
   return {
     isServerEdit,
@@ -365,7 +397,7 @@ export function useCreateEntryScreen() {
     setImages,
     localPreviews,
     handleFileSelect,
-    uploadingCount,
+    uploadProgress,
     uploadError,
     handleRemoveLocalFile,
     handleLocationToggle,
