@@ -22,6 +22,16 @@ describe('uploadEntryLocalFiles', () => {
     });
   });
 
+  it('invokes onProgress after each file', async () => {
+    const onProgress = vi.fn();
+    vi.mocked(uploadMedia).mockResolvedValue({ key: 'new', url: 'http://x' });
+    const f1 = new File(['a'], 'a.jpg', { type: 'image/jpeg' });
+    const f2 = new File(['b'], 'b.jpg', { type: 'image/jpeg' });
+    await uploadEntryLocalFiles('trip-1', 'token', [], [f1, f2], onProgress);
+    expect(onProgress).toHaveBeenNthCalledWith(1, 1, 2);
+    expect(onProgress).toHaveBeenNthCalledWith(2, 2, 2);
+  });
+
   it('returns uploaded images and empty failedFiles when all uploads succeed', async () => {
     vi.mocked(uploadMedia).mockResolvedValue({
       key: 'k1',
