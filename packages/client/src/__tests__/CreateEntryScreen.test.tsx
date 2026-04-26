@@ -210,12 +210,33 @@ describe('CreateEntryScreen', () => {
     });
   });
 
-  it('modal header shows "Draft" label when creating a new entry', async () => {
+  it('new entry shows visibility options and sends publicationStatus draft when chosen', async () => {
+    let postedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.post(`/api/v1/trips/${TRIP_ID}/entries`, async ({ request }) => {
+        postedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          { ...mockEntry, id: 'new-entry', publicationStatus: 'draft' },
+          { status: 201 },
+        );
+      }),
+    );
+
     renderCreate();
 
     await waitFor(() => {
-      expect(screen.getByText(/kladd|draft/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/tittel|title/i)).toBeInTheDocument();
     });
+
+    await userEvent.click(screen.getByTestId('entry-visibility-draft'));
+    await userEvent.type(screen.getByLabelText(/tittel|title/i), 'Draft title');
+    await userEvent.type(screen.getByLabelText(/innhold|content/i), 'Body text');
+    await userEvent.click(screen.getByTestId('entry-save-submit'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('timeline')).toBeInTheDocument();
+    });
+    expect(postedBody?.['publicationStatus']).toBe('draft');
   });
 
   it('photo upload zone shows decorative ghost cards when no images are present', async () => {
@@ -251,6 +272,33 @@ describe('CreateEntryScreen', () => {
       expect(screen.getByDisplayValue('Existing Entry')).toBeInTheDocument();
       expect(screen.getByDisplayValue('Existing content')).toBeInTheDocument();
     });
+  });
+
+  it('editing a server draft shows publish checkbox and sends publicationStatus when checked', async () => {
+    let patched: Record<string, unknown> | null = null;
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries/:entryId`, () =>
+        HttpResponse.json({ ...mockEntry, id: 'entry-draft-1', publicationStatus: 'draft' }),
+      ),
+      http.patch(`/api/v1/trips/${TRIP_ID}/entries/:entryId`, async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...mockEntry, id: 'entry-draft-1', title: 'Updated' });
+      }),
+    );
+
+    renderCreate(`/trips/${TRIP_ID}/entries/entry-draft-1/edit`);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Existing Entry')).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId('entry-publish-followers-checkbox'));
+    await userEvent.click(screen.getByTestId('entry-save-submit'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('timeline')).toBeInTheDocument();
+    });
+    expect(patched?.['publicationStatus']).toBe('published');
   });
 
   it('pending edit loads from IDB and save keeps localId and createdAt', async () => {

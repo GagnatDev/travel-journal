@@ -17,6 +17,8 @@ export interface IEntryLocation {
 
 export type ReactionEmoji = '❤️' | '👍' | '😂';
 
+export type EntryPublicationStatus = 'draft' | 'published';
+
 export interface IReaction {
   emoji: ReactionEmoji;
   userId: Types.ObjectId;
@@ -30,6 +32,8 @@ export interface IEntry extends Document {
   content: string;
   images: IEntryImage[];
   location?: IEntryLocation;
+  /** Followers only see `published` entries; omit/legacy treated as published. */
+  publicationStatus: EntryPublicationStatus;
   isFavorite: boolean;
   syncVersion: number;
   editHistory?: Array<{ content: string; images: IEntryImage[]; savedAt: Date; savedBy: Types.ObjectId }>;
@@ -78,6 +82,11 @@ const entrySchema = new Schema<IEntry>(
     content: { type: String, required: true },
     images: [entryImageSchema],
     location: { type: entryLocationSchema },
+    publicationStatus: {
+      type: String,
+      enum: ['draft', 'published'],
+      default: 'published',
+    },
     isFavorite: { type: Boolean, default: false },
     syncVersion: { type: Number, default: 0 },
     promptUsed: { type: String },

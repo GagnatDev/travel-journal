@@ -146,6 +146,31 @@ describe('tryParseClientCreatedAt', () => {
   });
 });
 
+describe('listEntries and drafts', () => {
+  it('excludes drafts from follower list but includes them for creator', async () => {
+    const creator = await makeUser('creator@test.com');
+    const trip = await makeTrip(String(creator._id));
+
+    const pub = await createEntry(trip.id, String(creator._id), {
+      title: 'Published',
+      content: 'x',
+    });
+    const draft = await createEntry(trip.id, String(creator._id), {
+      title: 'Draft',
+      content: 'y',
+      publicationStatus: 'draft',
+    });
+
+    const forFollower = await listEntries(trip.id, 1, 20, 'follower');
+    expect(forFollower.entries.map((e) => e.id)).toEqual([pub.id]);
+    expect(forFollower.total).toBe(1);
+
+    const forCreator = await listEntries(trip.id, 1, 20, 'creator');
+    expect(forCreator.total).toBe(2);
+    expect(forCreator.entries.find((e) => e.id === draft.id)?.publicationStatus).toBe('draft');
+  });
+});
+
 describe('createEntry', () => {
   it('stores the entry with deletedAt null and returns it with authorName', async () => {
     const user = await makeUser('author@test.com');
@@ -161,10 +186,27 @@ describe('createEntry', () => {
     expect(entry.authorName).toBe('author');
     expect(entry.authorId).toBe(String(user._id));
     expect(entry.tripId).toBe(trip.id);
+    expect(entry.publicationStatus).toBeUndefined();
 
     // Verify deletedAt is null in DB
     const doc = await Entry.findById(entry.id);
     expect(doc?.deletedAt).toBeNull();
+    expect(doc?.publicationStatus).toBe('published');
+  });
+
+  it('stores draft and exposes publicationStatus in API shape', async () => {
+    const user = await makeUser('draft@test.com');
+    const trip = await makeTrip(String(user._id));
+
+    const entry = await createEntry(trip.id, String(user._id), {
+      title: 'WIP',
+      content: 'Soon',
+      publicationStatus: 'draft',
+    });
+
+    expect(entry.publicationStatus).toBe('draft');
+    const doc = await Entry.findById(entry.id).lean();
+    expect(doc?.publicationStatus).toBe('draft');
   });
 
   it('honors clientCreatedAt for Mongo createdAt when provided', async () => {
@@ -197,7 +239,7 @@ describe('listEntries', () => {
     });
     await softDeleteEntry(trip.id, e2.id, 'creator');
 
-    const { entries, total } = await listEntries(trip.id, 1, 20);
+    const { entries, total } = await listEntries(trip.id, 1, 20, 'creator');
     expect(entries).toHaveLength(1);
     expect(entries[0]!.id).toBe(e1.id);
     expect(total).toBe(1);
@@ -212,7 +254,7 @@ describe('listEntries', () => {
     await new Promise((r) => setTimeout(r, 10));
     const e2 = await createEntry(trip.id, String(user._id), { title: 'Second', content: 'b' });
 
-    const { entries } = await listEntries(trip.id, 1, 20);
+    const { entries } = await listEntries(trip.id, 1, 20, 'creator');
     expect(entries[0]!.id).toBe(e2.id); // newest first
     expect(entries[1]!.id).toBe(e1.id);
   });
@@ -225,11 +267,11 @@ describe('listEntries', () => {
       await createEntry(trip.id, String(user._id), { title: `Entry ${i}`, content: 'x' });
     }
 
-    const page1 = await listEntries(trip.id, 1, 3);
+    const page1 = await listEntries(trip.id, 1, 3, 'creator');
     expect(page1.entries).toHaveLength(3);
     expect(page1.total).toBe(5);
 
-    const page2 = await listEntries(trip.id, 2, 3);
+    const page2 = await listEntries(trip.id, 2, 3, 'creator');
     expect(page2.entries).toHaveLength(2);
     expect(page2.total).toBe(5);
   });
@@ -306,6 +348,26 @@ describe('updateEntry', () => {
 
     expect(updated.location).toBeUndefined();
   });
+
+  it('sets publicationStatus to published from draft', async () => {
+    const user = await makeUser('pub@test.com');
+    const trip = await makeTrip(String(user._id));
+
+    const entry = await createEntry(trip.id, String(user._id), {
+      title: 'D',
+      content: 'c',
+      publicationStatus: 'draft',
+    });
+    expect(entry.publicationStatus).toBe('draft');
+
+    const updated = await updateEntry(trip.id, entry.id, 'creator', {
+      publicationStatus: 'published',
+    });
+    expect(updated.publicationStatus).toBeUndefined();
+
+    const doc = await Entry.findById(entry.id).lean();
+    expect(doc?.publicationStatus).toBe('published');
+  });
 });
 
 describe('softDeleteEntry', () => {
@@ -336,7 +398,7 @@ describe('softDeleteEntry', () => {
 
     await softDeleteEntry(trip.id, entry.id, 'creator');
 
-    const { entries } = await listEntries(trip.id, 1, 20);
+    const { entries } = await listEntries(trip.id, 1, 20, 'creator');
     expect(entries.find((e) => e.id === entry.id)).toBeUndefined();
   });
 
@@ -365,7 +427,7 @@ describe('getEntryById', () => {
       content: 'here',
     });
 
-    const found = await getEntryById(trip.id, entry.id);
+    const found = await getEntryById(trip.id, entry.id, 'creator');
     expect(found.id).toBe(entry.id);
     expect(found.title).toBe('Found');
   });
@@ -380,7 +442,26 @@ describe('getEntryById', () => {
     });
     await softDeleteEntry(trip.id, entry.id, 'creator');
 
-    await expect(getEntryById(trip.id, entry.id)).rejects.toMatchObject({
+    await expect(getEntryById(trip.id, entry.id, 'creator')).rejects.toMatchObject({
+      status: 404,
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('hides draft from follower role', async () => {
+    const user = await makeUser('creator@test.com');
+    const trip = await makeTrip(String(user._id));
+
+    const entry = await createEntry(trip.id, String(user._id), {
+      title: 'Secret',
+      content: 'draft',
+      publicationStatus: 'draft',
+    });
+
+    const forCreator = await getEntryById(trip.id, entry.id, 'creator');
+    expect(forCreator.id).toBe(entry.id);
+
+    await expect(getEntryById(trip.id, entry.id, 'follower')).rejects.toMatchObject({
       status: 404,
       code: 'NOT_FOUND',
     });

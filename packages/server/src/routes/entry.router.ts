@@ -88,6 +88,12 @@ entryRouter.post('/', async (req: Request, res: Response, next: NextFunction): P
       }
     }
 
+    const ps = body.publicationStatus;
+    if (ps !== undefined && ps !== null && ps !== 'draft' && ps !== 'published') {
+      res.status(400).json({ error: { message: 'Invalid publicationStatus', code: 'VALIDATION_ERROR' } });
+      return;
+    }
+
     const entry = await createEntry(tripId, auth.userId, body);
     res.status(201).json(entry);
   } catch (err) {
@@ -102,7 +108,8 @@ entryRouter.get('/', async (req: Request, res: Response, next: NextFunction): Pr
     const page = Math.max(1, parseInt(String(req.query['page'] ?? '1'), 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(String(req.query['limit'] ?? '20'), 10) || 20));
 
-    const result = await listEntries(tripId, page, limit);
+    const tripRole = res.locals['tripRole'] as TripRole;
+    const result = await listEntries(tripId, page, limit, tripRole);
     res.json(result);
   } catch (err) {
     next(err);
@@ -113,7 +120,8 @@ entryRouter.get('/', async (req: Request, res: Response, next: NextFunction): Pr
 entryRouter.get('/locations', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const tripId = req.params['id']!;
-    const pins = await listEntryLocations(tripId);
+    const tripRole = res.locals['tripRole'] as TripRole;
+    const pins = await listEntryLocations(tripId, tripRole);
     res.json(pins);
   } catch (err) {
     next(err);
@@ -126,7 +134,8 @@ entryRouter.get('/:entryId', async (req: Request, res: Response, next: NextFunct
     const tripId = req.params['id']!;
     const entryId = req.params['entryId']!;
 
-    const entry = await getEntryById(tripId, entryId);
+    const tripRole = res.locals['tripRole'] as TripRole;
+    const entry = await getEntryById(tripId, entryId, tripRole);
     res.json(entry);
   } catch (err) {
     next(err);
@@ -140,6 +149,12 @@ entryRouter.patch('/:entryId', async (req: Request, res: Response, next: NextFun
     const tripId = req.params['id']!;
     const entryId = req.params['entryId']!;
     const body = req.body as UpdateEntryRequest;
+
+    const ps = body.publicationStatus;
+    if (ps !== undefined && ps !== null && ps !== 'published') {
+      res.status(400).json({ error: { message: 'Invalid publicationStatus', code: 'VALIDATION_ERROR' } });
+      return;
+    }
 
     const entry = await updateEntry(tripId, entryId, tripRole, body);
     res.json(entry);
@@ -176,7 +191,8 @@ entryRouter.post('/:entryId/reactions', async (req: Request, res: Response, next
       return;
     }
 
-    const reactions = await toggleReaction(tripId, entryId, auth.userId, emoji);
+    const tripRole = res.locals['tripRole'] as TripRole;
+    const reactions = await toggleReaction(tripId, entryId, auth.userId, emoji, tripRole);
     res.json({ reactions });
   } catch (err) {
     next(err);
@@ -186,8 +202,10 @@ entryRouter.post('/:entryId/reactions', async (req: Request, res: Response, next
 // GET /:entryId/comments — List comments (any member)
 entryRouter.get('/:entryId/comments', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const tripId = req.params['id']!;
     const entryId = req.params['entryId']!;
-    const comments = await listComments(entryId);
+    const tripRole = res.locals['tripRole'] as TripRole;
+    const comments = await listComments(tripId, entryId, tripRole);
     res.json(comments);
   } catch (err) {
     next(err);
@@ -202,7 +220,8 @@ entryRouter.post('/:entryId/comments', async (req: Request, res: Response, next:
     const entryId = req.params['entryId']!;
     const body = req.body as AddCommentRequest;
 
-    const comment = await addComment(tripId, entryId, auth.userId, body.content ?? '');
+    const tripRole = res.locals['tripRole'] as TripRole;
+    const comment = await addComment(tripId, entryId, auth.userId, body.content ?? '', tripRole);
     res.status(201).json(comment);
   } catch (err) {
     next(err);
@@ -213,9 +232,12 @@ entryRouter.post('/:entryId/comments', async (req: Request, res: Response, next:
 entryRouter.delete('/:entryId/comments/:commentId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const auth = res.locals['auth'] as AccessTokenPayload;
+    const tripId = req.params['id']!;
+    const entryId = req.params['entryId']!;
     const commentId = req.params['commentId']!;
+    const tripRole = res.locals['tripRole'] as TripRole;
 
-    await deleteComment(commentId, auth.userId);
+    await deleteComment(tripId, entryId, commentId, auth.userId, tripRole);
     res.status(204).send();
   } catch (err) {
     next(err);

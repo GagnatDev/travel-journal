@@ -55,6 +55,7 @@ export async function runDailyEntryDigest(options: RunDigestOptions = {}): Promi
     const entries = await Entry.find({
       tripId: trip._id,
       deletedAt: null,
+      publicationStatus: { $ne: 'draft' },
       createdAt: { $gte: windowStart, $lt: windowEnd },
     })
       .select({ authorId: 1 })

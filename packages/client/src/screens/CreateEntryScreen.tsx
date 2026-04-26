@@ -24,10 +24,7 @@ export function CreateEntryScreen() {
         <span className="font-ui font-semibold text-heading">
           {isEditing ? t('entries.editTitle') : t('entries.newTitle')}
         </span>
-        {!isEditing && (
-          <span className="font-ui text-xs text-caption">{t('entries.draft')}</span>
-        )}
-        {isEditing && <span className="w-6" />}
+        <span className="w-6" aria-hidden="true" />
       </header>
       <div className="flex-1 overflow-y-auto">
         <CreateEntryForm {...form} />

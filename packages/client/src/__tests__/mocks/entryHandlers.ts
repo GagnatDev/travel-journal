@@ -9,7 +9,11 @@ export const entryHandlers = [
   ),
 
   http.post('/api/v1/trips/:id/entries', async ({ request }) => {
-    const body = (await request.json()) as { title: string; content: string };
+    const body = (await request.json()) as {
+      title: string;
+      content: string;
+      publicationStatus?: string;
+    };
     const entry: Entry = {
       id: 'new-entry-1',
       tripId: 'trip-1',
@@ -19,14 +23,17 @@ export const entryHandlers = [
       content: body.content,
       images: [],
       reactions: [],
+      ...(body.publicationStatus === 'draft' ? { publicationStatus: 'draft' as const } : {}),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     return HttpResponse.json(entry, { status: 201 });
   }),
 
-  http.get('/api/v1/trips/:id/entries/:entryId', ({ params }) =>
-    HttpResponse.json({
+  http.get('/api/v1/trips/:id/entries/:entryId', ({ params }) => {
+    const entryId = String(params['entryId']);
+    const isDraft = entryId.includes('draft');
+    return HttpResponse.json({
       id: params['entryId'],
       tripId: params['id'],
       authorId: 'user-1',
@@ -35,13 +42,17 @@ export const entryHandlers = [
       content: 'Mock content',
       images: [],
       reactions: [],
+      ...(isDraft ? { publicationStatus: 'draft' as const } : {}),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    }),
-  ),
+    });
+  }),
 
   http.patch('/api/v1/trips/:id/entries/:entryId', async ({ params, request }) => {
-    const body = (await request.json()) as Partial<Entry>;
+    const body = (await request.json()) as Partial<Entry> & { publicationStatus?: string };
+    const entryId = String(params['entryId']);
+    const wasDraft = entryId.includes('draft');
+    const nowPublished = body.publicationStatus === 'published';
     return HttpResponse.json({
       id: params['entryId'],
       tripId: params['id'],
@@ -51,6 +62,7 @@ export const entryHandlers = [
       content: body.content ?? 'Mock content',
       images: [],
       reactions: [],
+      ...(wasDraft && !nowPublished ? { publicationStatus: 'draft' as const } : {}),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });

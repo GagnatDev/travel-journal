@@ -29,6 +29,15 @@ export interface CreateEntryFormProps {
   savedOffline: boolean;
   createMutationError: boolean;
   updateMutationError: boolean;
+  isServerEdit: boolean;
+  isPendingEdit: boolean;
+  canChoosePublicationOnCreate: boolean;
+  createPublicationStatus: 'draft' | 'published';
+  setCreatePublicationStatus: (v: 'draft' | 'published') => void;
+  isServerDraftEdit: boolean;
+  showCollaboratorPublishOnEdit: boolean;
+  publishForFollowersOnSave: boolean;
+  setPublishForFollowersOnSave: (v: boolean) => void;
 }
 
 export function CreateEntryForm({
@@ -50,9 +59,21 @@ export function CreateEntryForm({
   savedOffline,
   createMutationError,
   updateMutationError,
+  isServerEdit,
+  isPendingEdit,
+  canChoosePublicationOnCreate,
+  createPublicationStatus,
+  setCreatePublicationStatus,
+  isServerDraftEdit,
+  showCollaboratorPublishOnEdit,
+  publishForFollowersOnSave,
+  setPublishForFollowersOnSave,
 }: CreateEntryFormProps) {
   const { t } = useTranslation();
   const hasImages = images.length > 0 || localPreviews.length > 0;
+  const isOnlineCreate = !isServerEdit && !isPendingEdit;
+  const showVisibilityRow =
+    isOnlineCreate && canChoosePublicationOnCreate && navigator.onLine !== false;
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col min-h-full">
@@ -226,6 +247,63 @@ export function CreateEntryForm({
 
       {/* Footer */}
       <div className="px-4 py-4 mt-auto space-y-3">
+        {showVisibilityRow && (
+          <fieldset className="space-y-2 border border-caption/15 rounded-round-eight p-3">
+            <legend className="font-ui text-xs text-caption uppercase tracking-wide px-1">
+              {t('entries.visibilityLegend')}
+            </legend>
+            <div className="flex items-start gap-2">
+              <input
+                id="entry-visibility-draft"
+                data-testid="entry-visibility-draft"
+                type="radio"
+                name="entry-visibility"
+                className="mt-0.5 accent-accent shrink-0"
+                checked={createPublicationStatus === 'draft'}
+                onChange={() => setCreatePublicationStatus('draft')}
+              />
+              <label htmlFor="entry-visibility-draft" className="cursor-pointer min-w-0">
+                <span className="font-ui text-sm text-body block">{t('entries.saveAsDraft')}</span>
+                <span className="font-ui text-xs text-caption">{t('entries.saveAsDraftHint')}</span>
+              </label>
+            </div>
+            <div className="flex items-start gap-2">
+              <input
+                id="entry-visibility-published"
+                type="radio"
+                name="entry-visibility"
+                className="mt-0.5 accent-accent shrink-0"
+                checked={createPublicationStatus === 'published'}
+                onChange={() => setCreatePublicationStatus('published')}
+              />
+              <label htmlFor="entry-visibility-published" className="cursor-pointer min-w-0">
+                <span className="font-ui text-sm text-body block">{t('entries.publishNow')}</span>
+                <span className="font-ui text-xs text-caption">{t('entries.publishNowHint')}</span>
+              </label>
+            </div>
+          </fieldset>
+        )}
+        {isOnlineCreate && canChoosePublicationOnCreate && navigator.onLine === false && (
+          <p className="font-ui text-xs text-caption text-center">{t('entries.visibilityOfflineNote')}</p>
+        )}
+        {isServerDraftEdit && showCollaboratorPublishOnEdit && (
+          <div className="flex items-start gap-2 px-1">
+            <input
+              id="entry-publish-followers"
+              data-testid="entry-publish-followers-checkbox"
+              type="checkbox"
+              className="mt-0.5 w-4 h-4 accent-accent shrink-0"
+              checked={publishForFollowersOnSave}
+              onChange={(e) => setPublishForFollowersOnSave(e.target.checked)}
+            />
+            <label htmlFor="entry-publish-followers" className="cursor-pointer min-w-0">
+              <span className="font-ui text-sm text-body block">
+                {t('entries.publishForFollowersOnSave')}
+              </span>
+              <span className="font-ui text-xs text-caption">{t('entries.publishForFollowersHint')}</span>
+            </label>
+          </div>
+        )}
         {savedOffline && (
           <p className="font-ui text-xs text-green-600 text-center" role="status">
             {t('offline.saved')}
@@ -241,8 +319,14 @@ export function CreateEntryForm({
         >
           {t('common.cancel')}
         </button>
-        <PillButton type="submit" fullWidth disabled={isPending}>
-          {t('entries.saveEntry')}
+        <PillButton type="submit" fullWidth disabled={isPending} data-testid="entry-save-submit">
+          {isServerDraftEdit
+            ? publishForFollowersOnSave
+              ? t('entries.saveAndPublish')
+              : t('entries.saveDraft')
+            : isOnlineCreate && createPublicationStatus === 'draft'
+              ? t('entries.saveDraft')
+              : t('entries.saveEntry')}
         </PillButton>
       </div>
     </form>

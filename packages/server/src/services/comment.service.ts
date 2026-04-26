@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import type { Comment } from '@travel-journal/shared';
+import type { Comment, TripRole } from '@travel-journal/shared';
 
 import { Comment as CommentModel } from '../models/Comment.model.js';
 import { User } from '../models/User.model.js';
@@ -33,6 +33,7 @@ export async function addComment(
   entryId: string,
   authorId: string,
   content: string,
+  tripRole: TripRole,
 ): Promise<Comment> {
   if (typeof content !== 'string' || content.trim().length === 0) {
     throw createHttpError('Content is required', 400, 'VALIDATION_ERROR');
@@ -41,7 +42,7 @@ export async function addComment(
     throw createHttpError('Comment must be 1000 characters or fewer', 400, 'VALIDATION_ERROR');
   }
 
-  await getEntryById(tripId, entryId);
+  await getEntryById(tripId, entryId, tripRole);
 
   const doc = await CommentModel.create({
     entryId: new mongoose.Types.ObjectId(entryId),
@@ -54,10 +55,16 @@ export async function addComment(
   return toComment(doc);
 }
 
-export async function listComments(entryId: string): Promise<Comment[]> {
+export async function listComments(
+  tripId: string,
+  entryId: string,
+  tripRole: TripRole,
+): Promise<Comment[]> {
   if (!mongoose.Types.ObjectId.isValid(entryId)) {
-    return [];
+    throw createHttpError('Entry not found', 404, 'NOT_FOUND');
   }
+
+  await getEntryById(tripId, entryId, tripRole);
 
   const docs = await CommentModel.find({
     entryId: new mongoose.Types.ObjectId(entryId),
@@ -67,17 +74,30 @@ export async function listComments(entryId: string): Promise<Comment[]> {
   return Promise.all(docs.map(toComment));
 }
 
-export async function deleteComment(commentId: string, requesterId: string): Promise<void> {
+export async function deleteComment(
+  tripId: string,
+  entryId: string,
+  commentId: string,
+  requesterId: string,
+  tripRole: TripRole,
+): Promise<void> {
   if (!mongoose.Types.ObjectId.isValid(commentId)) {
     throw createHttpError('Comment not found', 404, 'NOT_FOUND');
   }
 
+  await getEntryById(tripId, entryId, tripRole);
+
   const doc = await CommentModel.findOne({
     _id: new mongoose.Types.ObjectId(commentId),
+    entryId: new mongoose.Types.ObjectId(entryId),
     deletedAt: null,
   });
 
   if (!doc) throw createHttpError('Comment not found', 404, 'NOT_FOUND');
+
+  if (String(doc.tripId) !== tripId) {
+    throw createHttpError('Comment not found', 404, 'NOT_FOUND');
+  }
 
   if (String(doc.authorId) !== requesterId) {
     throw createHttpError('Forbidden', 403, 'FORBIDDEN');

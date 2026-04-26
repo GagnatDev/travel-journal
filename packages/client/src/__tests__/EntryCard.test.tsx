@@ -88,6 +88,18 @@ describe('EntryCard', () => {
     expect(screen.getByText('Alice')).toBeInTheDocument();
   });
 
+  it('shows draft badge for collaborators and hides reactions for draft entries', () => {
+    renderCard(
+      makeEntry({ publicationStatus: 'draft' }),
+      'other-user',
+      vi.fn(),
+      true,
+    );
+
+    expect(screen.getByText(/draft|kladd/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/reactions|reaksjoner/i)).not.toBeInTheDocument();
+  });
+
   it('renders the entry content', () => {
     renderCard(makeEntry(), 'other-user');
     // The content "It was a great day." should appear in the card
