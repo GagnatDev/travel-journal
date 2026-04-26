@@ -285,19 +285,67 @@ describe('EntryCard', () => {
     const carouselContainer = screen.getByTestId('entry-image-carousel-swipe-area');
 
     fireEvent.touchStart(carouselContainer, {
+      touches: [{ clientX: 220 }],
       changedTouches: [{ clientX: 220 }],
     });
     fireEvent.touchEnd(carouselContainer, {
+      touches: [],
       changedTouches: [{ clientX: 120 }],
     });
     expect(screen.getByText('2 / 2')).toBeInTheDocument();
 
     fireEvent.touchStart(carouselContainer, {
+      touches: [{ clientX: 120 }],
       changedTouches: [{ clientX: 120 }],
     });
     fireEvent.touchEnd(carouselContainer, {
+      touches: [],
       changedTouches: [{ clientX: 220 }],
     });
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+  });
+
+  it('does not change carousel image when a second touch is used (pinch)', async () => {
+    const entry = makeEntry({
+      images: [
+        { key: 'media/trip-1/a.jpg', width: 800, height: 600, order: 0, uploadedAt: new Date().toISOString() },
+        { key: 'media/trip-1/b.jpg', width: 800, height: 600, order: 1, uploadedAt: new Date().toISOString() },
+      ],
+    });
+    const user = userEvent.setup();
+    renderCard(entry, 'other-user');
+
+    await user.click(await screen.findByRole('button', { name: /open image carousel/i }));
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+
+    const carouselContainer = screen.getByTestId('entry-image-carousel-swipe-area');
+
+    fireEvent.touchStart(carouselContainer, {
+      touches: [{ clientX: 200 }],
+      changedTouches: [{ clientX: 200 }],
+    });
+    fireEvent.touchStart(carouselContainer, {
+      touches: [
+        { clientX: 200 },
+        { clientX: 400 },
+      ],
+      changedTouches: [{ clientX: 400 }],
+    });
+    fireEvent.touchMove(carouselContainer, {
+      touches: [
+        { clientX: 180 },
+        { clientX: 420 },
+      ],
+    });
+    fireEvent.touchEnd(carouselContainer, {
+      touches: [{ clientX: 420 }],
+      changedTouches: [{ clientX: 180 }],
+    });
+    fireEvent.touchEnd(carouselContainer, {
+      touches: [],
+      changedTouches: [{ clientX: 420 }],
+    });
+
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
   });
 
