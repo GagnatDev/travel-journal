@@ -29,7 +29,7 @@ export function TextArea({
   errorId,
   variant = 'standard',
   className = '',
-  wrapperClassName = 'block',
+  wrapperClassName = 'block min-w-0',
   errorClassName = 'mt-1 text-xs text-red-500 font-ui',
   ...textareaProps
 }: TextAreaProps) {
