@@ -30,8 +30,11 @@ export function EntryImageCarouselModal({
   const { t } = useTranslation();
   const { accessToken } = useAuth();
   const [activeIndex, setActiveIndex] = useState(initialIndex);
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const prefetchedCacheKeysRef = useRef<Set<string>>(new Set());
+  /** Horizontal start for a one-finger swipe; null when not tracking. */
+  const swipeStartXRef = useRef<number | null>(null);
+  /** True once this gesture used two+ touches (e.g. pinch-zoom); swipe is ignored until all touches end. */
+  const skipSwipeForGestureRef = useRef(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -121,13 +124,39 @@ export function EntryImageCarouselModal({
   };
 
   const onTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-    setTouchStartX(event.changedTouches[0]?.clientX ?? null);
+    if (event.touches.length >= 2) {
+      skipSwipeForGestureRef.current = true;
+      swipeStartXRef.current = null;
+      return;
+    }
+    if (skipSwipeForGestureRef.current) return;
+    const firstTouch = event.touches[0] ?? event.changedTouches[0];
+    swipeStartXRef.current = firstTouch?.clientX ?? null;
+  };
+
+  const onTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length >= 2) {
+      skipSwipeForGestureRef.current = true;
+      swipeStartXRef.current = null;
+    }
   };
 
   const onTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
-    const startX = touchStartX;
+    if (event.touches.length > 0) {
+      if (skipSwipeForGestureRef.current) {
+        swipeStartXRef.current = null;
+      }
+      return;
+    }
+
+    const startX = swipeStartXRef.current;
+    const skipSwipe = skipSwipeForGestureRef.current;
+    skipSwipeForGestureRef.current = false;
+    swipeStartXRef.current = null;
+
+    if (skipSwipe) return;
+
     const endX = event.changedTouches[0]?.clientX;
-    setTouchStartX(null);
     if (startX === null || endX === undefined) return;
 
     const delta = endX - startX;
@@ -138,6 +167,11 @@ export function EntryImageCarouselModal({
     } else {
       goPrevious();
     }
+  };
+
+  const onTouchCancel = () => {
+    skipSwipeForGestureRef.current = false;
+    swipeStartXRef.current = null;
   };
 
   return createPortal(
@@ -151,9 +185,11 @@ export function EntryImageCarouselModal({
 
       <div
         data-testid="entry-image-carousel-swipe-area"
-        className="relative z-10 flex h-full w-full items-center justify-center overflow-hidden"
+        className="relative z-10 flex h-full w-full touch-pan-x touch-pinch-zoom items-center justify-center overflow-hidden"
         onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchCancel}
       >
         <AuthenticatedImage
           mediaKey={activeImage.key}
