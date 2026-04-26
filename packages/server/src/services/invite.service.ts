@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 
 import mongoose from 'mongoose';
-import type { Invite, PublicUser } from '@travel-journal/shared';
+import type { Invite, PublicUser, TripMemberInviteSuggestion } from '@travel-journal/shared';
 
 import { IInvite, Invite as InviteModel } from '../models/Invite.model.js';
 import { Trip } from '../models/Trip.model.js';
@@ -192,6 +192,85 @@ export async function listTripInvites(tripId: string): Promise<Invite[]> {
     status: 'pending',
   }).sort({ createdAt: -1 });
   return docs.map(toInvite);
+}
+
+/**
+ * Users the trip creator may pick from when inviting: contributors/followers (and other
+ * trip creators when relevant) from their other trips, plus creators/contributors of
+ * trips they follow.
+ */
+export async function listTripMemberInviteSuggestions(
+  tripId: string,
+  creatorUserId: string,
+): Promise<TripMemberInviteSuggestion[]> {
+  if (!mongoose.Types.ObjectId.isValid(tripId) || !mongoose.Types.ObjectId.isValid(creatorUserId)) {
+    return [];
+  }
+
+  const oidTrip = new mongoose.Types.ObjectId(tripId);
+  const oidCreator = new mongoose.Types.ObjectId(creatorUserId);
+
+  const currentTrip = await Trip.findById(oidTrip).lean();
+  if (!currentTrip) return [];
+
+  const currentMemberIds = new Set(currentTrip.members.map((m) => String(m.userId)));
+
+  const relatedTrips = await Trip.find({ 'members.userId': oidCreator }).lean();
+
+  const suggestedUserIds = new Set<string>();
+
+  for (const trip of relatedTrips) {
+    const me = trip.members.find((m) => String(m.userId) === creatorUserId);
+    if (!me) continue;
+
+    const createdByStr = String(trip.createdBy);
+
+    if (me.tripRole === 'follower') {
+      suggestedUserIds.add(createdByStr);
+      for (const m of trip.members) {
+        if (m.tripRole === 'contributor') suggestedUserIds.add(String(m.userId));
+      }
+    } else if (me.tripRole === 'creator') {
+      for (const m of trip.members) {
+        if (String(m.userId) === creatorUserId) continue;
+        if (m.tripRole === 'contributor' || m.tripRole === 'follower') {
+          suggestedUserIds.add(String(m.userId));
+        }
+      }
+    } else if (me.tripRole === 'contributor') {
+      suggestedUserIds.add(createdByStr);
+      for (const m of trip.members) {
+        if (String(m.userId) === creatorUserId) continue;
+        if (m.tripRole === 'contributor' || m.tripRole === 'follower') {
+          suggestedUserIds.add(String(m.userId));
+        }
+      }
+    }
+  }
+
+  suggestedUserIds.delete(creatorUserId);
+  for (const id of currentMemberIds) suggestedUserIds.delete(id);
+
+  if (suggestedUserIds.size === 0) return [];
+
+  const oids = [...suggestedUserIds].map((id) => new mongoose.Types.ObjectId(id));
+  const users = await User.find({ _id: { $in: oids } })
+    .select(['email', 'displayName'])
+    .lean();
+
+  const out: TripMemberInviteSuggestion[] = users.map((u) => ({
+    userId: String(u._id),
+    displayName: u.displayName as string,
+    email: u.email as string,
+  }));
+
+  out.sort((a, b) => {
+    const byName = a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' });
+    if (byName !== 0) return byName;
+    return a.email.localeCompare(b.email, undefined, { sensitivity: 'base' });
+  });
+
+  return out;
 }
 
 export async function addTripMember(

@@ -8,6 +8,7 @@ import {
   deleteTrip,
   fetchTrip,
   fetchTripInvites,
+  fetchTripMemberInviteSuggestions,
   patchTrip,
   patchTripMemberRole,
   patchTripStatus,
@@ -23,6 +24,8 @@ export const tripSettingsQueryKeys = {
   trips: ['trips'] as const,
   trip: (tripId: string | undefined) => ['trip', tripId] as const,
   tripInvites: (tripId: string | undefined) => ['trip-invites', tripId] as const,
+  tripInviteSuggestions: (tripId: string | undefined) =>
+    ['trip-invite-suggestions', tripId] as const,
 };
 
 type UseTripSettingsParams = {
@@ -59,6 +62,14 @@ export function useTripSettings({
   const { data: pendingInvites = [] } = useQuery({
     queryKey: tripSettingsQueryKeys.tripInvites(tripId),
     queryFn: () => fetchTripInvites(tripId!, accessToken!),
+    enabled:
+      !!tripId && !!accessToken && !!trip && canManageTripInvitesAndMembers(viewerRole),
+    staleTime: QUERY_STALE_MS.tripDetail,
+  });
+
+  const { data: inviteSuggestions = [] } = useQuery({
+    queryKey: tripSettingsQueryKeys.tripInviteSuggestions(tripId),
+    queryFn: () => fetchTripMemberInviteSuggestions(tripId!, accessToken!),
     enabled:
       !!tripId && !!accessToken && !!trip && canManageTripInvitesAndMembers(viewerRole),
     staleTime: QUERY_STALE_MS.tripDetail,
@@ -129,6 +140,7 @@ export function useTripSettings({
     trip,
     isLoading,
     pendingInvites,
+    inviteSuggestions,
     updateMutation,
     statusMutation,
     deleteMutation,

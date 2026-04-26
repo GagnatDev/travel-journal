@@ -52,3 +52,10 @@ export interface UpdateTripRequest {
 export interface UpdateTripMemberNotificationPreferencesRequest {
   newEntriesMode: TripEntryNotificationMode;
 }
+
+/** Users the trip creator may pick when inviting someone to this trip (from related trips). */
+export interface TripMemberInviteSuggestion {
+  userId: string;
+  displayName: string;
+  email: string;
+}

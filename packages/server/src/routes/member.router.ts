@@ -6,6 +6,7 @@ import { Trip } from '../models/Trip.model.js';
 import {
   addTripMember,
   listTripInvites,
+  listTripMemberInviteSuggestions,
   revokeInvite,
 } from '../services/invite.service.js';
 import { getTripById } from '../services/trip.service.js';
@@ -48,6 +49,21 @@ async function creatorGuard(req: Request, res: Response, next: NextFunction): Pr
 }
 
 memberRouter.use(creatorGuard);
+
+// GET /invites/suggestions — People from related trips (before /invites/:id patterns)
+memberRouter.get(
+  '/invites/suggestions',
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tripId = req.params['id']!;
+      const auth = res.locals['auth'] as AccessTokenPayload;
+      const suggestions = await listTripMemberInviteSuggestions(tripId, auth.userId);
+      res.json(suggestions);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // GET /invites — List pending trip invites (defined before /:userId to avoid conflicts)
 memberRouter.get(

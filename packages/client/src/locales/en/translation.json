@@ -197,6 +197,7 @@
       "membersTitle": "Members",
       "addMemberTitle": "Add Member",
       "addMemberPlaceholder": "Email or nickname",
+      "inviteSuggestionsHint": "From your other trips and trips you follow",
       "addMemberButton": "Add",
       "addMemberRoleLabel": "Trip Role",
       "memberAdded": "Member added!",

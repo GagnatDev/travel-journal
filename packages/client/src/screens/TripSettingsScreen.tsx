@@ -40,6 +40,7 @@ export function TripSettingsScreen() {
     trip,
     isLoading,
     pendingInvites,
+    inviteSuggestions,
     updateMutation,
     statusMutation,
     deleteMutation,
@@ -114,6 +115,7 @@ export function TripSettingsScreen() {
           trip={trip}
           canManageMembers={canManageMembers}
           pendingInvites={pendingInvites}
+          inviteSuggestions={inviteSuggestions}
           addMemberInput={addMemberInput}
           setAddMemberInput={setAddMemberInput}
           addMemberRole={addMemberRole}
