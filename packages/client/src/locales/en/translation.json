@@ -117,6 +117,9 @@
     "serverAvailable": "This server is configured for Web Push. With browser permission and the per-trip alert option enabled, you can receive new-entry notifications.",
     "serverUnavailable": "Push is not configured on this server, so new-entry alerts cannot be delivered until the deployment provides Web Push (VAPID) keys.",
     "serverError": "Could not verify whether push is available. Alerts may not work until this check succeeds.",
+    "deploymentUpdateTitle": "A new version is available",
+    "deploymentUpdateBody": "Reload the app to finish updating. If you installed this site as an app, reload here to pick up the latest changes.",
+    "deploymentUpdateReload": "Reload app",
     "deviceGranted": "Browser notifications are allowed on this device.",
     "deviceDefault": "Browser notifications are not allowed yet. You can allow them when you enable new-entry alerts in trip settings, or from your browser’s site settings for this app.",
     "item": {

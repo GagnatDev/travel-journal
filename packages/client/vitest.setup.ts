@@ -150,6 +150,10 @@ const nb = {
       'Push er ikke konfigurert på denne serveren, så varsler om nye innlegg kan ikke leveres før driftsmiljøet legger inn Web Push (VAPID-nøkler).',
     serverError:
       'Klarte ikke å bekrefte om push er tilgjengelig. Varsler kan mangle inntil denne sjekken lykkes.',
+    deploymentUpdateTitle: 'En ny versjon er tilgjengelig',
+    deploymentUpdateBody:
+      'Last inn appen på nytt for å fullføre oppdateringen. Hvis du har lagret nettstedet som app, gjør du det her for å få siste endringer.',
+    deploymentUpdateReload: 'Last inn på nytt',
     deviceGranted: 'Nettleservarsler er tillatt på denne enheten.',
     deviceDefault:
       'Nettleservarsler er ikke tillatt ennå. Du kan tillate dem når du slår på varsler i turinnstillingene, eller fra nettleserens nettstedinnstillinger for denne appen.',

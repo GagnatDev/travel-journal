@@ -1,7 +1,7 @@
 // @vitest-environment node
 // Vite/esbuild need Node's TextEncoder; jsdom breaks esbuild's invariant check.
 
-import { readdir, stat } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -38,6 +38,12 @@ describe('production build (PWA / Workbox)', () => {
         maxSize,
         `largest JS (${maxSize} B) exceeds budget ${MAX_LARGEST_JS_BYTES} B`,
       ).toBeLessThanOrEqual(MAX_LARGEST_JS_BYTES);
+
+      const versionPath = join(clientRoot, 'dist', 'version.json');
+      const versionRaw = await readFile(versionPath, 'utf8');
+      const versionJson = JSON.parse(versionRaw) as { buildId?: string };
+      expect(versionJson.buildId).toBeTruthy();
+      expect(typeof versionJson.buildId).toBe('string');
     },
     180_000,
   );

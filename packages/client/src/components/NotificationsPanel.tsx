@@ -5,6 +5,8 @@ import { useMatch, useNavigate } from 'react-router-dom';
 
 import { fetchPushServerAvailability, type PushServerAvailability } from '../api/notifications.js';
 import { useAuth } from '../context/AuthContext.js';
+import { BUILD_ID } from '../lib/appBuildId.js';
+import { useDeploymentUpdateNotice } from '../lib/useDeploymentUpdateNotice.js';
 import { getPushPermissionState, type PushPermissionState } from '../notifications/push.js';
 import {
   useClearAllNotifications,
@@ -39,6 +41,7 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
   const [pushStatusOpen, setPushStatusOpen] = useState(false);
 
   const { notifications, isLoading } = useNotifications();
+  const { hasNewDeployment } = useDeploymentUpdateNotice(isOpen);
   const markAllRead = useMarkNotificationsRead();
   const dismiss = useDismissNotification();
   const clearAll = useClearAllNotifications();
@@ -211,6 +214,30 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
         </div>
 
         <div className="flex-1 px-4 py-4 overflow-y-auto space-y-4 font-ui text-sm text-body">
+          {BUILD_ID.length > 0 && hasNewDeployment && (
+            <div
+              role="status"
+              data-testid="deployment-update-notice"
+              className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-3 text-body"
+            >
+              <p className="font-ui text-sm font-medium text-heading">
+                {t('notifications.deploymentUpdateTitle')}
+              </p>
+              <p className="font-ui text-xs mt-1.5 leading-snug">
+                {t('notifications.deploymentUpdateBody')}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.reload();
+                }}
+                className="mt-3 font-ui text-sm font-medium text-accent hover:text-heading transition-colors underline underline-offset-2"
+              >
+                {t('notifications.deploymentUpdateReload')}
+              </button>
+            </div>
+          )}
+
           {notifications.length === 0 ? (
             <p className="text-caption text-center py-6" data-testid="notifications-empty">
               {isLoading ? '' : t('notifications.empty')}
