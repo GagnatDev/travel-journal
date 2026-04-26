@@ -55,6 +55,74 @@ async function addMemberToTrip(tripId: string, userId: string, role: 'contributo
   );
 }
 
+describe('GET /api/v1/trips/:id/members/invites/suggestions', () => {
+  it('returns 403 for a non-creator member', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const contrib = await makeUser('contrib@test.com', 'creator');
+    const trip = await makeTrip(String(creator._id));
+    await addMemberToTrip(trip.id, String(contrib._id), 'contributor');
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${trip.id}/members/invites/suggestions`)
+      .set('Authorization', authHeader(String(contrib._id), contrib.email, 'creator'));
+
+    expect(res.status).toBe(403);
+  });
+
+  it('returns contributors and followers from another trip the creator owns', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const alice = await makeUser('alice@test.com', 'follower');
+    const bob = await makeUser('bob@test.com', 'follower');
+    const tripA = await makeTrip(String(creator._id));
+    const tripB = await makeTrip(String(creator._id));
+    await addMemberToTrip(tripB.id, String(alice._id), 'contributor');
+    await addMemberToTrip(tripB.id, String(bob._id), 'follower');
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${tripA.id}/members/invites/suggestions`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(res.status).toBe(200);
+    const emails = (res.body as { email: string }[]).map((r) => r.email).sort();
+    expect(emails).toEqual(['alice@test.com', 'bob@test.com']);
+  });
+
+  it('excludes users already on the current trip', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const alice = await makeUser('alice@test.com', 'follower');
+    const tripA = await makeTrip(String(creator._id));
+    const tripB = await makeTrip(String(creator._id));
+    await addMemberToTrip(tripB.id, String(alice._id), 'contributor');
+    await addMemberToTrip(tripA.id, String(alice._id), 'follower');
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${tripA.id}/members/invites/suggestions`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('as follower suggests trip creator and contributors from that trip', async () => {
+    const owner = await makeUser('owner@test.com', 'creator');
+    const follower = await makeUser('follower@test.com', 'creator');
+    const contrib = await makeUser('contrib@test.com', 'follower');
+    const tripFollowed = await makeTrip(String(owner._id));
+    await addMemberToTrip(tripFollowed.id, String(contrib._id), 'contributor');
+    await addMemberToTrip(tripFollowed.id, String(follower._id), 'follower');
+
+    const tripOwn = await makeTrip(String(follower._id));
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${tripOwn.id}/members/invites/suggestions`)
+      .set('Authorization', authHeader(String(follower._id), follower.email, 'creator'));
+
+    expect(res.status).toBe(200);
+    const emails = (res.body as { email: string }[]).map((r) => r.email).sort();
+    expect(emails).toEqual(['contrib@test.com', 'owner@test.com']);
+  });
+});
+
 describe('POST /api/v1/trips/:id/members', () => {
   it('returns 403 for a non-creator member', async () => {
     const creator = await makeUser('creator@test.com', 'creator');

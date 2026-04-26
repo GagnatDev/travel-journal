@@ -99,6 +99,37 @@ function renderMembersSection(trip: Trip, pendingInvites: Invite[] = []) {
 }
 
 describe('MemberManagement (inside TripSettingsScreen)', () => {
+  it('focusing the invite field shows suggestion list when API returns matches', async () => {
+    server.use(
+      http.get('/api/v1/trips/:id/members/invites/suggestions', () =>
+        HttpResponse.json([
+          {
+            userId: 'user-sug',
+            displayName: 'Alice Suggest',
+            email: 'alice.suggest@example.com',
+          },
+        ]),
+      ),
+    );
+
+    renderSettings(makeTrip());
+
+    await waitFor(() => screen.getByRole('button', { name: /inviter nytt medlem|invite new member/i }));
+    await userEvent.click(screen.getByRole('button', { name: /inviter nytt medlem|invite new member/i }));
+
+    const input = await waitFor(() =>
+      screen.getByPlaceholderText(/e-post eller kallenavn|email or nickname/i),
+    );
+    await userEvent.click(input);
+
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: /alice suggest/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('option', { name: /alice suggest/i }));
+    expect(input).toHaveValue('alice.suggest@example.com');
+  });
+
   it('adding an existing user by email shows the "Added" confirmation', async () => {
     server.use(
       http.post('/api/v1/trips/:id/members', () => HttpResponse.json({ type: 'added' })),

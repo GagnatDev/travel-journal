@@ -51,6 +51,8 @@ export const tripHandlers = [
 
   http.get('/api/v1/trips/:id/members/invites', () => HttpResponse.json([])),
 
+  http.get('/api/v1/trips/:id/members/invites/suggestions', () => HttpResponse.json([])),
+
   http.post('/api/v1/trips/:id/members', async ({ request }) => {
     const body = (await request.json()) as { emailOrNickname: string };
     if (body.emailOrNickname === 'unknown@example.com') {

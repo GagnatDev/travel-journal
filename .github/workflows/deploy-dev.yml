@@ -1,0 +1,74 @@
+name: Deploy (dev)
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Git branch, tag, or full commit SHA to build and deploy'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-dev:
+    name: Deploy dev to Scaleway
+    runs-on: ubuntu-latest
+    concurrency:
+      group: scaleway-deploy-dev
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Resolve commit SHA
+        id: ref
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Scaleway Registry
+        id: login
+        uses: GagnatDev/scaleway-gh-action/registry-login@main
+        with:
+          secret_key: ${{ secrets.SCW_SECRET_KEY }}
+          registry_namespace: ${{ secrets.SCW_REGISTRY_NAMESPACE }}
+
+      - name: Build and push Docker image
+        env:
+          HEAD_SHA: ${{ steps.ref.outputs.sha }}
+        run: |
+          IMAGE="${{ steps.login.outputs.registry }}/travel-journal-dev"
+          docker build \
+            --build-arg VITE_MAPBOX_TOKEN="${{ secrets.APP_VITE_MAPBOX_TOKEN }}" \
+            -t "$IMAGE:$HEAD_SHA" -t "$IMAGE:latest" .
+          docker push "$IMAGE:$HEAD_SHA"
+          docker push "$IMAGE:latest"
+
+      - name: Deploy container (create or update)
+        id: deploy
+        uses: GagnatDev/scaleway-gh-action/container-manage@beta
+        with:
+          action: ${{ secrets.DEV_SCW_CONTAINER_ID != '' && 'update' || 'create' }}
+          secret_key: ${{ secrets.SCW_SECRET_KEY }}
+          namespace_id: ${{ secrets.SCW_CONTAINER_NAMESPACE_ID }}
+          container_id: ${{ secrets.DEV_SCW_CONTAINER_ID }}
+          container_name: travel-journal-dev
+          registry_image: ${{ steps.login.outputs.registry }}/travel-journal-dev:${{ steps.ref.outputs.sha }}
+          port: '3100'
+          min_scale: '0'
+          max_scale: '1'
+          memory_limit: '1024'
+          cpu_limit: '560'
+          secret_environment_variables: |
+            NODE_ENV: production
+            TRUST_PROXY: '1'
+            MONGODB_URI: ${{ secrets.DEV_MONGODB_URI }}
+            JWT_SECRET: ${{ secrets.DEV_JWT_SECRET }}
+            ADMIN_EMAIL: ${{ secrets.APP_ADMIN_EMAIL }}
+            S3_ENDPOINT: ${{ secrets.APP_S3_ENDPOINT }}
+            S3_BUCKET: ${{ secrets.APP_S3_BUCKET }}
+            S3_ACCESS_KEY: ${{ secrets.APP_S3_ACCESS_KEY }}
+            S3_SECRET_KEY: ${{ secrets.APP_S3_SECRET_KEY }}

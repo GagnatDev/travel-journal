@@ -74,6 +74,7 @@ function renderSettings(trip: Trip) {
       HttpResponse.json({ accessToken: 'mock-token', user: mockUser }),
     ),
     http.get('/api/v1/trips/:id', () => HttpResponse.json(trip)),
+    http.get('/api/v1/trips/:id/members/invites/suggestions', () => HttpResponse.json([])),
   );
   return render(
     <QueryClientProvider client={qc}>
@@ -144,9 +145,13 @@ describe('TripSettingsScreen', () => {
       expect(screen.getByRole('heading', { name: /turinnstillinger|trip settings/i })).toBeInTheDocument();
     });
 
-    const inviteListCalls = fetchSpy.mock.calls.filter((c) =>
-      String(c[0]).includes('/api/v1/trips/trip-1/members/invites'),
-    );
+    const inviteListCalls = fetchSpy.mock.calls.filter((c) => {
+      const u = String(c[0]);
+      return (
+        u.includes('/api/v1/trips/trip-1/members/invites') &&
+        !u.includes('/members/invites/suggestions')
+      );
+    });
     expect(inviteListCalls.length).toBe(0);
     fetchSpy.mockRestore();
   });
@@ -220,6 +225,7 @@ describe('TripSettingsScreen', () => {
         HttpResponse.json({ accessToken: 'mock-token', user: mockUser }),
       ),
       http.get('/api/v1/trips/:id', () => HttpResponse.json(trip)),
+      http.get('/api/v1/trips/:id/members/invites/suggestions', () => HttpResponse.json([])),
       http.get('/api/v1/trips/trip-1/entries', () =>
         HttpResponse.json({ entries: [], total: 0 }),
       ),

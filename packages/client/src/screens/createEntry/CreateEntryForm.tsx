@@ -8,6 +8,7 @@ import { ImageReorder } from '../../components/ImageReorder.js';
 import { entryTextControlClass } from '../../components/ui/fieldStyles.js';
 
 import type { EntryFormState } from './entryFormState.js';
+import { EntryPhotoUploadProgress, type EntryUploadProgress } from './EntryPhotoUploadProgress.js';
 
 export interface CreateEntryFormProps {
   form: EntryFormState;
@@ -18,7 +19,7 @@ export interface CreateEntryFormProps {
   setImages: React.Dispatch<React.SetStateAction<EntryImage[]>>;
   localPreviews: string[];
   handleFileSelect: (files: FileList) => void | Promise<void>;
-  uploadingCount: number;
+  uploadProgress: EntryUploadProgress | null;
   uploadError: string;
   handleRemoveLocalFile: (index: number) => void;
   handleLocationToggle: () => void;
@@ -48,7 +49,7 @@ export function CreateEntryForm({
   setImages,
   localPreviews,
   handleFileSelect,
-  uploadingCount,
+  uploadProgress,
   uploadError,
   handleRemoveLocalFile,
   handleLocationToggle,
@@ -80,11 +81,15 @@ export function CreateEntryForm({
       <div className="relative bg-bg-secondary min-h-[220px] flex flex-col items-center justify-center gap-3 overflow-hidden">
         {hasImages ? (
           <div className="w-full p-4">
+            {uploadProgress && (
+              <div className="mb-3">
+                <EntryPhotoUploadProgress progress={uploadProgress} />
+              </div>
+            )}
             <ImageReorder
               images={images}
               onImagesChange={setImages}
               onFileSelect={handleFileSelect}
-              isUploading={uploadingCount > 0}
             />
             {localPreviews.length > 0 && (
               <div className="mt-2">
@@ -109,6 +114,11 @@ export function CreateEntryForm({
           </div>
         ) : (
           <>
+            {uploadProgress && (
+              <div className="relative z-20 w-full max-w-md px-4 shrink-0">
+                <EntryPhotoUploadProgress progress={uploadProgress} />
+              </div>
+            )}
             {/* Decorative tilted ghost card placeholders */}
             <div
               aria-hidden="true"

@@ -8,10 +8,9 @@ interface ImageReorderProps {
   images: EntryImage[];
   onImagesChange: (images: EntryImage[]) => void;
   onFileSelect: (files: FileList) => void;
-  isUploading?: boolean;
 }
 
-export function ImageReorder({ images, onImagesChange, onFileSelect, isUploading }: ImageReorderProps) {
+export function ImageReorder({ images, onImagesChange, onFileSelect }: ImageReorderProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragIndexRef = useRef<number | null>(null);
@@ -74,9 +73,6 @@ export function ImageReorder({ images, onImagesChange, onFileSelect, isUploading
             </div>
           ))}
         </div>
-      )}
-      {isUploading && (
-        <p className="font-ui text-xs text-caption mb-2">{t('entries.uploadingImage')}</p>
       )}
       {images.length < 10 && (
         <>

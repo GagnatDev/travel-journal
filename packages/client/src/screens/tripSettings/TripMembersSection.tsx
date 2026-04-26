@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { UseMutationResult } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import type { Invite, Trip } from '@travel-journal/shared';
+import type { Invite, Trip, TripMemberInviteSuggestion } from '@travel-journal/shared';
 
 import type { AddTripMemberResult } from '../../api/trips.js';
 import { BookOpenIcon, HourglassIcon, PersonPlusIcon } from '../../components/icons/index.js';
@@ -19,6 +19,7 @@ interface TripMembersSectionProps {
   /** When false, only member-safe UI (e.g. notification preferences) is shown. */
   canManageMembers?: boolean;
   pendingInvites: Invite[];
+  inviteSuggestions?: TripMemberInviteSuggestion[];
   addMemberInput: string;
   setAddMemberInput: (v: string) => void;
   addMemberRole: 'contributor' | 'follower';
@@ -43,6 +44,7 @@ export function TripMembersSection({
   trip,
   canManageMembers = true,
   pendingInvites,
+  inviteSuggestions = [],
   addMemberInput,
   setAddMemberInput,
   addMemberRole,
@@ -58,6 +60,48 @@ export function TripMembersSection({
 }: TripMembersSectionProps) {
   const [allowContributorInvites, setAllowContributorInvites] = useState(false);
   const [inviteFormOpen, setInviteFormOpen] = useState(false);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const blurCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const filteredInviteSuggestions = useMemo(() => {
+    const q = addMemberInput.trim().toLowerCase();
+    const list = inviteSuggestions;
+    if (!q) return list.slice(0, 50);
+    return list
+      .filter(
+        (s) =>
+          s.displayName.toLowerCase().includes(q) || s.email.toLowerCase().includes(q),
+      )
+      .slice(0, 50);
+  }, [addMemberInput, inviteSuggestions]);
+
+  const openSuggestions = () => {
+    if (blurCloseTimer.current) {
+      clearTimeout(blurCloseTimer.current);
+      blurCloseTimer.current = null;
+    }
+    setSuggestionsOpen(true);
+  };
+
+  const scheduleCloseSuggestions = () => {
+    blurCloseTimer.current = setTimeout(() => {
+      setSuggestionsOpen(false);
+      blurCloseTimer.current = null;
+    }, 180);
+  };
+
+  const pickSuggestion = (s: TripMemberInviteSuggestion) => {
+    setAddMemberInput(s.email);
+    setSuggestionsOpen(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (blurCloseTimer.current) clearTimeout(blurCloseTimer.current);
+    };
+  }, []);
+
+  const suggestionsListId = `trip-invite-suggestions-list-${trip.id}`;
 
   return (
     <section className="space-y-6">
@@ -83,18 +127,55 @@ export function TripMembersSection({
                 onSubmit={(e) => {
                   e.preventDefault();
                   setAddMemberResult(null);
+                  setSuggestionsOpen(false);
                   addMemberMutation.mutate();
                 }}
                 className="flex gap-2"
               >
-                <input
-                  type="text"
-                  value={addMemberInput}
-                  onChange={(e) => setAddMemberInput(e.target.value)}
-                  placeholder={t('trips.settings.addMemberPlaceholder')}
-                  required
-                  className={`flex-1 min-w-0 text-sm ${standardTextControlClass}`}
-                />
+                <div className="relative flex-1 min-w-0">
+                  <input
+                    type="text"
+                    value={addMemberInput}
+                    onChange={(e) => {
+                      setAddMemberInput(e.target.value);
+                      openSuggestions();
+                    }}
+                    onFocus={openSuggestions}
+                    onBlur={scheduleCloseSuggestions}
+                    placeholder={t('trips.settings.addMemberPlaceholder')}
+                    required
+                    autoComplete="off"
+                    aria-autocomplete="list"
+                    aria-expanded={suggestionsOpen && filteredInviteSuggestions.length > 0}
+                    aria-controls={suggestionsListId}
+                    className={`w-full text-sm ${standardTextControlClass}`}
+                  />
+                  {suggestionsOpen && filteredInviteSuggestions.length > 0 ? (
+                    <ul
+                      id={suggestionsListId}
+                      role="listbox"
+                      className="absolute z-20 left-0 right-0 top-full mt-1 max-h-56 overflow-y-auto rounded-round-eight border border-caption/20 bg-bg-primary shadow-lg py-1"
+                    >
+                      <li className="px-3 py-1.5 font-ui text-xs text-caption border-b border-caption/10">
+                        {t('trips.settings.inviteSuggestionsHint')}
+                      </li>
+                      {filteredInviteSuggestions.map((s) => (
+                        <li key={s.userId} role="presentation">
+                          <button
+                            type="button"
+                            role="option"
+                            className="w-full text-left px-3 py-2 font-ui text-sm text-body hover:bg-bg-secondary transition-colors"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => pickSuggestion(s)}
+                          >
+                            <span className="font-medium block truncate">{s.displayName}</span>
+                            <span className="text-xs text-caption truncate block">{s.email}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
                 <select
                   value={addMemberRole}
                   onChange={(e) => setAddMemberRole(e.target.value as 'contributor' | 'follower')}

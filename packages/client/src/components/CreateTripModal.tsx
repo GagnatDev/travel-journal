@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -63,13 +63,39 @@ export function CreateTripModal({ onClose }: CreateTripModalProps) {
     }
   }
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && !isSubmitting) {
+        e.preventDefault();
+        onClose();
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isSubmitting, onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-heading/40">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-heading/55 backdrop-blur-md supports-[backdrop-filter]:bg-heading/40"
+      role="presentation"
+      onClick={() => {
+        if (!isSubmitting) onClose();
+      }}
+    >
       <div
-        className="w-full sm:max-w-md bg-bg-primary rounded-t-2xl sm:rounded-2xl p-6 shadow-xl"
+        className="w-full sm:max-w-md bg-bg-primary rounded-t-2xl sm:rounded-2xl p-6 shadow-xl border border-caption/20"
         role="dialog"
         aria-modal="true"
         aria-label={t('trips.create.title')}
+        onClick={(e) => e.stopPropagation()}
       >
         <h2 className="font-display text-xl text-heading mb-4">{t('trips.create.title')}</h2>
 
@@ -96,7 +122,7 @@ export function CreateTripModal({ onClose }: CreateTripModalProps) {
             className="resize-none"
           />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
             <TextField
               label={t('trips.create.departureDateLabel')}
               labelHtmlFor="departure-date"

@@ -1,6 +1,7 @@
 import type {
   Invite,
   Trip,
+  TripMemberInviteSuggestion,
   TripStatus,
   UpdateTripMemberNotificationPreferencesRequest,
   UpdateTripRequest,
@@ -22,6 +23,16 @@ export function fetchTrips(token: string): Promise<Trip[]> {
 export async function fetchTripInvites(tripId: string, token: string): Promise<Invite[]> {
   const data = await apiJsonIfOk<Invite[]>(`/api/v1/trips/${tripId}/members/invites`, { token });
   return data ?? [];
+}
+
+export function fetchTripMemberInviteSuggestions(
+  tripId: string,
+  token: string,
+): Promise<TripMemberInviteSuggestion[]> {
+  return apiJson<TripMemberInviteSuggestion[]>(
+    `/api/v1/trips/${tripId}/members/invites/suggestions`,
+    { token },
+  );
 }
 
 export function patchTrip(
