@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import sharp from 'sharp';
 import type { Entry, EntryImage, Trip } from '@travel-journal/shared';
 import {
   PHOTOBOOK_PDF_STRINGS,
@@ -14,10 +15,20 @@ type PDFDoc = InstanceType<typeof PDFDocument>;
 
 const MM = 72 / 25.4;
 const PAGE_SIZE_PT = 210 * MM;
-const MARGIN = 12 * MM;
-const FOOTER_HEIGHT = 10 * MM;
+/** 10 mm clear margin on all edges */
+const MARGIN = 10 * MM;
+/** Vertical space reserved for footer line inside bottom margin */
+const FOOTER_BAND = 5 * MM;
 const GAP = 2 * MM;
 const MAX_IMAGES_PER_PAGE = 4;
+
+function pageInnerBottom(): number {
+  return PAGE_SIZE_PT - MARGIN - FOOTER_BAND;
+}
+
+function footerTextY(): number {
+  return PAGE_SIZE_PT - MARGIN - FOOTER_BAND + 1;
+}
 
 function dayKeyInTimeZone(iso: string, timeZone: string): string {
   const d = new Date(iso);
@@ -36,6 +47,17 @@ function formatFooterDate(iso: string, timeZone: string, intlLocale: string): st
     weekday: 'short',
     year: 'numeric',
     month: 'short',
+    day: 'numeric',
+  }).format(d);
+}
+
+function formatTripDate(iso: string | undefined, intlLocale: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat(intlLocale, {
+    year: 'numeric',
+    month: 'long',
     day: 'numeric',
   }).format(d);
 }
@@ -66,30 +88,103 @@ function groupEntriesByDay(entries: Entry[], timeZone: string): Map<string, Entr
 }
 
 function drawFooter(doc: PDFDoc, strings: (typeof PHOTOBOOK_PDF_STRINGS)['nb'], dayNum: number, dateLabel: string): void {
-  const y = PAGE_SIZE_PT - MARGIN - 4;
+  doc.save();
   doc.fontSize(9).fillColor('#444444');
   const line = formatPhotobookFooterDayDate(strings.footerDayDateTemplate, dayNum, dateLabel);
-  doc.text(line, MARGIN, y, {
+  doc.text(line, MARGIN, footerTextY(), {
     width: PAGE_SIZE_PT - 2 * MARGIN,
     align: 'center',
+    lineBreak: false,
   });
+  doc.restore();
   doc.fillColor('#000000');
 }
 
-function contentBottom(): number {
-  return PAGE_SIZE_PT - MARGIN - FOOTER_HEIGHT;
+function addSquarePage(doc: PDFDoc): void {
+  doc.addPage({ size: [PAGE_SIZE_PT, PAGE_SIZE_PT], margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN } });
+}
+
+function drawCoverPage(
+  doc: PDFDoc,
+  trip: Trip,
+  strings: (typeof PHOTOBOOK_PDF_STRINGS)['nb'],
+  intlLocale: string,
+): void {
+  addSquarePage(doc);
+  let y = MARGIN;
+  doc.fontSize(22).fillColor('#111111').text(trip.name, MARGIN, y, { width: PAGE_SIZE_PT - 2 * MARGIN });
+  y = doc.y + GAP * 1.5;
+
+  if (trip.description?.trim()) {
+    doc.fontSize(11).fillColor('#333333').text(trip.description.trim(), MARGIN, y, {
+      width: PAGE_SIZE_PT - 2 * MARGIN,
+      height: Math.max(40, pageInnerBottom() - y - 28 * MM),
+    });
+    y = doc.y + GAP * 1.5;
+  }
+
+  const dep = formatTripDate(trip.departureDate, intlLocale);
+  const ret = formatTripDate(trip.returnDate, intlLocale);
+  doc.fontSize(10).fillColor('#444444');
+  doc.text(
+    `${strings.coverDepartureLabel}: ${dep || strings.coverDateMissing}`,
+    MARGIN,
+    y,
+    { width: PAGE_SIZE_PT - 2 * MARGIN },
+  );
+  y = doc.y + GAP;
+  doc.text(`${strings.coverReturnLabel}: ${ret || strings.coverDateMissing}`, MARGIN, y, {
+    width: PAGE_SIZE_PT - 2 * MARGIN,
+  });
+}
+
+interface EntryImageSlot {
+  meta: EntryImage;
+  buffer: Buffer;
+}
+
+async function loadEntryImageSlots(entry: Entry): Promise<EntryImageSlot[]> {
+  const imgs = sortedImages(entry.images);
+  const out: EntryImageSlot[] = [];
+  for (const img of imgs) {
+    const key = img.thumbnailKey ?? img.key;
+    try {
+      out.push({ meta: img, buffer: await getObjectBuffer(key) });
+    } catch {
+      try {
+        if (img.thumbnailKey) {
+          out.push({ meta: img, buffer: await getObjectBuffer(img.key) });
+        }
+      } catch {
+        // skip missing
+      }
+    }
+  }
+  return out;
+}
+
+/** PDFKit embeds PNG/JPEG reliably; normalize arbitrary uploads via sharp. */
+async function toPdfImagePng(buffer: Buffer, maxW: number, maxH: number): Promise<Buffer> {
+  return sharp(buffer)
+    .rotate()
+    .resize(Math.max(1, Math.floor(maxW)), Math.max(1, Math.floor(maxH)), {
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .png()
+    .toBuffer();
 }
 
 async function embedImageGrid(
   doc: PDFDoc,
-  buffers: Buffer[],
+  slots: EntryImageSlot[],
   imagePlaceholder: string,
   startX: number,
   startY: number,
   maxWidth: number,
   maxHeight: number,
 ): Promise<void> {
-  const n = Math.min(buffers.length, MAX_IMAGES_PER_PAGE);
+  const n = Math.min(slots.length, MAX_IMAGES_PER_PAGE);
   if (n === 0) return;
 
   const cols = n <= 2 ? n : 2;
@@ -100,43 +195,34 @@ async function embedImageGrid(
   for (let i = 0; i < n; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
-    const x = startX + col * (cellW + GAP);
-    const y = startY + row * (cellH + GAP);
+    const cellLeft = startX + col * (cellW + GAP);
+    const cellTop = startY + row * (cellH + GAP);
+    const slot = slots[i]!;
     try {
-      doc.image(buffers[i]!, x, y, { fit: [cellW, cellH], align: 'center', valign: 'center' });
+      const png = await toPdfImagePng(slot.buffer, cellW, cellH);
+      const meta = await sharp(png).metadata();
+      const iw = meta.width ?? 1;
+      const ih = meta.height ?? 1;
+      const scale = Math.min(cellW / iw, cellH / ih);
+      const drawW = iw * scale;
+      const drawH = ih * scale;
+      const x = cellLeft + (cellW - drawW) / 2;
+      const y = cellTop + (cellH - drawH) / 2;
+      doc.image(png, x, y, { width: drawW, height: drawH });
     } catch {
-      doc.rect(x, y, cellW, cellH).stroke('#cccccc');
+      doc.rect(cellLeft, cellTop, cellW, cellH).stroke('#cccccc');
       doc
         .fontSize(8)
         .fillColor('#888888')
-        .text(imagePlaceholder, x, y + cellH / 2 - 4, { width: cellW, align: 'center' });
+        .text(imagePlaceholder, cellLeft, cellTop + cellH / 2 - 4, { width: cellW, align: 'center' });
       doc.fillColor('#000000');
     }
   }
 }
 
-async function loadImageBuffers(entry: Entry): Promise<Buffer[]> {
-  const imgs = sortedImages(entry.images);
-  const out: Buffer[] = [];
-  for (const img of imgs) {
-    const key = img.thumbnailKey ?? img.key;
-    try {
-      out.push(await getObjectBuffer(key));
-    } catch {
-      try {
-        if (img.thumbnailKey) out.push(await getObjectBuffer(img.key));
-      } catch {
-        // skip missing
-      }
-    }
-  }
-  return out;
-}
-
 /**
- * Builds a square (210×210 mm) photobook-style PDF: entries grouped by calendar day,
- * title and body on the first page of each entry (and on photo-only continuation pages,
- * title plus a short “more photos” line), up to four images per page, localized footer.
+ * Square (210×210 mm) photobook PDF: cover (title, description, dates), then entries by day,
+ * up to four images per page (aspect-preserving), footer on same page as content, 10 mm margins.
  */
 export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promise<Buffer> {
   const timeZone = input.timeZone ?? process.env['TRIP_PDF_TIMEZONE'] ?? 'UTC';
@@ -163,10 +249,11 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
     doc.on('error', reject);
   });
 
+  drawCoverPage(doc, input.trip, strings, intlLocale);
+
   if (dayKeys.length === 0) {
-    doc.addPage({ size: [PAGE_SIZE_PT, PAGE_SIZE_PT], margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN } });
-    doc.fontSize(14).text(input.trip.name, MARGIN, MARGIN, { width: PAGE_SIZE_PT - 2 * MARGIN });
-    doc.moveDown(0.5).fontSize(10).fillColor('#666666').text(strings.emptyTripDisclaimer, {
+    addSquarePage(doc);
+    doc.fontSize(12).fillColor('#666666').text(strings.emptyTripDisclaimer, MARGIN, MARGIN, {
       width: PAGE_SIZE_PT - 2 * MARGIN,
     });
     drawFooter(doc, strings, 1, strings.emptyTripFooterPlaceholder);
@@ -174,23 +261,23 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
     return done;
   }
 
+  const innerBottom = pageInnerBottom();
+
   for (let d = 0; d < dayKeys.length; d++) {
-    const dayKey = dayKeys[d]!;
     const dayNum = d + 1;
-    const entries = byDay.get(dayKey)!;
+    const entries = byDay.get(dayKeys[d]!)!;
     const firstCreated = entries[0]!.createdAt;
     const footerDate = formatFooterDate(firstCreated, timeZone, intlLocale);
 
     for (const entry of entries) {
-      const imageBuffers = await loadImageBuffers(entry);
+      const imageSlots = await loadEntryImageSlots(entry);
       const imagePageCount =
-        imageBuffers.length === 0 ? 1 : Math.ceil(imageBuffers.length / MAX_IMAGES_PER_PAGE);
+        imageSlots.length === 0 ? 1 : Math.ceil(imageSlots.length / MAX_IMAGES_PER_PAGE);
 
       for (let p = 0; p < imagePageCount; p++) {
-        doc.addPage({ size: [PAGE_SIZE_PT, PAGE_SIZE_PT], margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN } });
+        addSquarePage(doc);
 
         const top = MARGIN;
-        const bottom = contentBottom();
         let y = top;
 
         doc.fontSize(16).fillColor('#111111').text(entry.title, MARGIN, y, {
@@ -198,14 +285,17 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
         });
         y = doc.y + GAP;
 
+        const slice = imageSlots.slice(p * MAX_IMAGES_PER_PAGE, (p + 1) * MAX_IMAGES_PER_PAGE);
+        const minImageBand = slice.length > 0 ? 52 * MM : 0;
+        const maxTextBottom = innerBottom - minImageBand - GAP;
+
         if (p === 0) {
-          const hasImagesThisPage = imageBuffers.length > p * MAX_IMAGES_PER_PAGE;
-          const reserveForImages = hasImagesThisPage ? 90 * MM : 4 * MM;
+          const textHeight = Math.max(36, maxTextBottom - y);
           doc.fontSize(10).fillColor('#333333').text(entry.content, MARGIN, y, {
             width: PAGE_SIZE_PT - 2 * MARGIN,
-            height: Math.max(48, bottom - y - reserveForImages - GAP),
+            height: textHeight,
           });
-          y = doc.y + GAP;
+          y = Math.min(doc.y + GAP, maxTextBottom + GAP);
         } else {
           doc.fontSize(9).fillColor('#666666').font('Helvetica-Oblique').text(strings.morePhotosCaption, MARGIN, y, {
             width: PAGE_SIZE_PT - 2 * MARGIN,
@@ -214,11 +304,11 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
           y = doc.y + GAP;
         }
 
-        const slice = imageBuffers.slice(p * MAX_IMAGES_PER_PAGE, (p + 1) * MAX_IMAGES_PER_PAGE);
         if (slice.length > 0) {
-          const gridH = Math.max(50 * MM, bottom - y - GAP);
+          const gridTop = Math.min(y, maxTextBottom + GAP);
+          const gridH = Math.max(40, innerBottom - gridTop - GAP);
           const gridW = PAGE_SIZE_PT - 2 * MARGIN;
-          await embedImageGrid(doc, slice, strings.imagePlaceholder, MARGIN, y, gridW, gridH);
+          await embedImageGrid(doc, slice, strings.imagePlaceholder, MARGIN, gridTop, gridW, gridH);
         }
 
         drawFooter(doc, strings, dayNum, footerDate);

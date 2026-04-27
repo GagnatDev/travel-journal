@@ -8,10 +8,14 @@ export interface PhotobookPdfStrings {
   emptyTripDisclaimer: string;
   /** Footer date segment when the trip has no entries */
   emptyTripFooterPlaceholder: string;
-  /** Use {{day}} and {{date}}; include typographic quotes per locale */
+  /** Use {{day}} and {{date}} (no guillemets — plain footer line). */
   footerDayDateTemplate: string;
   morePhotosCaption: string;
   imagePlaceholder: string;
+  /** Cover page — optional trip dates */
+  coverDepartureLabel: string;
+  coverReturnLabel: string;
+  coverDateMissing: string;
 }
 
 /** BCP 47 for {@link Intl.DateTimeFormat} (footer dates) */
@@ -21,16 +25,22 @@ export const PHOTOBOOK_PDF_STRINGS: Record<PhotobookPdfLocaleKey, PhotobookPdfSt
   nb: {
     emptyTripDisclaimer: 'Ingen innlegg ennå.',
     emptyTripFooterPlaceholder: '—',
-    footerDayDateTemplate: '»Dag {{day}} - {{date}}«',
+    footerDayDateTemplate: 'Dag {{day}} - {{date}}',
     morePhotosCaption: 'Flere bilder',
     imagePlaceholder: 'Bilde',
+    coverDepartureLabel: 'Avreise',
+    coverReturnLabel: 'Hjemkomst',
+    coverDateMissing: 'Ikke angitt',
   },
   en: {
     emptyTripDisclaimer: 'No entries yet.',
     emptyTripFooterPlaceholder: '—',
-    footerDayDateTemplate: '»Day {{day}} - {{date}}«',
+    footerDayDateTemplate: 'Day {{day}} - {{date}}',
     morePhotosCaption: 'More photos',
     imagePlaceholder: 'Image',
+    coverDepartureLabel: 'Departure',
+    coverReturnLabel: 'Return',
+    coverDateMissing: 'Not set',
   },
 };
 
