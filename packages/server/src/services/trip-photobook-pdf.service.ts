@@ -22,6 +22,15 @@ const FOOTER_BAND = 5 * MM;
 const GAP = 2 * MM;
 const MAX_IMAGES_PER_PAGE = 4;
 
+/** Rasterize images at this multiple of layout cell size (points → pixels) for sharper PDFs. */
+function pdfImageRasterDpr(): number {
+  const raw = process.env['TRIP_PDF_IMAGE_DPR'];
+  if (raw === undefined || raw === '') return 2;
+  const n = Number.parseFloat(raw);
+  if (!Number.isFinite(n)) return 2;
+  return Math.min(3, Math.max(1, n));
+}
+
 function pageInnerBottom(): number {
   return PAGE_SIZE_PT - MARGIN - FOOTER_BAND;
 }
@@ -147,31 +156,33 @@ async function loadEntryImageSlots(entry: Entry): Promise<EntryImageSlot[]> {
   const imgs = sortedImages(entry.images);
   const out: EntryImageSlot[] = [];
   for (const img of imgs) {
-    const key = img.thumbnailKey ?? img.key;
     try {
-      out.push({ meta: img, buffer: await getObjectBuffer(key) });
+      out.push({ meta: img, buffer: await getObjectBuffer(img.key) });
     } catch {
-      try {
-        if (img.thumbnailKey) {
-          out.push({ meta: img, buffer: await getObjectBuffer(img.key) });
+      if (img.thumbnailKey) {
+        try {
+          out.push({ meta: img, buffer: await getObjectBuffer(img.thumbnailKey) });
+        } catch {
+          // skip missing
         }
-      } catch {
-        // skip missing
       }
     }
   }
   return out;
 }
 
-/** PDFKit embeds PNG/JPEG reliably; normalize arbitrary uploads via sharp. */
-async function toPdfImagePng(buffer: Buffer, maxW: number, maxH: number): Promise<Buffer> {
+/** PDFKit embeds PNG reliably; decode full-res bytes then rasterize for on-screen sharpness at draw size. */
+async function toPdfImagePng(buffer: Buffer, layoutWPt: number, layoutHPt: number): Promise<Buffer> {
+  const dpr = pdfImageRasterDpr();
+  const maxW = Math.max(1, Math.ceil(layoutWPt * dpr));
+  const maxH = Math.max(1, Math.ceil(layoutHPt * dpr));
   return sharp(buffer)
     .rotate()
-    .resize(Math.max(1, Math.floor(maxW)), Math.max(1, Math.floor(maxH)), {
+    .resize(maxW, maxH, {
       fit: 'inside',
       withoutEnlargement: true,
     })
-    .png()
+    .png({ compressionLevel: 6, effort: 4 })
     .toBuffer();
 }
 
