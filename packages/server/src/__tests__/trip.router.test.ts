@@ -1,11 +1,27 @@
 import request from 'supertest';
-import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
 import mongoose from 'mongoose';
 
 import { createApp } from '../app.js';
+import { Entry } from '../models/Entry.model.js';
 import { User } from '../models/User.model.js';
 import { Trip } from '../models/Trip.model.js';
 import { hashPassword, generateAccessToken } from '../services/auth.service.js';
+
+const { onePxPng } = vi.hoisted(() => ({
+  onePxPng: Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  ),
+}));
+
+vi.mock('../services/media.service.js', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('../services/media.service.js')>();
+  return {
+    ...mod,
+    getObjectBuffer: vi.fn().mockResolvedValue(onePxPng),
+  };
+});
 
 const MONGO_URI =
   process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-test-trip-router';
@@ -18,6 +34,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await User.deleteMany({});
   await Trip.deleteMany({});
+  await Entry.deleteMany({});
 });
 
 afterAll(async () => {
@@ -106,6 +123,65 @@ describe('GET /api/v1/trips', () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].name).toBe('User1 Trip');
+  });
+});
+
+describe('GET /api/v1/trips/:id/photobook.pdf', () => {
+  it('returns 400 for planned trip', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'Planned Trip' });
+    const tripId = createRes.body.id as string;
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${tripId}/photobook.pdf`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(res.status).toBe(400);
+  });
+
+  it('returns PDF for active trip with entries', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'Active Trip' });
+    const tripId = createRes.body.id as string;
+
+    await Trip.updateOne({ _id: tripId }, { $set: { status: 'active' } });
+
+    await Entry.create({
+      tripId: new mongoose.Types.ObjectId(tripId),
+      authorId: creator._id,
+      title: 'Morning walk',
+      content: 'We strolled along the pier.',
+      images: [
+        {
+          key: `media/${tripId}/a.jpg`,
+          width: 100,
+          height: 100,
+          order: 0,
+          uploadedAt: new Date(),
+        },
+      ],
+      reactions: [],
+      deletedAt: null,
+      createdAt: new Date('2026-06-01T10:00:00Z'),
+    });
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${tripId}/photobook.pdf`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/application\/pdf/);
+    const body = res.body as Buffer;
+    expect(Buffer.isBuffer(body)).toBe(true);
+    expect(body.subarray(0, 4).toString('ascii')).toBe('%PDF');
+    expect(body.length).toBeGreaterThan(500);
+    expect(String(res.headers['content-disposition'])).toContain('photobook.pdf');
   });
 });
 

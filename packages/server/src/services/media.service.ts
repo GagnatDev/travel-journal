@@ -189,6 +189,33 @@ export async function streamMediaObject(
   await pipeline(readable, res);
 }
 
+/** Read full object bytes from S3 (e.g. for server-side PDF assembly). */
+export async function getObjectBuffer(key: string): Promise<Buffer> {
+  const client = createS3Client();
+  let out;
+  try {
+    out = await client.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+  } catch (err: unknown) {
+    const name = s3ErrorName(err);
+    if (name === 'NoSuchKey' || name === 'NotFound') {
+      throw createHttpError('Media not found', 404, 'NOT_FOUND');
+    }
+    throw err;
+  }
+
+  const body = out.Body;
+  if (!body) {
+    throw createHttpError('Media not found', 404, 'NOT_FOUND');
+  }
+
+  const readable = body as Readable;
+  const chunks: Buffer[] = [];
+  for await (const chunk of readable) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
 export async function assertMediaAccess(key: string, userId: string): Promise<void> {
   const parts = key.split('/');
   const tripId = parts[1];

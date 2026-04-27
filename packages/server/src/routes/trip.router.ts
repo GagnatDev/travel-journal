@@ -19,6 +19,8 @@ import {
   updateTrip,
   updateTripStatus,
 } from '../services/trip.service.js';
+import { listAllEntriesChronological } from '../services/entry.service.js';
+import { buildTripPhotobookPdf } from '../services/trip-photobook-pdf.service.js';
 
 import { entryRouter } from './entry.router.js';
 import { memberRouter } from './member.router.js';
@@ -105,6 +107,46 @@ tripRouter.patch(
 
       const trip = await updateTripStatus(tripId, status, auth.userId);
       res.json(trip);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// GET /:id/photobook.pdf — Square photobook PDF (member only; completed or active for testing)
+tripRouter.get(
+  '/:id/photobook.pdf',
+  membershipGuard,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const trip = res.locals['trip'] as Trip;
+      if (trip.status !== 'completed' && trip.status !== 'active') {
+        res.status(400).json({
+          error: {
+            message: 'Photobook PDF is only available for active or completed trips',
+            code: 'VALIDATION_ERROR',
+          },
+        });
+        return;
+      }
+
+      const entries = await listAllEntriesChronological(trip.id);
+      const tz = typeof req.query['tz'] === 'string' && req.query['tz'].trim() ? req.query['tz'].trim() : undefined;
+      const locale =
+        typeof req.query['locale'] === 'string' && req.query['locale'].trim() ? req.query['locale'].trim() : undefined;
+
+      const pdf = await buildTripPhotobookPdf({
+        trip,
+        entries,
+        ...(tz !== undefined ? { timeZone: tz } : {}),
+        ...(locale !== undefined ? { locale } : {}),
+      });
+
+      const safeName = trip.name.replace(/[^\w\s-]/g, '').trim().slice(0, 80) || 'trip';
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${safeName}-photobook.pdf"`);
+      res.setHeader('Content-Length', String(pdf.length));
+      res.send(pdf);
     } catch (err) {
       next(err);
     }

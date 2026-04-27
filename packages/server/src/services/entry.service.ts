@@ -156,6 +156,13 @@ export async function listEntries(
   return { entries, total };
 }
 
+/** All non-deleted entries for a trip, oldest first (for photobook / export). */
+export async function listAllEntriesChronological(tripId: string): Promise<Entry[]> {
+  const filter = { tripId: new mongoose.Types.ObjectId(tripId), deletedAt: null };
+  const docs = await EntryModel.find(filter).sort({ createdAt: 1 });
+  return Promise.all(docs.map(toEntry));
+}
+
 export async function getEntryById(tripId: string, entryId: string): Promise<Entry> {
   if (!mongoose.Types.ObjectId.isValid(entryId)) {
     throw createHttpError('Entry not found', 404, 'NOT_FOUND');
