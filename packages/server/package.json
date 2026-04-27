@@ -12,6 +12,8 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.575.0",
     "@aws-sdk/s3-request-presigner": "^3.575.0",
+    "@fontsource/noto-serif": "^5.2.9",
+    "@fontsource/plus-jakarta-sans": "^5.2.8",
     "@travel-journal/shared": "workspace:*",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",

@@ -16,6 +16,8 @@ export interface PhotobookPdfStrings {
   coverDepartureLabel: string;
   coverReturnLabel: string;
   coverDateMissing: string;
+  /** Shown on cover when the trip has no photos yet */
+  coverNoPhotoHint: string;
 }
 
 /** BCP 47 for {@link Intl.DateTimeFormat} (footer dates) */
@@ -31,6 +33,7 @@ export const PHOTOBOOK_PDF_STRINGS: Record<PhotobookPdfLocaleKey, PhotobookPdfSt
     coverDepartureLabel: 'Avreise',
     coverReturnLabel: 'Hjemkomst',
     coverDateMissing: 'Ikke angitt',
+    coverNoPhotoHint: 'Bilder fra turen vises her når du legger til innlegg.',
   },
   en: {
     emptyTripDisclaimer: 'No entries yet.',
@@ -41,6 +44,7 @@ export const PHOTOBOOK_PDF_STRINGS: Record<PhotobookPdfLocaleKey, PhotobookPdfSt
     coverDepartureLabel: 'Departure',
     coverReturnLabel: 'Return',
     coverDateMissing: 'Not set',
+    coverNoPhotoHint: 'Trip photos will appear here once you add entries.',
   },
 };
 
