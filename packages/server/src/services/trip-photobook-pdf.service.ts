@@ -1,5 +1,12 @@
 import PDFDocument from 'pdfkit';
 import type { Entry, EntryImage, Trip } from '@travel-journal/shared';
+import {
+  PHOTOBOOK_PDF_STRINGS,
+  type PhotobookPdfLocaleKey,
+  formatPhotobookFooterDayDate,
+  photobookPdfIntlLocale,
+  resolvePhotobookPdfLocaleKey,
+} from '@travel-journal/shared';
 
 import { getObjectBuffer } from './media.service.js';
 
@@ -22,9 +29,9 @@ function dayKeyInTimeZone(iso: string, timeZone: string): string {
   }).format(d);
 }
 
-function formatFooterDate(iso: string, timeZone: string, locale: string): string {
+function formatFooterDate(iso: string, timeZone: string, intlLocale: string): string {
   const d = new Date(iso);
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(intlLocale, {
     timeZone,
     weekday: 'short',
     year: 'numeric',
@@ -38,8 +45,8 @@ export interface TripPhotobookPdfInput {
   entries: Entry[];
   /** IANA zone for grouping and footer dates; default UTC. */
   timeZone?: string;
-  /** BCP 47 for date labels in footer. */
-  locale?: string;
+  /** PDF UI strings: `nb` (default) or `en`. */
+  photobookLocaleKey?: PhotobookPdfLocaleKey;
 }
 
 function sortedImages(images: EntryImage[]): EntryImage[] {
@@ -58,10 +65,11 @@ function groupEntriesByDay(entries: Entry[], timeZone: string): Map<string, Entr
   return map;
 }
 
-function drawFooter(doc: PDFDoc, dayNum: number, dateLabel: string): void {
+function drawFooter(doc: PDFDoc, strings: (typeof PHOTOBOOK_PDF_STRINGS)['nb'], dayNum: number, dateLabel: string): void {
   const y = PAGE_SIZE_PT - MARGIN - 4;
   doc.fontSize(9).fillColor('#444444');
-  doc.text(`»Day ${dayNum} - ${dateLabel}«`, MARGIN, y, {
+  const line = formatPhotobookFooterDayDate(strings.footerDayDateTemplate, dayNum, dateLabel);
+  doc.text(line, MARGIN, y, {
     width: PAGE_SIZE_PT - 2 * MARGIN,
     align: 'center',
   });
@@ -75,6 +83,7 @@ function contentBottom(): number {
 async function embedImageGrid(
   doc: PDFDoc,
   buffers: Buffer[],
+  imagePlaceholder: string,
   startX: number,
   startY: number,
   maxWidth: number,
@@ -97,7 +106,10 @@ async function embedImageGrid(
       doc.image(buffers[i]!, x, y, { fit: [cellW, cellH], align: 'center', valign: 'center' });
     } catch {
       doc.rect(x, y, cellW, cellH).stroke('#cccccc');
-      doc.fontSize(8).fillColor('#888888').text('Image', x, y + cellH / 2 - 4, { width: cellW, align: 'center' });
+      doc
+        .fontSize(8)
+        .fillColor('#888888')
+        .text(imagePlaceholder, x, y + cellH / 2 - 4, { width: cellW, align: 'center' });
       doc.fillColor('#000000');
     }
   }
@@ -124,11 +136,15 @@ async function loadImageBuffers(entry: Entry): Promise<Buffer[]> {
 /**
  * Builds a square (210×210 mm) photobook-style PDF: entries grouped by calendar day,
  * title and body on the first page of each entry (and on photo-only continuation pages,
- * title plus a short “more photos” line), up to four images per page, footer »Day N - date«.
+ * title plus a short “more photos” line), up to four images per page, localized footer.
  */
 export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promise<Buffer> {
   const timeZone = input.timeZone ?? process.env['TRIP_PDF_TIMEZONE'] ?? 'UTC';
-  const locale = input.locale ?? process.env['TRIP_PDF_LOCALE'] ?? 'en-GB';
+  const localeKey =
+    input.photobookLocaleKey ??
+    resolvePhotobookPdfLocaleKey(process.env['TRIP_PDF_LOCALE'] ?? 'nb');
+  const strings = PHOTOBOOK_PDF_STRINGS[localeKey];
+  const intlLocale = photobookPdfIntlLocale(localeKey);
 
   const byDay = groupEntriesByDay(input.entries, timeZone);
   const dayKeys = [...byDay.keys()].sort();
@@ -150,8 +166,10 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
   if (dayKeys.length === 0) {
     doc.addPage({ size: [PAGE_SIZE_PT, PAGE_SIZE_PT], margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN } });
     doc.fontSize(14).text(input.trip.name, MARGIN, MARGIN, { width: PAGE_SIZE_PT - 2 * MARGIN });
-    doc.moveDown(0.5).fontSize(10).fillColor('#666666').text('No entries yet.', { width: PAGE_SIZE_PT - 2 * MARGIN });
-    drawFooter(doc, 1, '—');
+    doc.moveDown(0.5).fontSize(10).fillColor('#666666').text(strings.emptyTripDisclaimer, {
+      width: PAGE_SIZE_PT - 2 * MARGIN,
+    });
+    drawFooter(doc, strings, 1, strings.emptyTripFooterPlaceholder);
     doc.end();
     return done;
   }
@@ -161,7 +179,7 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
     const dayNum = d + 1;
     const entries = byDay.get(dayKey)!;
     const firstCreated = entries[0]!.createdAt;
-    const footerDate = formatFooterDate(firstCreated, timeZone, locale);
+    const footerDate = formatFooterDate(firstCreated, timeZone, intlLocale);
 
     for (const entry of entries) {
       const imageBuffers = await loadImageBuffers(entry);
@@ -189,7 +207,7 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
           });
           y = doc.y + GAP;
         } else {
-          doc.fontSize(9).fillColor('#666666').font('Helvetica-Oblique').text('More photos', MARGIN, y, {
+          doc.fontSize(9).fillColor('#666666').font('Helvetica-Oblique').text(strings.morePhotosCaption, MARGIN, y, {
             width: PAGE_SIZE_PT - 2 * MARGIN,
           });
           doc.font('Helvetica');
@@ -200,10 +218,10 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
         if (slice.length > 0) {
           const gridH = Math.max(50 * MM, bottom - y - GAP);
           const gridW = PAGE_SIZE_PT - 2 * MARGIN;
-          await embedImageGrid(doc, slice, MARGIN, y, gridW, gridH);
+          await embedImageGrid(doc, slice, strings.imagePlaceholder, MARGIN, y, gridW, gridH);
         }
 
-        drawFooter(doc, dayNum, footerDate);
+        drawFooter(doc, strings, dayNum, footerDate);
       }
     }
   }

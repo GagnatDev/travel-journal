@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import i18n from 'i18next';
 
 import { useAuth } from '../context/AuthContext.js';
 import { BottomNavBar } from '../components/BottomNavBar.js';
@@ -12,10 +13,12 @@ import { TripStatusSection } from './tripSettings/TripStatusSection.js';
 import {
   canAccessTripSettingsScreen,
   canDeleteTrip,
+  canDownloadTripPhotobookPdf,
   canEditTripDetailsAndLifecycle,
   canManageTripInvitesAndMembers,
   viewerTripRoleForUser,
 } from './tripSettings/tripSettingsPermissions.js';
+import { TripPhotobookPdfSection } from './tripSettings/TripPhotobookPdfSection.js';
 import { useTripSettings } from './tripSettings/useTripSettings.js';
 
 export function TripSettingsScreen() {
@@ -109,6 +112,14 @@ export function TripSettingsScreen() {
         ) : null}
         {canEditTripDetailsAndLifecycle(myRole) ? (
           <TripStatusSection t={t} tripStatus={trip.status} statusMutation={statusMutation} />
+        ) : null}
+        {accessToken && canDownloadTripPhotobookPdf(myRole, trip.status) ? (
+          <TripPhotobookPdfSection
+            t={t}
+            trip={trip}
+            accessToken={accessToken}
+            pdfUiLanguage={i18n.resolvedLanguage?.startsWith('en') ? 'en' : 'nb'}
+          />
         ) : null}
         <TripMembersSection
           t={t}

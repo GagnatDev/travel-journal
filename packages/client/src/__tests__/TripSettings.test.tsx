@@ -169,6 +169,9 @@ describe('TripSettingsScreen', () => {
     expect(
       screen.queryByRole('button', { name: /inviter nytt medlem|invite new member/i }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /last ned pdf|download pdf/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('contributor trip settings bottom nav reflects contributor role', async () => {
@@ -251,6 +254,34 @@ describe('TripSettingsScreen', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /merk som fullf|mark as completed/i })).toBeInTheDocument();
+    });
+  });
+
+  it('creator sees photobook PDF section and download sends authorized GET to photobook.pdf', async () => {
+    let authHeader: string | null = null;
+    server.use(
+      http.get('/api/v1/trips/:id/photobook.pdf', ({ request }) => {
+        authHeader = request.headers.get('Authorization');
+        const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34, 0x0a, 0x25, 0xc4, 0xe5, 0xf6, 0xe7, 0x0a]);
+        return new HttpResponse(pdf, {
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'attachment; filename="t.pdf"',
+          },
+        });
+      }),
+    );
+
+    renderSettings(makeTrip('active'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /fotobok \(pdf\)|photobook \(pdf\)/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /last ned pdf|download pdf/i }));
+
+    await waitFor(() => {
+      expect(authHeader).toMatch(/^Bearer /);
     });
   });
 

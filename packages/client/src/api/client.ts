@@ -119,3 +119,39 @@ export async function apiJsonIfOk<T>(path: string, options: ApiJsonOptions = {})
   if (res.status === 204) return undefined;
   return res.json() as Promise<T>;
 }
+
+/**
+ * Authenticated GET returning raw bytes (e.g. PDF). Same 401 refresh behaviour as {@link apiJson}.
+ */
+export async function apiBlob(path: string, options: ApiJsonOptions = {}): Promise<Blob> {
+  const { fallbackErrorMessage } = options;
+  const res = await fetch(path, buildRequestInit(options));
+
+  if (res.status === 401 && options.token) {
+    let newToken: string;
+    try {
+      newToken = await attemptRefresh();
+    } catch {
+      window.dispatchEvent(new CustomEvent('auth:session-expired'));
+      throw new Error(fallbackErrorMessage ?? 'Session expired');
+    }
+    const retryRes = await fetch(path, buildRequestInit({ ...options, token: newToken }));
+    if (!retryRes.ok) {
+      if (retryRes.status === 401) {
+        window.dispatchEvent(new CustomEvent('auth:session-expired'));
+      }
+      const parsed = await retryRes.json().catch(() => ({}));
+      throw new Error(parseApiErrorMessage(parsed) ?? fallbackErrorMessage ?? 'Request failed');
+    }
+    return retryRes.blob();
+  }
+
+  if (!res.ok) {
+    const parsed = await res.json().catch(() => ({}));
+    throw new Error(
+      parseApiErrorMessage(parsed) ?? fallbackErrorMessage ?? 'Request failed',
+    );
+  }
+
+  return res.blob();
+}

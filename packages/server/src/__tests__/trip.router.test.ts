@@ -142,6 +142,38 @@ describe('GET /api/v1/trips/:id/photobook.pdf', () => {
     expect(res.status).toBe(400);
   });
 
+  it('returns 403 for member who is not trip creator', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const contributor = await makeUser('contrib@test.com', 'creator');
+
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'Shared' });
+    const tripId = createRes.body.id as string;
+
+    await Trip.updateOne(
+      { _id: tripId },
+      {
+        $set: { status: 'active' },
+        $push: {
+          members: {
+            userId: contributor._id,
+            tripRole: 'contributor',
+            addedAt: new Date(),
+            notificationPreferences: { newEntriesMode: 'per_entry' },
+          },
+        },
+      },
+    );
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${tripId}/photobook.pdf`)
+      .set('Authorization', authHeader(String(contributor._id), contributor.email, 'creator'));
+
+    expect(res.status).toBe(403);
+  });
+
   it('returns PDF for active trip with entries', async () => {
     const creator = await makeUser('creator@test.com', 'creator');
     const createRes = await request(app)
