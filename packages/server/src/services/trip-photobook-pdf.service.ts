@@ -19,14 +19,18 @@ type PDFDoc = InstanceType<typeof PDFDocument>;
 const MM = 72 / 25.4;
 const PAGE_SIZE_PT = 210 * MM;
 const MARGIN = 10 * MM;
-const FOOTER_BAND = 5 * MM;
 const GAP = 2 * MM;
 const MAX_IMAGES_PER_PAGE = 4;
 
-/** Light theme (matches packages/client/src/styles/tokens.css :root) */
+/** Polaroid-style card: white bottom strip + side padding (points). */
+const POLAROID_SIDE_PAD = 10;
+const POLAROID_TOP_PAD = 8;
+const POLAROID_BOTTOM_STRIP = 20;
+const POLAROID_IMG_CORNER = 2;
+const POLAROID_CARD_CORNER = 3;
+
 const CREAM = '#fbf9f5';
 const ACCENT = '#9b3f2b';
-const HEADING = '#1b1c1a';
 const BODY = '#58624a';
 const CAPTION = '#70573f';
 const FRAME_WHITE = '#ffffff';
@@ -47,12 +51,9 @@ function pdfImageRasterDpr(): number {
   return Math.min(3, Math.max(1, n));
 }
 
-function pageInnerBottom(): number {
-  return PAGE_SIZE_PT - MARGIN - FOOTER_BAND;
-}
-
-function footerTextY(): number {
-  return PAGE_SIZE_PT - MARGIN - FOOTER_BAND + 1;
+/** Bottom Y of the content area (10 mm margin). */
+function pageContentBottom(): number {
+  return PAGE_SIZE_PT - MARGIN;
 }
 
 function dayKeyInTimeZone(iso: string, timeZone: string): string {
@@ -62,17 +63,6 @@ function dayKeyInTimeZone(iso: string, timeZone: string): string {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(d);
-}
-
-function formatFooterDate(iso: string, timeZone: string, intlLocale: string): string {
-  const d = new Date(iso);
-  return new Intl.DateTimeFormat(intlLocale, {
-    timeZone,
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
   }).format(d);
 }
 
@@ -138,7 +128,6 @@ function registerPhotobookFonts(doc: PDFDoc): boolean {
     return false;
   }
   try {
-    // Omit `family`: passing a name makes fontkit treat the file as a variable-font lookup and can throw on subset WOFF.
     doc.registerFont(FONT.display, paths.display);
     doc.registerFont(FONT.displayItalic, paths.displayItalic);
     doc.registerFont(FONT.ui, paths.ui);
@@ -166,26 +155,6 @@ function setPhotobookFont(doc: PDFDoc, fontsOk: boolean, role: 'display' | 'disp
   doc.font(FONT[role]);
 }
 
-function drawFooter(
-  doc: PDFDoc,
-  fontsOk: boolean,
-  strings: (typeof PHOTOBOOK_PDF_STRINGS)['nb'],
-  dayNum: number,
-  dateLabel: string,
-): void {
-  doc.save();
-  setPhotobookFont(doc, fontsOk, 'ui');
-  doc.fontSize(8).fillColor(CAPTION);
-  const line = formatPhotobookFooterDayDate(strings.footerDayDateTemplate, dayNum, dateLabel);
-  doc.text(line, MARGIN, footerTextY(), {
-    width: PAGE_SIZE_PT - 2 * MARGIN,
-    align: 'center',
-    lineBreak: false,
-  });
-  doc.restore();
-  doc.fillColor(HEADING);
-}
-
 function fillPageBackground(doc: PDFDoc): void {
   doc.save();
   doc.rect(0, 0, PAGE_SIZE_PT, PAGE_SIZE_PT).fill(CREAM);
@@ -208,7 +177,7 @@ function drawDropShadowBehind(
   dy: number,
 ): void {
   doc.save();
-  doc.fillOpacity(0.12);
+  doc.fillOpacity(0.11);
   doc.fillColor(SHADOW);
   doc.roundedRect(x + dx, y + dy, w, h, r).fill();
   doc.restore();
@@ -280,76 +249,80 @@ async function toPdfImagePng(buffer: Buffer, layoutWPt: number, layoutHPt: numbe
     .toBuffer();
 }
 
-/** White mat + optional shadow + rounded photo clip */
-async function drawFramedPhoto(
+async function intrinsicImageSizePt(buffer: Buffer): Promise<{ iw: number; ih: number }> {
+  const meta = await sharp(buffer).rotate().metadata();
+  const iw = Math.max(1, meta.width ?? 1);
+  const ih = Math.max(1, meta.height ?? 1);
+  return { iw, ih };
+}
+
+/**
+ * Polaroid-style card: frame outer size follows image aspect ratio (image scaled to fit max box).
+ */
+async function drawPolaroidPhoto(
   doc: PDFDoc,
   fontsOk: boolean,
   slot: EntryImageSlot,
   imagePlaceholder: string,
   cx: number,
   cy: number,
-  targetW: number,
-  targetH: number,
+  maxImgW: number,
+  maxImgH: number,
   rotationDeg: number,
-  pad: number,
-  cornerR: number,
 ): Promise<void> {
-  const matW = targetW + pad * 2;
-  const matH = targetH + pad * 2;
-  const x = cx - matW / 2;
-  const y = cy - matH / 2;
+  let iw: number;
+  let ih: number;
+  try {
+    ({ iw, ih } = await intrinsicImageSizePt(slot.buffer));
+  } catch {
+    iw = maxImgW;
+    ih = maxImgH;
+  }
 
-  drawDropShadowBehind(doc, x, y, matW, matH, cornerR, 2.5, 3);
-
-  const innerW = targetW;
-  const innerH = targetH;
+  const scale = Math.min(maxImgW / iw, maxImgH / ih, 1);
+  const imgW = iw * scale;
+  const imgH = ih * scale;
+  const cardW = imgW + POLAROID_SIDE_PAD * 2;
+  const cardH = POLAROID_TOP_PAD + imgH + POLAROID_BOTTOM_STRIP;
+  const imgX = POLAROID_SIDE_PAD;
+  const imgY = POLAROID_TOP_PAD;
 
   try {
-    const png = await toPdfImagePng(slot.buffer, innerW, innerH);
-    const meta = await sharp(png).metadata();
-    const iw = meta.width ?? 1;
-    const ih = meta.height ?? 1;
-    const scale = Math.min(innerW / iw, innerH / ih);
-    const drawW = iw * scale;
-    const drawH = ih * scale;
-    const imgX = (innerW - drawW) / 2;
-    const imgY = (innerH - drawH) / 2;
+    const png = await toPdfImagePng(slot.buffer, imgW, imgH);
 
     doc.save();
     doc.translate(cx, cy);
     doc.rotate(rotationDeg);
-    doc.translate(-matW / 2, -matH / 2);
-    doc.roundedRect(0, 0, matW, matH, cornerR).fill(FRAME_WHITE);
+    doc.translate(-cardW / 2, -cardH / 2);
+
+    drawDropShadowBehind(doc, 0, 0, cardW, cardH, POLAROID_CARD_CORNER, 2.5, 3.2);
+
+    doc.roundedRect(0, 0, cardW, cardH, POLAROID_CARD_CORNER).fill(FRAME_WHITE);
+
     doc.save();
-    doc.translate(pad, pad);
-    doc.roundedRect(0, 0, innerW, innerH, cornerR * 0.65).clip();
-    doc.image(png, imgX, imgY, { width: drawW, height: drawH });
+    doc.roundedRect(imgX, imgY, imgW, imgH, POLAROID_IMG_CORNER).clip();
+    doc.image(png, imgX, imgY, { width: imgW, height: imgH });
     doc.restore();
-    doc.save();
-    doc.translate(pad, pad);
-    doc.roundedRect(0, 0, innerW, innerH, cornerR * 0.65).strokeColor('#e8e4dc').lineWidth(0.35).stroke();
-    doc.restore();
+
+    doc.roundedRect(imgX, imgY, imgW, imgH, POLAROID_IMG_CORNER).strokeColor('#e8e4dc').lineWidth(0.3).stroke();
     doc.restore();
   } catch {
     doc.save();
     doc.translate(cx, cy);
     doc.rotate(rotationDeg);
-    doc.translate(-matW / 2, -matH / 2);
-    doc.roundedRect(0, 0, matW, matH, cornerR).fill(FRAME_WHITE);
-    doc.save();
-    doc.translate(pad, pad);
-    doc.roundedRect(0, 0, innerW, innerH, cornerR * 0.65).stroke('#cccccc');
+    doc.translate(-cardW / 2, -cardH / 2);
+    doc.roundedRect(0, 0, cardW, cardH, POLAROID_CARD_CORNER).fill(FRAME_WHITE);
+    doc.roundedRect(imgX, imgY, imgW, imgH, POLAROID_IMG_CORNER).stroke('#cccccc');
     setPhotobookFont(doc, fontsOk, 'ui');
-    doc.fontSize(8).fillColor(CAPTION).text(imagePlaceholder, 0, innerH / 2 - 4, {
-      width: innerW,
+    doc.fontSize(8).fillColor(CAPTION).text(imagePlaceholder, imgX, imgY + imgH / 2 - 4, {
+      width: imgW,
       align: 'center',
     });
-    doc.restore();
     doc.restore();
   }
 }
 
-async function embedScrapbookImages(
+async function embedPolaroidImages(
   doc: PDFDoc,
   fontsOk: boolean,
   slots: EntryImageSlot[],
@@ -362,48 +335,43 @@ async function embedScrapbookImages(
   const n = Math.min(slots.length, MAX_IMAGES_PER_PAGE);
   if (n === 0) return;
 
-  const pad = 4;
-  const cornerR = 6;
-
   if (n === 1) {
-    const tw = Math.min(bandW * 0.72, bandH * 0.95);
-    const th = Math.min(bandH * 0.72, tw * 0.85);
-    await drawFramedPhoto(doc, fontsOk, slots[0]!, imagePlaceholder, centerX, centerY, tw, th, -2.5, pad, cornerR);
+    const maxW = bandW * 0.82;
+    const maxH = bandH * 0.92;
+    await drawPolaroidPhoto(doc, fontsOk, slots[0]!, imagePlaceholder, centerX, centerY, maxW, maxH, -2.5);
     return;
   }
 
   if (n === 2) {
-    const w1 = bandW * 0.52;
-    const h1 = bandH * 0.58;
-    const w2 = bandW * 0.34;
-    const h2 = bandH * 0.42;
-    const cx1 = centerX - bandW * 0.08;
-    const cy1 = centerY + bandH * 0.02;
-    const cx2 = centerX + bandW * 0.22;
-    const cy2 = centerY - bandH * 0.12;
-    await drawFramedPhoto(doc, fontsOk, slots[0]!, imagePlaceholder, cx1, cy1, w1, h1, -4, pad, cornerR);
-    await drawFramedPhoto(doc, fontsOk, slots[1]!, imagePlaceholder, cx2, cy2, w2, h2, 5, pad, cornerR);
+    const maxW1 = bandW * 0.48;
+    const maxH1 = bandH * 0.78;
+    const maxW2 = bandW * 0.38;
+    const maxH2 = bandH * 0.55;
+    const cx1 = centerX - bandW * 0.14;
+    const cy1 = centerY + bandH * 0.06;
+    const cx2 = centerX + bandW * 0.2;
+    const cy2 = centerY - bandH * 0.1;
+    await drawPolaroidPhoto(doc, fontsOk, slots[0]!, imagePlaceholder, cx1, cy1, maxW1, maxH1, -3.5);
+    await drawPolaroidPhoto(doc, fontsOk, slots[1]!, imagePlaceholder, cx2, cy2, maxW2, maxH2, 4.5);
     return;
   }
 
-  const cols = n <= 2 ? n : 2;
+  const cols = 2;
   const rows = Math.ceil(n / cols);
   const cellW = (bandW - (cols - 1) * GAP) / cols;
   const cellH = (bandH - (rows - 1) * GAP) / rows;
   const startX = centerX - bandW / 2;
   const startY = centerY - bandH / 2;
-  const tilts = [-2.5, 3, -2, 2.5];
+  const tilts = [-2.5, 3.2, -2.2, 2.8];
+  const maxInCellW = cellW * 0.92;
+  const maxInCellH = cellH * 0.92;
 
   for (let i = 0; i < n; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
-    const cellLeft = startX + col * (cellW + GAP);
-    const cellTop = startY + row * (cellH + GAP);
-    const cx = cellLeft + cellW / 2;
-    const cy = cellTop + cellH / 2;
-    const tw = cellW * 0.88;
-    const th = cellH * 0.88;
-    await drawFramedPhoto(doc, fontsOk, slots[i]!, imagePlaceholder, cx, cy, tw, th, tilts[i % tilts.length]!, pad, cornerR);
+    const cx = startX + col * (cellW + GAP) + cellW / 2;
+    const cy = startY + row * (cellH + GAP) + cellH / 2;
+    await drawPolaroidPhoto(doc, fontsOk, slots[i]!, imagePlaceholder, cx, cy, maxInCellW, maxInCellH, tilts[i % tilts.length]!);
   }
 }
 
@@ -449,22 +417,18 @@ async function drawCoverPage(
   }
 
   const heroTop = y + 6;
-  const heroBottom = pageInnerBottom() - 8;
+  const heroBottom = pageContentBottom() - 8;
   const heroH = Math.max(80, heroBottom - heroTop);
-  const heroW = Math.min(w * 0.88, heroH * 1.05);
+  const heroW = Math.min(w * 0.88, heroH * 1.15);
   const cx = PAGE_SIZE_PT / 2;
   const cy = heroTop + heroH / 2;
 
   if (coverBuf) {
-    const matPad = 10;
-    const cornerR = 10;
-    const tw = heroW - matPad * 2;
-    const th = heroH - matPad * 2;
     const fakeSlot: EntryImageSlot = {
       meta: { key: '', width: 1, height: 1, order: 0, uploadedAt: new Date(0).toISOString() },
       buffer: coverBuf,
     };
-    await drawFramedPhoto(doc, fontsOk, fakeSlot, strings.imagePlaceholder, cx, cy, tw, th, 0, matPad, cornerR);
+    await drawPolaroidPhoto(doc, fontsOk, fakeSlot, strings.imagePlaceholder, cx, cy, heroW * 0.92, heroH * 0.92, 0);
   } else {
     setPhotobookFont(doc, fontsOk, 'ui');
     doc.fontSize(10).fillColor(CAPTION).text(strings.coverNoPhotoHint, MARGIN, cy - 6, { width: w, align: 'center' });
@@ -472,8 +436,7 @@ async function drawCoverPage(
 }
 
 /**
- * Square photobook PDF: cream pages, embedded Noto Serif + Plus Jakarta Sans,
- * cover with random trip photo, scrapbook-style framed images on content pages.
+ * Square photobook PDF: cream pages, embedded fonts, polaroid-style images, day prefix in header (no footer).
  */
 export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promise<Buffer> {
   const timeZone = input.timeZone ?? process.env['TRIP_PDF_TIMEZONE'] ?? 'UTC';
@@ -504,6 +467,8 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
 
   await drawCoverPage(doc, fontsOk, input.trip, input.entries, strings, intlLocale);
 
+  const innerBottom = pageContentBottom();
+
   if (dayKeys.length === 0) {
     addSquarePage(doc);
     setPhotobookFont(doc, fontsOk, 'display');
@@ -511,19 +476,17 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
       width: PAGE_SIZE_PT - 2 * MARGIN,
       align: 'center',
     });
-    drawFooter(doc, fontsOk, strings, 1, strings.emptyTripFooterPlaceholder);
     doc.end();
     return done;
   }
 
-  const innerBottom = pageInnerBottom();
   const centerX = PAGE_SIZE_PT / 2;
 
   for (let d = 0; d < dayKeys.length; d++) {
     const dayNum = d + 1;
     const entries = byDay.get(dayKeys[d]!)!;
     const firstCreated = entries[0]!.createdAt;
-    const footerDate = formatFooterDate(firstCreated, timeZone, intlLocale);
+    const dayDatePart = formatEntryPageDate(firstCreated, timeZone, intlLocale);
 
     for (const entry of entries) {
       const imageSlots = await loadEntryImageSlots(entry);
@@ -536,27 +499,29 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
         const top = MARGIN + 4;
         let y = top;
 
-        const dateLine = formatEntryPageDate(entry.createdAt, timeZone, intlLocale);
+        const headerLine = formatPhotobookFooterDayDate(strings.entryPageHeaderTemplate, dayNum, dayDatePart);
         setPhotobookFont(doc, fontsOk, 'uiMedium');
-        doc.fontSize(8).fillColor(CAPTION).text(dateLine, MARGIN, y, {
+        doc.fontSize(8).fillColor(CAPTION).text(headerLine, MARGIN, y, {
           width: PAGE_SIZE_PT - 2 * MARGIN,
         });
-        y = doc.y + 4;
+        y = doc.y + (p === 0 ? 8 : 10);
 
-        setPhotobookFont(doc, fontsOk, 'displayItalic');
-        doc.fontSize(17).fillColor(ACCENT).text(entry.title, MARGIN, y, {
-          width: PAGE_SIZE_PT - 2 * MARGIN,
-        });
-        y = doc.y + 10;
+        if (p === 0) {
+          setPhotobookFont(doc, fontsOk, 'displayItalic');
+          doc.fontSize(17).fillColor(ACCENT).text(entry.title, MARGIN, y, {
+            width: PAGE_SIZE_PT - 2 * MARGIN,
+          });
+          y = doc.y + 10;
+        }
 
         const slice = imageSlots.slice(p * MAX_IMAGES_PER_PAGE, (p + 1) * MAX_IMAGES_PER_PAGE);
         const imageBandH =
-          slice.length > 0 ? Math.min(92 * MM, innerBottom - y - 42 * MM) : 0;
+          slice.length > 0 ? Math.min(100 * MM, innerBottom - y - (p === 0 ? 40 * MM : 8 * MM)) : 0;
 
         if (slice.length > 0) {
           const bandTop = y + 4;
           const bandCenterY = bandTop + imageBandH / 2;
-          await embedScrapbookImages(
+          await embedPolaroidImages(
             doc,
             fontsOk,
             slice,
@@ -570,20 +535,14 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
           setPhotobookFont(doc, fontsOk, 'displayItalic');
           doc.fontSize(10).fillColor(BODY).text(entry.content, MARGIN, y, {
             width: PAGE_SIZE_PT - 2 * MARGIN,
-            height: innerBottom - y - FOOTER_BAND,
+            height: innerBottom - y - 4,
             align: 'center',
             lineGap: 3,
           });
-        } else {
-          setPhotobookFont(doc, fontsOk, 'ui');
-          doc.fontSize(9).fillColor(CAPTION).text(strings.morePhotosCaption, MARGIN, y, {
-            width: PAGE_SIZE_PT - 2 * MARGIN,
-            align: 'center',
-          });
         }
 
-        if (slice.length > 0) {
-          const sepY = innerBottom - 36 * MM;
+        if (slice.length > 0 && p === 0) {
+          const sepY = innerBottom - 34 * MM;
           doc.save();
           doc.strokeColor('#e0d8cc')
             .lineWidth(0.35)
@@ -593,26 +552,14 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
           doc.restore();
 
           const bodyY = sepY + 10;
-          const bodyMaxH = footerTextY() - bodyY - 4;
-          if (p === 0) {
-            setPhotobookFont(doc, fontsOk, 'displayItalic');
-            doc.fontSize(9).fillColor(BODY).text(entry.content, MARGIN, bodyY, {
-              width: PAGE_SIZE_PT - 2 * MARGIN,
-              height: Math.max(24, bodyMaxH),
-              align: 'center',
-              lineGap: 3,
-            });
-          } else {
-            setPhotobookFont(doc, fontsOk, 'displayItalic');
-            doc.fontSize(8).fillColor(CAPTION).text(strings.morePhotosCaption, MARGIN, bodyY, {
-              width: PAGE_SIZE_PT - 2 * MARGIN,
-              height: bodyMaxH,
-              align: 'center',
-            });
-          }
+          setPhotobookFont(doc, fontsOk, 'displayItalic');
+          doc.fontSize(9).fillColor(BODY).text(entry.content, MARGIN, bodyY, {
+            width: PAGE_SIZE_PT - 2 * MARGIN,
+            height: innerBottom - bodyY - 4,
+            align: 'center',
+            lineGap: 3,
+          });
         }
-
-        drawFooter(doc, fontsOk, strings, dayNum, footerDate);
       }
     }
   }

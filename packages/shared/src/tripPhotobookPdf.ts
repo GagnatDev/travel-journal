@@ -6,11 +6,14 @@ export type PhotobookPdfLocaleKey = 'nb' | 'en';
 
 export interface PhotobookPdfStrings {
   emptyTripDisclaimer: string;
-  /** Footer date segment when the trip has no entries */
+  /** @deprecated footer removed from PDF; kept for API compatibility */
   emptyTripFooterPlaceholder: string;
-  /** Use {{day}} and {{date}} (no guillemets — plain footer line). */
+  /** @deprecated footer removed from PDF */
   footerDayDateTemplate: string;
+  /** @deprecated no longer shown on continuation pages */
   morePhotosCaption: string;
+  /** Content page header: {{day}} = calendar day index, {{date}} = formatted entry date (uppercase). */
+  entryPageHeaderTemplate: string;
   imagePlaceholder: string;
   /** Cover page — optional trip dates */
   coverDepartureLabel: string;
@@ -29,6 +32,7 @@ export const PHOTOBOOK_PDF_STRINGS: Record<PhotobookPdfLocaleKey, PhotobookPdfSt
     emptyTripFooterPlaceholder: '—',
     footerDayDateTemplate: 'Dag {{day}} - {{date}}',
     morePhotosCaption: 'Flere bilder',
+    entryPageHeaderTemplate: 'Dag {{day}} - {{date}}',
     imagePlaceholder: 'Bilde',
     coverDepartureLabel: 'Avreise',
     coverReturnLabel: 'Hjemkomst',
@@ -40,6 +44,7 @@ export const PHOTOBOOK_PDF_STRINGS: Record<PhotobookPdfLocaleKey, PhotobookPdfSt
     emptyTripFooterPlaceholder: '—',
     footerDayDateTemplate: 'Day {{day}} - {{date}}',
     morePhotosCaption: 'More photos',
+    entryPageHeaderTemplate: 'Day {{day}} - {{date}}',
     imagePlaceholder: 'Image',
     coverDepartureLabel: 'Departure',
     coverReturnLabel: 'Return',
