@@ -50,7 +50,7 @@ export function useTripSettings({
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: trip, isLoading } = useQuery({
+  const { data: trip, isLoading, refetch: refetchTrip } = useQuery({
     queryKey: tripSettingsQueryKeys.trip(tripId),
     queryFn: () => fetchTrip(tripId!, accessToken!),
     enabled: !!tripId && !!accessToken,
@@ -143,6 +143,7 @@ export function useTripSettings({
   return {
     trip,
     isLoading,
+    refetchTrip,
     pendingInvites,
     inviteSuggestions,
     updateMutation,

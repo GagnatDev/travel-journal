@@ -38,6 +38,12 @@ function useItemRender(notification: AppNotification): ItemRenderProps {
           tripName: data.tripName,
         }),
       };
+    case 'trip.photobook_pdf_ready':
+      return {
+        title: t('notifications.item.tripPhotobookPdfReady.title', { tripName: data.tripName }),
+        body: t('notifications.item.tripPhotobookPdfReady.body', { tripName: data.tripName }),
+        actionLabel: t('notifications.item.tripPhotobookPdfReady.openAction'),
+      };
     case 'system.release_announcement':
       return {
         title: t('notifications.item.releaseAnnouncement.title', { version: data.version }),

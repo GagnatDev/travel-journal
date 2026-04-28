@@ -52,6 +52,7 @@ export function TripSettingsScreen() {
     changeRoleMutation,
     removeMemberMutation,
     revokeInviteMutation,
+    refetchTrip,
   } = useTripSettings({
     tripId,
     accessToken,
@@ -121,6 +122,7 @@ export function TripSettingsScreen() {
             trip={trip}
             accessToken={accessToken}
             pdfUiLanguage={i18n.resolvedLanguage?.startsWith('en') ? 'en' : 'nb'}
+            refetchTrip={() => void refetchTrip()}
           />
         ) : null}
         <TripMembersSection

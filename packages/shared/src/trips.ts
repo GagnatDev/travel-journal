@@ -1,6 +1,19 @@
 export type TripStatus = 'planned' | 'active' | 'completed';
 export type TripRole = 'creator' | 'contributor' | 'follower';
 
+/** Async photobook PDF generation state for the trip creator (server-managed). */
+export type TripPhotobookPdfJobStatus = 'idle' | 'pending' | 'ready' | 'failed';
+
+export interface TripPhotobookPdfJob {
+  status: TripPhotobookPdfJobStatus;
+  /** When status is `ready`, storage key for the generated PDF (creator-only download URL uses this). */
+  pdfStorageKey?: string;
+  /** ISO time when generation finished successfully or failed. */
+  finishedAt?: string;
+  /** When status is `failed`, short message suitable for display (locale-neutral English fallback server-side). */
+  errorMessage?: string;
+}
+
 /**
  * How a trip member wants to hear about new entries in the trip.
  *
@@ -35,6 +48,8 @@ export interface Trip {
    * Only the trip creator may change it; the key must belong to an image on a non-deleted entry in this trip.
    */
   photobookCoverImageKey?: string;
+  /** Latest async photobook PDF generation status (trip creator only meaningful). */
+  photobookPdfJob?: TripPhotobookPdfJob;
   /** When true, trip contributors may invite people to this trip (same flows as the creator). */
   allowContributorInvites: boolean;
   members: TripMember[];

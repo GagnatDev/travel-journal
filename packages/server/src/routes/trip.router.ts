@@ -18,11 +18,12 @@ import {
   deleteTrip,
   getTripById,
   listTripsForUser,
+  redactPhotobookPdfJobForNonCreator,
   updateTrip,
   updateTripStatus,
 } from '../services/trip.service.js';
-import { listAllEntriesChronological } from '../services/entry.service.js';
-import { buildTripPhotobookPdf } from '../services/trip-photobook-pdf.service.js';
+import { streamMediaObject } from '../services/media.service.js';
+import { schedulePhotobookPdfJob } from '../services/trip-photobook-job.service.js';
 
 import { entryRouter } from './entry.router.js';
 import { memberRouter } from './member.router.js';
@@ -51,7 +52,7 @@ async function membershipGuard(req: Request, res: Response, next: NextFunction):
       return;
     }
 
-    res.locals['trip'] = trip;
+    res.locals['trip'] = redactPhotobookPdfJobForNonCreator(trip, auth.userId);
     res.locals['tripRole'] = member.tripRole;
     next();
   } catch (err) {
@@ -115,7 +116,84 @@ tripRouter.patch(
   },
 );
 
-// GET /:id/photobook.pdf — Square photobook PDF (trip creator only; completed or active for testing)
+// POST /:id/photobook/generate — enqueue async PDF (trip creator only)
+tripRouter.post(
+  '/:id/photobook/generate',
+  membershipGuard,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const auth = res.locals['auth'] as AccessTokenPayload;
+      const trip = res.locals['trip'] as Trip;
+      const tripId = req.params['id']!;
+
+      try {
+        assertTripCreator(trip, auth.userId);
+      } catch (err) {
+        const status = (err as { status?: number }).status ?? 403;
+        res.status(status).json({ error: { message: 'Forbidden', code: 'FORBIDDEN' } });
+        return;
+      }
+
+      if (trip.status !== 'completed' && trip.status !== 'active') {
+        res.status(400).json({
+          error: {
+            message: 'Photobook PDF is only available for active or completed trips',
+            code: 'VALIDATION_ERROR',
+          },
+        });
+        return;
+      }
+
+      const body = req.body as { locale?: string; timeZone?: string };
+      const localeKey = resolvePhotobookPdfLocaleKey(
+        typeof body.locale === 'string' && body.locale.trim()
+          ? body.locale.trim()
+          : process.env['TRIP_PDF_LOCALE'] ?? 'nb',
+      );
+      const timeZone =
+        typeof body.timeZone === 'string' && body.timeZone.trim() ? body.timeZone.trim() : undefined;
+
+      const filter: mongoose.FilterQuery<typeof TripModel> = {
+        _id: new mongoose.Types.ObjectId(tripId),
+        $or: [{ 'photobookPdfJob.status': { $ne: 'pending' } }, { photobookPdfJob: { $exists: false } }],
+      };
+
+      const updated = await TripModel.findOneAndUpdate(
+        filter,
+        {
+          $set: {
+            photobookPdfJob: {
+              status: 'pending',
+              localeKey,
+              ...(timeZone !== undefined ? { timeZone } : {}),
+            },
+          },
+        },
+        { new: true },
+      );
+
+      if (!updated) {
+        res.status(409).json({
+          error: { message: 'Photobook PDF generation is already in progress', code: 'CONFLICT' },
+        });
+        return;
+      }
+
+      schedulePhotobookPdfJob(tripId);
+
+      const nextTrip = await getTripById(tripId);
+      if (!nextTrip) {
+        res.status(404).json({ error: { message: 'Trip not found', code: 'NOT_FOUND' } });
+        return;
+      }
+      res.status(202).json(nextTrip);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// GET /:id/photobook.pdf — Download generated PDF from storage (trip creator only)
 tripRouter.get(
   '/:id/photobook.pdf',
   membershipGuard,
@@ -142,26 +220,21 @@ tripRouter.get(
         return;
       }
 
-      const entries = await listAllEntriesChronological(trip.id);
-      const tz = typeof req.query['tz'] === 'string' && req.query['tz'].trim() ? req.query['tz'].trim() : undefined;
-      const localeQuery =
-        typeof req.query['locale'] === 'string' && req.query['locale'].trim() ? req.query['locale'].trim() : undefined;
-      const photobookLocaleKey = resolvePhotobookPdfLocaleKey(
-        localeQuery ?? process.env['TRIP_PDF_LOCALE'] ?? 'nb',
-      );
-
-      const pdf = await buildTripPhotobookPdf({
-        trip,
-        entries,
-        ...(tz !== undefined ? { timeZone: tz } : {}),
-        photobookLocaleKey,
-      });
+      const job = trip.photobookPdfJob;
+      if (!job || job.status !== 'ready' || !job.pdfStorageKey) {
+        res.status(409).json({
+          error: {
+            message: 'Photobook PDF is not ready yet. Generate it from trip settings first.',
+            code: 'CONFLICT',
+          },
+        });
+        return;
+      }
 
       const safeName = trip.name.replace(/[^\w\s-]/g, '').trim().slice(0, 80) || 'trip';
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${safeName}-photobook.pdf"`);
-      res.setHeader('Content-Length', String(pdf.length));
-      res.send(pdf);
+      await streamMediaObject(job.pdfStorageKey, res, req.headers['if-none-match'], {
+        attachmentFilename: `${safeName}-photobook.pdf`,
+      });
     } catch (err) {
       next(err);
     }

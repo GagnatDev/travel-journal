@@ -31,6 +31,14 @@ export interface ITrip extends Document {
   allowContributorInvites: boolean;
   members: ITripMember[];
   coverImageKey?: string;
+  photobookPdfJob?: {
+    status: 'idle' | 'pending' | 'ready' | 'failed';
+    pdfStorageKey?: string;
+    finishedAt?: Date;
+    errorMessage?: string;
+    localeKey?: string;
+    timeZone?: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,6 +73,14 @@ const tripSchema = new Schema<ITrip>(
     allowContributorInvites: { type: Boolean, default: false },
     members: [tripMemberSchema],
     coverImageKey: { type: String },
+    photobookPdfJob: {
+      status: { type: String, enum: ['idle', 'pending', 'ready', 'failed'] },
+      pdfStorageKey: { type: String },
+      finishedAt: { type: Date },
+      errorMessage: { type: String },
+      localeKey: { type: String },
+      timeZone: { type: String },
+    },
   },
   { timestamps: true },
 );
