@@ -240,6 +240,12 @@ const nb = {
         'Last ned en kvadratisk PDF med innlegg gruppert per dag — egnet som minnebok. Språket i PDF-en følger appens språk (norsk eller engelsk).',
       photobookPdfButton: 'Last ned PDF',
       photobookPdfError: 'Kunne ikke generere PDF. Prøv igjen.',
+      photobookCoverNotChosenWarning:
+        'Du har ikke valgt omslagsbilde ennå. PDF-en bruker et tilfeldig turbilde på omslaget.',
+      photobookCoverPreviewOpen: 'Forhåndsvis valgt omslagsbilde',
+      photobookCoverPreviewHint: 'Se forhåndsvisning av omslagsbildet du valgte.',
+      photobookCoverPreviewDialogLabel: 'Forhåndsvisning av omslag',
+      photobookCoverPreviewImageAlt: 'Valgt omslagsbilde for fotobok',
     },
     notificationMode: {
       triggerLabel: 'Varsler om nye innlegg ({{current}})',
@@ -307,6 +313,18 @@ const nb = {
     uploadProgressCount: '{{completed}} av {{total}} bilder',
     imageLimit: 'Maks 10 bilder',
     removeImage: 'Fjern bilde',
+    openImageCarousel: 'Åpne bildekarusell',
+    openImageCarouselAt: 'Åpne bilde {{index}}',
+    carousel: {
+      dialogLabel: 'Bildekarusell',
+      previousImage: 'Forrige bilde',
+      nextImage: 'Neste bilde',
+      closeImageCarousel: 'Lukk bildekarusell',
+      photobookCoverMenuLabel: 'Valg for fotobokens omslag',
+      photobookCoverToggleLabel: 'Omslagsbilde i fotobok',
+      photobookCoverMenuHintOn: 'Dette bildet brukes på PDF-omslaget.',
+      photobookCoverMenuHintOff: 'Slå på for å bruke dette bildet på omslaget i stedet for et tilfeldig.',
+    },
   },
   reactions: {
     label: 'Reaksjoner',

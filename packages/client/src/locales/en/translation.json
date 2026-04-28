@@ -217,7 +217,12 @@
       "photobookPdfTitle": "Photobook (PDF)",
       "photobookPdfDescription": "Download a square PDF with entries grouped by day — great as a keepsake. PDF language follows the app language (Norwegian or English).",
       "photobookPdfButton": "Download PDF",
-      "photobookPdfError": "Could not generate the PDF. Please try again."
+      "photobookPdfError": "Could not generate the PDF. Please try again.",
+      "photobookCoverNotChosenWarning": "No cover photo is chosen yet. The PDF will use a random trip photo for the cover. Pick one from the timeline image carousel (settings on a photo).",
+      "photobookCoverPreviewOpen": "Preview chosen photobook cover",
+      "photobookCoverPreviewHint": "Preview the cover image you chose.",
+      "photobookCoverPreviewDialogLabel": "Photobook cover preview",
+      "photobookCoverPreviewImageAlt": "Chosen photobook cover"
     },
     "notificationMode": {
       "triggerLabel": "New-entry notifications ({{current}})",
@@ -300,6 +305,10 @@
       "previousImage": "Previous image",
       "nextImage": "Next image",
       "closeImageCarousel": "Close image carousel",
+      "photobookCoverMenuLabel": "Photobook cover options",
+      "photobookCoverToggleLabel": "Photobook cover",
+      "photobookCoverMenuHintOn": "This photo will appear on the PDF cover.",
+      "photobookCoverMenuHintOff": "Turn on to use this photo on the photobook cover instead of a random one.",
       "setAsPhotobookCover": "Use as photobook cover",
       "clearPhotobookCover": "Use random photo for photobook cover",
       "currentPhotobookCover": "This image is the photobook cover"

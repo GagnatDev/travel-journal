@@ -314,4 +314,29 @@ describe('TripSettingsScreen', () => {
     });
   });
 
+  it('shows photobook cover warning when no cover is chosen', async () => {
+    renderSettings(makeTrip('active'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('photobook-cover-warning')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('photobook-cover-preview-open')).not.toBeInTheDocument();
+  });
+
+  it('shows cover preview control when a photobook cover is chosen', async () => {
+    const trip = { ...makeTrip('active'), photobookCoverImageKey: 'media/trip-1/cover.jpg' };
+    server.use(http.get('/api/v1/trips/:id', () => HttpResponse.json(trip)));
+
+    renderSettings(trip);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('photobook-cover-preview-open')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('photobook-cover-warning')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId('photobook-cover-preview-open'));
+    expect(
+      screen.getByRole('dialog', { name: /forhåndsvisning av omslag/i }),
+    ).toBeInTheDocument();
+  });
 });

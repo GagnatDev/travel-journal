@@ -16,7 +16,7 @@ interface EntryImageCarouselModalProps {
   initialIndex: number;
   isOpen: boolean;
   onClose: () => void;
-  /** Trip creator: set photobook PDF cover to the image currently shown in the carousel. */
+  /** Trip creator: photobook cover controls behind the settings menu. */
   photobookCoverAction?: {
     activeImageKey: string;
     isCurrentCover: boolean;
@@ -29,6 +29,26 @@ interface EntryImageCarouselModalProps {
 const SWIPE_THRESHOLD_PX = 40;
 const BODY_OPEN_LOCK = 'entryCarouselOpen';
 
+function GearIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
 export function EntryImageCarouselModal({
   images,
   initialIndex,
@@ -39,6 +59,8 @@ export function EntryImageCarouselModal({
   const { t } = useTranslation();
   const { accessToken } = useAuth();
   const [activeIndex, setActiveIndex] = useState(initialIndex);
+  const [photobookMenuOpen, setPhotobookMenuOpen] = useState(false);
+  const photobookMenuRef = useRef<HTMLDivElement>(null);
   const prefetchedCacheKeysRef = useRef<Set<string>>(new Set());
   /** Horizontal start for a one-finger swipe; null when not tracking. */
   const swipeStartXRef = useRef<number | null>(null);
@@ -48,7 +70,19 @@ export function EntryImageCarouselModal({
   useEffect(() => {
     if (!isOpen) return;
     setActiveIndex(initialIndex);
+    setPhotobookMenuOpen(false);
   }, [initialIndex, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !photobookMenuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const el = photobookMenuRef.current;
+      if (!el || el.contains(event.target as Node)) return;
+      setPhotobookMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [isOpen, photobookMenuOpen]);
 
   useEffect(() => {
     if (!isOpen || !accessToken || images.length === 0) return;
@@ -96,6 +130,11 @@ export function EntryImageCarouselModal({
     const previousOverflow = document.body.style.overflow;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        if (photobookMenuOpen) {
+          setPhotobookMenuOpen(false);
+          event.stopPropagation();
+          return;
+        }
         onClose();
         return;
       }
@@ -115,7 +154,7 @@ export function EntryImageCarouselModal({
       delete document.body.dataset[BODY_OPEN_LOCK];
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [images.length, isOpen, onClose]);
+  }, [images.length, isOpen, onClose, photobookMenuOpen]);
 
   if (!isOpen || images.length === 0) {
     return null;
@@ -130,6 +169,15 @@ export function EntryImageCarouselModal({
 
   const goNext = () => {
     setActiveIndex((current) => (current + 1) % images.length);
+  };
+
+  const togglePhotobookCover = () => {
+    if (!photobookCoverAction) return;
+    if (photobookCoverAction.isCurrentCover) {
+      photobookCoverAction.onClearCover();
+    } else {
+      photobookCoverAction.onSetCover(photobookCoverAction.activeImageKey);
+    }
   };
 
   const onTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
@@ -224,40 +272,71 @@ export function EntryImageCarouselModal({
         >
           <span aria-hidden="true">›</span>
         </button>
-        <button
-          type="button"
-          aria-label={t('entries.carousel.closeImageCarousel')}
-          onClick={onClose}
-          className="absolute right-3 top-3 rounded-full bg-black/60 px-3 py-2 text-sm font-semibold text-white transition hover:bg-black/80 sm:right-4 sm:top-4"
-        >
-          {t('common.close')}
-        </button>
-        {photobookCoverAction && (
-          <div className="absolute left-3 right-3 top-14 z-20 flex flex-col gap-2 sm:left-auto sm:right-4 sm:top-16 sm:w-72">
-            <button
-              type="button"
-              disabled={photobookCoverAction.busy}
-              onClick={() => photobookCoverAction.onSetCover(photobookCoverAction.activeImageKey)}
-              className="font-ui rounded-lg bg-white/95 px-3 py-2 text-left text-sm font-medium text-heading shadow-md transition hover:bg-white disabled:opacity-50"
-            >
-              {t('entries.carousel.setAsPhotobookCover')}
-            </button>
-            {photobookCoverAction.isCurrentCover ? (
-              <p className="font-ui rounded-lg bg-black/50 px-3 py-2 text-xs text-white">
-                {t('entries.carousel.currentPhotobookCover')}
-              </p>
-            ) : (
+
+        <div className="absolute right-3 top-3 z-20 flex items-center gap-2 sm:right-4 sm:top-4">
+          {photobookCoverAction ? (
+            <div className="relative" ref={photobookMenuRef}>
               <button
                 type="button"
+                data-testid="entry-image-carousel-photobook-settings"
+                aria-label={t('entries.carousel.photobookCoverMenuLabel')}
+                aria-expanded={photobookMenuOpen}
+                aria-haspopup="menu"
                 disabled={photobookCoverAction.busy}
-                onClick={() => photobookCoverAction.onClearCover()}
-                className="font-ui rounded-lg bg-black/45 px-3 py-2 text-left text-xs font-medium text-white/95 transition hover:bg-black/60 disabled:opacity-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPhotobookMenuOpen((open) => !open);
+                }}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/80 disabled:opacity-50"
               >
-                {t('entries.carousel.clearPhotobookCover')}
+                <GearIcon />
               </button>
-            )}
-          </div>
-        )}
+              {photobookMenuOpen ? (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full mt-2 min-w-[14rem] rounded-lg border border-white/15 bg-neutral-900/95 py-1 shadow-lg backdrop-blur-sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked={photobookCoverAction.isCurrentCover}
+                    disabled={photobookCoverAction.busy}
+                    onClick={() => {
+                      togglePhotobookCover();
+                      setPhotobookMenuOpen(false);
+                    }}
+                    className="font-ui flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 disabled:opacity-50"
+                  >
+                    <span>{t('entries.carousel.photobookCoverToggleLabel')}</span>
+                    <span
+                      className={`inline-flex h-6 w-11 shrink-0 items-center rounded-full px-0.5 transition-colors ${
+                        photobookCoverAction.isCurrentCover ? 'bg-accent justify-end' : 'bg-white/25 justify-start'
+                      }`}
+                      aria-hidden
+                    >
+                      <span className="block h-5 w-5 rounded-full bg-white shadow" />
+                    </span>
+                  </button>
+                  <p className="font-ui border-t border-white/10 px-3 py-2 text-xs text-white/70">
+                    {photobookCoverAction.isCurrentCover
+                      ? t('entries.carousel.photobookCoverMenuHintOn')
+                      : t('entries.carousel.photobookCoverMenuHintOff')}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          <button
+            type="button"
+            aria-label={t('entries.carousel.closeImageCarousel')}
+            onClick={onClose}
+            className="rounded-full bg-black/60 px-3 py-2 text-sm font-semibold text-white transition hover:bg-black/80"
+          >
+            {t('common.close')}
+          </button>
+        </div>
+
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-xs text-white">
           {activeIndex + 1} / {images.length}
         </div>

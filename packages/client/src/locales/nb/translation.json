@@ -217,7 +217,12 @@
       "photobookPdfTitle": "Fotobok (PDF)",
       "photobookPdfDescription": "Last ned en kvadratisk PDF med innlegg gruppert per dag — egnet som minnebok. Språket i PDF-en følger appens språk (norsk eller engelsk).",
       "photobookPdfButton": "Last ned PDF",
-      "photobookPdfError": "Kunne ikke generere PDF. Prøv igjen."
+      "photobookPdfError": "Kunne ikke generere PDF. Prøv igjen.",
+      "photobookCoverNotChosenWarning": "Du har ikke valgt omslagsbilde ennå. PDF-en bruker et tilfeldig turbilde på omslaget. Velg et fra tidslinjens bildekarusell (innstillinger på et bilde).",
+      "photobookCoverPreviewOpen": "Forhåndsvis valgt omslagsbilde",
+      "photobookCoverPreviewHint": "Se forhåndsvisning av omslagsbildet du valgte.",
+      "photobookCoverPreviewDialogLabel": "Forhåndsvisning av omslag",
+      "photobookCoverPreviewImageAlt": "Valgt omslagsbilde for fotobok"
     },
     "notificationMode": {
       "triggerLabel": "Varsler om nye innlegg ({{current}})",
@@ -300,6 +305,10 @@
       "previousImage": "Forrige bilde",
       "nextImage": "Neste bilde",
       "closeImageCarousel": "Lukk bildekarusell",
+      "photobookCoverMenuLabel": "Valg for fotobokens omslag",
+      "photobookCoverToggleLabel": "Omslagsbilde i fotobok",
+      "photobookCoverMenuHintOn": "Dette bildet brukes på PDF-omslaget.",
+      "photobookCoverMenuHintOff": "Slå på for å bruke dette bildet på omslaget i stedet for et tilfeldig.",
       "setAsPhotobookCover": "Bruk som omslagsbilde i fotobok",
       "clearPhotobookCover": "Tilfeldig bilde på fotobokomslag",
       "currentPhotobookCover": "Dette bildet er fotobokens omslag"

@@ -51,7 +51,7 @@ export const tripHandlers = [
 
   http.patch('/api/v1/trips/:id', async ({ params, request }) => {
     const body = (await request.json()) as Record<string, unknown>;
-    return HttpResponse.json({
+    const next: Record<string, unknown> = {
       ...mockTrip,
       id: params['id'],
       name: typeof body['name'] === 'string' ? body['name'] : 'Mock Trip',
@@ -59,7 +59,15 @@ export const tripHandlers = [
       ...(typeof body['allowContributorInvites'] === 'boolean'
         ? { allowContributorInvites: body['allowContributorInvites'] }
         : {}),
-    });
+    };
+    if ('photobookCoverImageKey' in body) {
+      if (body['photobookCoverImageKey'] === null || body['photobookCoverImageKey'] === '') {
+        delete next['photobookCoverImageKey'];
+      } else if (typeof body['photobookCoverImageKey'] === 'string') {
+        next['photobookCoverImageKey'] = body['photobookCoverImageKey'];
+      }
+    }
+    return HttpResponse.json(next);
   }),
 
   http.patch('/api/v1/trips/:id/status', async ({ params, request }) => {
