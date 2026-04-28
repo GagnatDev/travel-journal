@@ -108,6 +108,21 @@ describe('updateTrip', () => {
     const raw = await Trip.findById(trip.id).lean();
     expect(raw?.description).toBeUndefined();
   });
+
+  it('updates allowContributorInvites', async () => {
+    const user = await makeUser('creator@test.com');
+    const userId = String(user._id);
+    const trip = await createTrip({ name: 'T' }, userId);
+
+    const off = await updateTrip(trip.id, { allowContributorInvites: false }, userId);
+    expect(off.allowContributorInvites).toBe(false);
+
+    const on = await updateTrip(trip.id, { allowContributorInvites: true }, userId);
+    expect(on.allowContributorInvites).toBe(true);
+
+    const raw = await Trip.findById(trip.id).lean();
+    expect(raw?.allowContributorInvites).toBe(true);
+  });
 });
 
 describe('listTripsForUser', () => {

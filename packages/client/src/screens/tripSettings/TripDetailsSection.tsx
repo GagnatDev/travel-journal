@@ -11,7 +11,12 @@ interface TripDetailsSectionProps {
   setName: (v: string) => void;
   description: string;
   setDescription: (v: string) => void;
-  updateMutation: UseMutationResult<Trip, Error, { name?: string; description?: string }, unknown>;
+  updateMutation: UseMutationResult<
+    Trip,
+    Error,
+    { name?: string; description?: string; allowContributorInvites?: boolean },
+    unknown
+  >;
 }
 
 export function TripDetailsSection({

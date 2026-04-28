@@ -16,6 +16,7 @@ import {
   canDownloadTripPhotobookPdf,
   canEditTripDetailsAndLifecycle,
   canManageTripInvitesAndMembers,
+  canUseTripInviteActions,
   viewerTripRoleForUser,
 } from './tripSettings/tripSettingsPermissions.js';
 import { TripPhotobookPdfSection } from './tripSettings/TripPhotobookPdfSection.js';
@@ -92,6 +93,7 @@ export function TripSettingsScreen() {
   }
 
   const canManageMembers = canManageTripInvitesAndMembers(myRole);
+  const canUseInvites = canUseTripInviteActions(trip, myRole);
 
   return (
     <div className="min-h-screen bg-bg-primary pt-14 pb-28">
@@ -125,6 +127,7 @@ export function TripSettingsScreen() {
           t={t}
           trip={trip}
           canManageMembers={canManageMembers}
+          canUseInvites={canUseInvites}
           pendingInvites={pendingInvites}
           inviteSuggestions={inviteSuggestions}
           addMemberInput={addMemberInput}
@@ -139,6 +142,7 @@ export function TripSettingsScreen() {
           changeRoleMutation={changeRoleMutation}
           removeMemberMutation={removeMemberMutation}
           revokeInviteMutation={revokeInviteMutation}
+          updateTripMutation={updateMutation}
         />
         {canDeleteTrip(myRole) ? (
           <TripDeleteSection

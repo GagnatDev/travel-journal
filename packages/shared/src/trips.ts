@@ -30,6 +30,8 @@ export interface Trip {
   returnDate?: string;
   status: TripStatus;
   createdBy: string;
+  /** When true, trip contributors may invite people to this trip (same flows as the creator). */
+  allowContributorInvites: boolean;
   members: TripMember[];
   createdAt: string;
   updatedAt: string;
@@ -47,6 +49,7 @@ export interface UpdateTripRequest {
   description?: string;
   departureDate?: string;
   returnDate?: string;
+  allowContributorInvites?: boolean;
 }
 
 export interface UpdateTripMemberNotificationPreferencesRequest {

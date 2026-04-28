@@ -70,6 +70,7 @@ const mockTrip: Trip = {
   name: 'Map Trip',
   status: 'active',
   createdBy: 'user-1',
+  allowContributorInvites: false,
   members: [
     {
       userId: 'user-1',

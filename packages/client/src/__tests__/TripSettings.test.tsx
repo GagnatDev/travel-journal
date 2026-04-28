@@ -25,6 +25,7 @@ function makeTrip(status: Trip['status'] = 'active', role: Trip['members'][0]['t
     name: 'My Trip',
     status,
     createdBy: 'user-1',
+    allowContributorInvites: false,
     members: [
       {
         userId: 'user-1',
@@ -40,12 +41,16 @@ function makeTrip(status: Trip['status'] = 'active', role: Trip['members'][0]['t
 }
 
 /** Signed-in user is `mockUser` (`user-1`) as a contributor; another user is trip creator. */
-function makeContributorTrip(status: Trip['status'] = 'active'): Trip {
+function makeContributorTrip(
+  status: Trip['status'] = 'active',
+  opts?: { allowContributorInvites?: boolean },
+): Trip {
   return {
     id: 'trip-1',
     name: 'Shared Trip',
     status,
     createdBy: 'user-2',
+    allowContributorInvites: opts?.allowContributorInvites ?? false,
     members: [
       {
         userId: 'user-2',
@@ -137,9 +142,9 @@ describe('TripSettingsScreen', () => {
     expect(screen.queryByText('Timeline')).not.toBeInTheDocument();
   });
 
-  it('contributor settings load does not request pending trip invites', async () => {
+  it('contributor settings load does not request pending trip invites when contributor invites are off', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    renderSettings(makeContributorTrip());
+    renderSettings(makeContributorTrip('active', { allowContributorInvites: false }));
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: /turinnstillinger|trip settings/i })).toBeInTheDocument();
@@ -153,6 +158,30 @@ describe('TripSettingsScreen', () => {
       );
     });
     expect(inviteListCalls.length).toBe(0);
+    fetchSpy.mockRestore();
+  });
+
+  it('contributor with allowContributorInvites requests pending trip invites', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    server.use(
+      http.get('/api/v1/trips/:id/members/invites', () => HttpResponse.json([])),
+    );
+    renderSettings(makeContributorTrip('active', { allowContributorInvites: true }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /turinnstillinger|trip settings/i })).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      const inviteListCalls = fetchSpy.mock.calls.filter((c) => {
+        const u = String(c[0]);
+        return (
+          u.includes('/api/v1/trips/trip-1/members/invites') &&
+          !u.includes('/members/invites/suggestions')
+        );
+      });
+      expect(inviteListCalls.length).toBeGreaterThan(0);
+    });
     fetchSpy.mockRestore();
   });
 

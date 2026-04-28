@@ -17,7 +17,7 @@ import {
 } from '../../api/trips.js';
 import { QUERY_STALE_MS } from '../../lib/appQueryClient.js';
 
-import { canManageTripInvitesAndMembers, viewerTripRoleForUser } from './tripSettingsPermissions.js';
+import { canUseTripInviteActions, viewerTripRoleForUser } from './tripSettingsPermissions.js';
 
 /** React Query keys shared by trip settings queries and invalidations. */
 export const tripSettingsQueryKeys = {
@@ -59,19 +59,20 @@ export function useTripSettings({
 
   const viewerRole = viewerTripRoleForUser(trip, userId);
 
+  const canFetchInvites =
+    !!tripId && !!accessToken && !!trip && canUseTripInviteActions(trip, viewerRole);
+
   const { data: pendingInvites = [] } = useQuery({
     queryKey: tripSettingsQueryKeys.tripInvites(tripId),
     queryFn: () => fetchTripInvites(tripId!, accessToken!),
-    enabled:
-      !!tripId && !!accessToken && !!trip && canManageTripInvitesAndMembers(viewerRole),
+    enabled: canFetchInvites,
     staleTime: QUERY_STALE_MS.tripDetail,
   });
 
   const { data: inviteSuggestions = [] } = useQuery({
     queryKey: tripSettingsQueryKeys.tripInviteSuggestions(tripId),
     queryFn: () => fetchTripMemberInviteSuggestions(tripId!, accessToken!),
-    enabled:
-      !!tripId && !!accessToken && !!trip && canManageTripInvitesAndMembers(viewerRole),
+    enabled: canFetchInvites,
     staleTime: QUERY_STALE_MS.tripDetail,
   });
 
@@ -81,8 +82,11 @@ export function useTripSettings({
   };
 
   const updateMutation = useMutation({
-    mutationFn: (data: { name?: string; description?: string }) =>
-      patchTrip(tripId!, data, accessToken!),
+    mutationFn: (data: {
+      name?: string;
+      description?: string;
+      allowContributorInvites?: boolean;
+    }) => patchTrip(tripId!, data, accessToken!),
     onSuccess: invalidateTripListsAndDetail,
   });
 

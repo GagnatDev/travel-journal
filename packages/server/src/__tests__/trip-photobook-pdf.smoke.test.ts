@@ -26,6 +26,7 @@ describe('buildTripPhotobookPdf smoke', () => {
       returnDate: '2026-06-10T00:00:00.000Z',
       status: 'active',
       createdBy: 'u1',
+      allowContributorInvites: false,
       members: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
