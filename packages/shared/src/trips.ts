@@ -30,6 +30,11 @@ export interface Trip {
   returnDate?: string;
   status: TripStatus;
   createdBy: string;
+  /**
+   * When set, the photobook PDF cover uses this entry image (storage key) instead of a random trip photo.
+   * Only the trip creator may change it; the key must belong to an image on a non-deleted entry in this trip.
+   */
+  photobookCoverImageKey?: string;
   /** When true, trip contributors may invite people to this trip (same flows as the creator). */
   allowContributorInvites: boolean;
   members: TripMember[];
@@ -50,6 +55,8 @@ export interface UpdateTripRequest {
   departureDate?: string;
   returnDate?: string;
   allowContributorInvites?: boolean;
+  /** Set to a full image storage key, or `null` to clear and use random cover again. */
+  photobookCoverImageKey?: string | null;
 }
 
 export interface UpdateTripMemberNotificationPreferencesRequest {

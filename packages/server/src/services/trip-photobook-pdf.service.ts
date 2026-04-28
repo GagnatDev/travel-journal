@@ -207,6 +207,16 @@ function pickRandomCoverKey(keys: string[]): string | undefined {
   return keys[i];
 }
 
+/** User-picked cover when valid; otherwise a random trip photo. */
+export function resolvePhotobookCoverKey(trip: Trip, entries: Entry[]): string | undefined {
+  const keys = collectTripImageKeys(entries);
+  const desired = trip.photobookCoverImageKey?.trim();
+  if (desired && keys.includes(desired)) {
+    return desired;
+  }
+  return pickRandomCoverKey(keys);
+}
+
 async function loadImageBufferForKey(key: string): Promise<Buffer | null> {
   try {
     return await getObjectBuffer(key);
@@ -564,8 +574,7 @@ async function drawCoverPage(
 ): Promise<void> {
   addSquarePage(doc);
 
-  const keys = collectTripImageKeys(entries);
-  const coverKey = pickRandomCoverKey(keys);
+  const coverKey = resolvePhotobookCoverKey(trip, entries);
   let coverBuf: Buffer | null = null;
   if (coverKey) {
     coverBuf = await loadImageBufferForKey(coverKey);

@@ -299,7 +299,10 @@
       "dialogLabel": "Bildekarusell",
       "previousImage": "Forrige bilde",
       "nextImage": "Neste bilde",
-      "closeImageCarousel": "Lukk bildekarusell"
+      "closeImageCarousel": "Lukk bildekarusell",
+      "setAsPhotobookCover": "Bruk som omslagsbilde i fotobok",
+      "clearPhotobookCover": "Tilfeldig bilde på fotobokomslag",
+      "currentPhotobookCover": "Dette bildet er fotobokens omslag"
     }
   },
   "reactions": {

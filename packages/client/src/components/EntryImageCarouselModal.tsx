@@ -16,6 +16,14 @@ interface EntryImageCarouselModalProps {
   initialIndex: number;
   isOpen: boolean;
   onClose: () => void;
+  /** Trip creator: set photobook PDF cover to the image currently shown in the carousel. */
+  photobookCoverAction?: {
+    activeImageKey: string;
+    isCurrentCover: boolean;
+    onSetCover: (imageKey: string) => void;
+    onClearCover: () => void;
+    busy?: boolean;
+  };
 }
 
 const SWIPE_THRESHOLD_PX = 40;
@@ -26,6 +34,7 @@ export function EntryImageCarouselModal({
   initialIndex,
   isOpen,
   onClose,
+  photobookCoverAction,
 }: EntryImageCarouselModalProps) {
   const { t } = useTranslation();
   const { accessToken } = useAuth();
@@ -223,6 +232,32 @@ export function EntryImageCarouselModal({
         >
           {t('common.close')}
         </button>
+        {photobookCoverAction && (
+          <div className="absolute left-3 right-3 top-14 z-20 flex flex-col gap-2 sm:left-auto sm:right-4 sm:top-16 sm:w-72">
+            <button
+              type="button"
+              disabled={photobookCoverAction.busy}
+              onClick={() => photobookCoverAction.onSetCover(photobookCoverAction.activeImageKey)}
+              className="font-ui rounded-lg bg-white/95 px-3 py-2 text-left text-sm font-medium text-heading shadow-md transition hover:bg-white disabled:opacity-50"
+            >
+              {t('entries.carousel.setAsPhotobookCover')}
+            </button>
+            {photobookCoverAction.isCurrentCover ? (
+              <p className="font-ui rounded-lg bg-black/50 px-3 py-2 text-xs text-white">
+                {t('entries.carousel.currentPhotobookCover')}
+              </p>
+            ) : (
+              <button
+                type="button"
+                disabled={photobookCoverAction.busy}
+                onClick={() => photobookCoverAction.onClearCover()}
+                className="font-ui rounded-lg bg-black/45 px-3 py-2 text-left text-xs font-medium text-white/95 transition hover:bg-black/60 disabled:opacity-50"
+              >
+                {t('entries.carousel.clearPhotobookCover')}
+              </button>
+            )}
+          </div>
+        )}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-xs text-white">
           {activeIndex + 1} / {images.length}
         </div>

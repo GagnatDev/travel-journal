@@ -299,7 +299,10 @@
       "dialogLabel": "Image carousel",
       "previousImage": "Previous image",
       "nextImage": "Next image",
-      "closeImageCarousel": "Close image carousel"
+      "closeImageCarousel": "Close image carousel",
+      "setAsPhotobookCover": "Use as photobook cover",
+      "clearPhotobookCover": "Use random photo for photobook cover",
+      "currentPhotobookCover": "This image is the photobook cover"
     }
   },
   "reactions": {

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import type { CreateTripRequest, Trip, TripStatus, UpdateTripRequest } from '@travel-journal/shared';
 
 import { Trip as TripModel, ITrip, readTripMemberEntryMode } from '../models/Trip.model.js';
+import { Entry as EntryModel } from '../models/Entry.model.js';
 import { User } from '../models/User.model.js';
 
 function createHttpError(message: string, status: number, code: string): Error {
@@ -46,6 +47,10 @@ async function toTrip(doc: ITrip): Promise<Trip> {
   }
   if (doc.departureDate !== undefined) trip.departureDate = doc.departureDate.toISOString();
   if (doc.returnDate !== undefined) trip.returnDate = doc.returnDate.toISOString();
+
+  if (typeof doc.coverImageKey === 'string' && doc.coverImageKey.trim() !== '') {
+    trip.photobookCoverImageKey = doc.coverImageKey.trim();
+  }
 
   return trip;
 }
@@ -142,6 +147,32 @@ export async function updateTrip(
   }
   if (data.allowContributorInvites !== undefined) {
     doc.allowContributorInvites = data.allowContributorInvites;
+  }
+
+  if (data.photobookCoverImageKey !== undefined) {
+    if (data.photobookCoverImageKey === null || data.photobookCoverImageKey === '') {
+      doc.set('coverImageKey', undefined);
+    } else {
+      const key = data.photobookCoverImageKey.trim();
+      const parts = key.split('/');
+      const keyTripId = parts[1];
+      if (keyTripId !== tripId) {
+        throw createHttpError('Image does not belong to this trip', 400, 'VALIDATION_ERROR');
+      }
+      const exists = await EntryModel.exists({
+        tripId: new mongoose.Types.ObjectId(tripId),
+        deletedAt: null,
+        'images.key': key,
+      });
+      if (!exists) {
+        throw createHttpError(
+          'photobookCoverImageKey must reference an image on a trip entry',
+          400,
+          'VALIDATION_ERROR',
+        );
+      }
+      doc.set('coverImageKey', key);
+    }
   }
 
   await doc.save();

@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 
 import { User } from '../models/User.model.js';
 import { Trip } from '../models/Trip.model.js';
+import { Entry } from '../models/Entry.model.js';
 import { hashPassword } from '../services/auth.service.js';
 import {
   createTrip,
@@ -122,6 +123,40 @@ describe('updateTrip', () => {
 
     const raw = await Trip.findById(trip.id).lean();
     expect(raw?.allowContributorInvites).toBe(true);
+  });
+
+  it('sets and clears photobookCoverImageKey when image exists on trip entry', async () => {
+    const user = await makeUser('creator@test.com');
+    const userId = String(user._id);
+    const trip = await createTrip({ name: 'T' }, userId);
+    const imageKey = `media/${trip.id}/cover.jpg`;
+
+    await Entry.create({
+      tripId: new mongoose.Types.ObjectId(trip.id),
+      authorId: user._id,
+      title: 'Post',
+      content: 'Hi',
+      images: [
+        {
+          key: imageKey,
+          width: 10,
+          height: 10,
+          order: 0,
+          uploadedAt: new Date(),
+        },
+      ],
+      deletedAt: null,
+    });
+
+    const set = await updateTrip(trip.id, { photobookCoverImageKey: imageKey }, userId);
+    expect(set.photobookCoverImageKey).toBe(imageKey);
+
+    const cleared = await updateTrip(trip.id, { photobookCoverImageKey: null }, userId);
+    expect(cleared.photobookCoverImageKey).toBeUndefined();
+
+    await expect(
+      updateTrip(trip.id, { photobookCoverImageKey: `media/${trip.id}/missing.jpg` }, userId),
+    ).rejects.toMatchObject({ status: 400, code: 'VALIDATION_ERROR' });
   });
 });
 
