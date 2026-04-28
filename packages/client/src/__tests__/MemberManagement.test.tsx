@@ -20,6 +20,7 @@ function makeTrip(extraMembers: Trip['members'] = []): Trip {
     name: 'My Trip',
     status: 'planned',
     createdBy: 'user-1',
+    allowContributorInvites: false,
     members: [
       { userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() },
       ...extraMembers,
@@ -59,6 +60,7 @@ function makeMockTrip(extraMembers: Trip['members'] = []): Trip {
     name: 'My Trip',
     status: 'planned',
     createdBy: 'user-1',
+    allowContributorInvites: false,
     members: [
       { userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() },
       ...extraMembers,
@@ -80,6 +82,7 @@ function renderMembersSection(trip: Trip, pendingInvites: Invite[] = []) {
       <TripMembersSection
         t={t as Parameters<typeof TripMembersSection>[0]['t']}
         trip={trip}
+        canUseInvites
         pendingInvites={pendingInvites}
         addMemberInput=""
         setAddMemberInput={noop}
@@ -93,6 +96,7 @@ function renderMembersSection(trip: Trip, pendingInvites: Invite[] = []) {
         changeRoleMutation={noopMutation as unknown as Parameters<typeof TripMembersSection>[0]['changeRoleMutation']}
         removeMemberMutation={noopMutation as unknown as Parameters<typeof TripMembersSection>[0]['removeMemberMutation']}
         revokeInviteMutation={noopMutation as unknown as Parameters<typeof TripMembersSection>[0]['revokeInviteMutation']}
+        updateTripMutation={noopMutation as unknown as Parameters<typeof TripMembersSection>[0]['updateTripMutation']}
       />
     </TestMemoryRouter>,
   );

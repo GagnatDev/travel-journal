@@ -18,6 +18,8 @@ interface TripMembersSectionProps {
   trip: Trip;
   /** When false, only member-safe UI (e.g. notification preferences) is shown. */
   canManageMembers?: boolean;
+  /** Invite form, pending invites, and add-member API (creator or contributor when allowed). */
+  canUseInvites?: boolean;
   pendingInvites: Invite[];
   inviteSuggestions?: TripMemberInviteSuggestion[];
   addMemberInput: string;
@@ -37,12 +39,14 @@ interface TripMembersSectionProps {
   >;
   removeMemberMutation: UseMutationResult<void, Error, string, unknown>;
   revokeInviteMutation: UseMutationResult<void, Error, string, unknown>;
+  updateTripMutation: UseMutationResult<Trip, Error, { allowContributorInvites: boolean }, unknown>;
 }
 
 export function TripMembersSection({
   t,
   trip,
   canManageMembers = true,
+  canUseInvites = false,
   pendingInvites,
   inviteSuggestions = [],
   addMemberInput,
@@ -57,8 +61,8 @@ export function TripMembersSection({
   changeRoleMutation,
   removeMemberMutation,
   revokeInviteMutation,
+  updateTripMutation,
 }: TripMembersSectionProps) {
-  const [allowContributorInvites, setAllowContributorInvites] = useState(false);
   const [inviteFormOpen, setInviteFormOpen] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const blurCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -109,7 +113,7 @@ export function TripMembersSection({
         {t('trips.settings.circleTitle')}
       </h1>
 
-      {canManageMembers ? (
+      {canUseInvites ? (
         <>
           {/* Invite button */}
           <PillButton
@@ -279,7 +283,7 @@ export function TripMembersSection({
       </div>
 
       {/* Pending invites */}
-      {canManageMembers && pendingInvites.length > 0 && (
+      {canUseInvites && pendingInvites.length > 0 && (
         <div className="space-y-3">
           <SectionLabel>{t('trips.settings.pendingInvitesTitle')}</SectionLabel>
           <ul className="space-y-2">
@@ -308,29 +312,13 @@ export function TripMembersSection({
         </div>
       )}
 
-      {/* Privacy Controls (UI stub) */}
-      {canManageMembers ? (
-        <div className="space-y-3">
-          <SectionLabel>{t('trips.settings.privacyTitle')}</SectionLabel>
-          <div className="space-y-2">
-            <label className="flex items-center gap-3 cursor-pointer py-1">
-              <input type="radio" name="privacy" value="public" defaultChecked className="accent-accent" />
-              <span className="font-ui text-sm text-body">{t('trips.settings.privacyPublic')}</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer py-1">
-              <input type="radio" name="privacy" value="private" className="accent-accent" />
-              <span className="font-ui text-sm text-body">{t('trips.settings.privacyPrivate')}</span>
-            </label>
-          </div>
-        </div>
-      ) : null}
-
       {/* Contributor invite toggle */}
       {canManageMembers ? (
         <ToggleSwitch
           id="allow-contributor-invites"
-          checked={allowContributorInvites}
-          onChange={setAllowContributorInvites}
+          checked={trip.allowContributorInvites}
+          disabled={updateTripMutation.isPending}
+          onChange={(next) => updateTripMutation.mutate({ allowContributorInvites: next })}
           label={t('trips.settings.allowContributorInvites')}
         />
       ) : null}

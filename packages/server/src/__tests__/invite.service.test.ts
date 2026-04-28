@@ -231,4 +231,35 @@ describe('addTripMember', () => {
     expect(invite!.type).toBe('trip');
     expect(invite!.tripRole).toBe('contributor');
   });
+
+  it('rejects contributor when allowContributorInvites is false', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const contrib = await makeUser('contrib@test.com', 'follower');
+    const trip = await createTrip({ name: 'Trip' }, String(creator._id));
+    await Trip.updateOne(
+      { _id: trip.id },
+      { $push: { members: { userId: contrib._id, tripRole: 'contributor', addedAt: new Date() } } },
+    );
+
+    await expect(
+      addTripMember(trip.id, 'other@test.com', 'follower', String(contrib._id)),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('allows contributor when allowContributorInvites is true', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const contrib = await makeUser('contrib@test.com', 'follower');
+    const other = await makeUser('other@test.com', 'follower');
+    const trip = await createTrip({ name: 'Trip' }, String(creator._id));
+    await Trip.updateOne(
+      { _id: trip.id },
+      {
+        $set: { allowContributorInvites: true },
+        $push: { members: { userId: contrib._id, tripRole: 'contributor', addedAt: new Date() } },
+      },
+    );
+
+    const result = await addTripMember(trip.id, other.email, 'follower', String(contrib._id));
+    expect(result.type).toBe('added');
+  });
 });

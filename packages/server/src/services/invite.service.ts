@@ -279,6 +279,22 @@ export async function addTripMember(
   tripRole: 'contributor' | 'follower',
   issuedBy: string,
 ): Promise<{ type: 'added' } | { type: 'invite_created'; rawToken: string }> {
+  const tripDoc = await Trip.findById(new mongoose.Types.ObjectId(tripId)).lean();
+  if (!tripDoc) {
+    throw createHttpError('Trip not found', 404, 'NOT_FOUND');
+  }
+
+  const issuerMember = tripDoc.members.find((m) => String(m.userId) === issuedBy);
+  if (!issuerMember) {
+    throw createHttpError('Forbidden', 403, 'FORBIDDEN');
+  }
+  if (issuerMember.tripRole === 'follower') {
+    throw createHttpError('Forbidden', 403, 'FORBIDDEN');
+  }
+  if (issuerMember.tripRole === 'contributor' && tripDoc.allowContributorInvites !== true) {
+    throw createHttpError('Forbidden', 403, 'FORBIDDEN');
+  }
+
   let user = await User.findOne({ email: emailOrNickname.toLowerCase().trim() });
 
   if (!user) {

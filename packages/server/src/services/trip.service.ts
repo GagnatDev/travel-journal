@@ -27,6 +27,7 @@ async function toTrip(doc: ITrip): Promise<Trip> {
     name: doc.name,
     status: doc.status,
     createdBy: String(doc.createdBy),
+    allowContributorInvites: doc.allowContributorInvites === true,
     members: doc.members.map((m) => ({
       userId: String(m.userId),
       displayName: userMap.get(String(m.userId)) ?? '',
@@ -138,6 +139,9 @@ export async function updateTrip(
     } else {
       doc.returnDate = undefined as unknown as Date;
     }
+  }
+  if (data.allowContributorInvites !== undefined) {
+    doc.allowContributorInvites = data.allowContributorInvites;
   }
 
   await doc.save();

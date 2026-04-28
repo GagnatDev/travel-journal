@@ -20,6 +20,7 @@ const mockTrip: Trip = {
   name: 'Adventure Trip',
   status: 'active',
   createdBy: 'user-1',
+  allowContributorInvites: false,
   members: [
     { userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() },
   ],

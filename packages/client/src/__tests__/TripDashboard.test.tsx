@@ -18,6 +18,7 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
     name: 'Test Trip',
     status: 'planned',
     createdBy: 'user-1',
+    allowContributorInvites: false,
     members: [{ userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() }],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

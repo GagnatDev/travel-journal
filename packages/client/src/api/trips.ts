@@ -51,7 +51,7 @@ export function fetchTripMemberInviteSuggestions(
 
 export function patchTrip(
   tripId: string,
-  body: Pick<UpdateTripRequest, 'name' | 'description'>,
+  body: Pick<UpdateTripRequest, 'name' | 'description' | 'allowContributorInvites'>,
   token: string,
 ): Promise<Trip> {
   return apiJson<Trip>(`/api/v1/trips/${tripId}`, { method: 'PATCH', token, body });

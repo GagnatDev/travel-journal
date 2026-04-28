@@ -124,7 +124,7 @@ describe('GET /api/v1/trips/:id/members/invites/suggestions', () => {
 });
 
 describe('POST /api/v1/trips/:id/members', () => {
-  it('returns 403 for a non-creator member', async () => {
+  it('returns 403 for a contributor when allowContributorInvites is false', async () => {
     const creator = await makeUser('creator@test.com', 'creator');
     const contrib = await makeUser('contrib@test.com', 'creator');
     const trip = await makeTrip(String(creator._id));
@@ -137,6 +137,24 @@ describe('POST /api/v1/trips/:id/members', () => {
       .send({ emailOrNickname: 'new@test.com', tripRole: 'follower' });
 
     expect(res.status).toBe(403);
+  });
+
+  it('returns 200 for a contributor when allowContributorInvites is true', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const contrib = await makeUser('contrib@test.com', 'creator');
+    const invitee = await makeUser('invitee@test.com', 'follower');
+    const trip = await makeTrip(String(creator._id));
+
+    await Trip.updateOne({ _id: trip.id }, { $set: { allowContributorInvites: true } });
+    await addMemberToTrip(trip.id, String(contrib._id), 'contributor');
+
+    const res = await request(app)
+      .post(`/api/v1/trips/${trip.id}/members`)
+      .set('Authorization', authHeader(String(contrib._id), contrib.email, 'creator'))
+      .send({ emailOrNickname: invitee.email, tripRole: 'follower' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.type).toBe('added');
   });
 
   it('returns 200 { type: "added" } when adding an existing user by email', async () => {

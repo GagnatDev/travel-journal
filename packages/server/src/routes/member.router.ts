@@ -1,8 +1,8 @@
 import { NextFunction, Request, Response, Router } from 'express';
-import type { AccessTokenPayload } from '@travel-journal/shared';
+import type { AccessTokenPayload, Trip } from '@travel-journal/shared';
 
 import { requireAuth } from '../middleware/auth.middleware.js';
-import { Trip } from '../models/Trip.model.js';
+import { Trip as TripModel } from '../models/Trip.model.js';
 import {
   addTripMember,
   listTripInvites,
@@ -23,8 +23,8 @@ function createHttpError(message: string, status: number, code: string): Error {
   return err;
 }
 
-// Creator guard: only the trip creator may manage members
-async function creatorGuard(req: Request, res: Response, next: NextFunction): Promise<void> {
+/** Trip member who may use invite flows: creator, or contributor when `allowContributorInvites` is true. */
+async function tripMemberInviteGuard(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const auth = res.locals['auth'] as AccessTokenPayload;
     const tripId = req.params['id']!;
@@ -36,7 +36,16 @@ async function creatorGuard(req: Request, res: Response, next: NextFunction): Pr
     }
 
     const member = trip.members.find((m) => m.userId === auth.userId);
-    if (!member || member.tripRole !== 'creator') {
+    if (!member) {
+      res.status(404).json({ error: { message: 'Trip not found', code: 'NOT_FOUND' } });
+      return;
+    }
+
+    if (member.tripRole === 'follower') {
+      res.status(403).json({ error: { message: 'Forbidden', code: 'FORBIDDEN' } });
+      return;
+    }
+    if (member.tripRole === 'contributor' && !trip.allowContributorInvites) {
       res.status(403).json({ error: { message: 'Forbidden', code: 'FORBIDDEN' } });
       return;
     }
@@ -48,7 +57,18 @@ async function creatorGuard(req: Request, res: Response, next: NextFunction): Pr
   }
 }
 
-memberRouter.use(creatorGuard);
+function creatorOnlyGuard(req: Request, res: Response, next: NextFunction): void {
+  const auth = res.locals['auth'] as AccessTokenPayload;
+  const trip = res.locals['trip'] as Trip;
+  const member = trip.members.find((m) => m.userId === auth.userId);
+  if (!member || member.tripRole !== 'creator') {
+    res.status(403).json({ error: { message: 'Forbidden', code: 'FORBIDDEN' } });
+    return;
+  }
+  next();
+}
+
+memberRouter.use(tripMemberInviteGuard);
 
 // GET /invites/suggestions — People from related trips (before /invites/:id patterns)
 memberRouter.get(
@@ -135,9 +155,10 @@ memberRouter.post(
   },
 );
 
-// PATCH /:userId/role — Change a member's trip role
+// PATCH /:userId/role — Change a member's trip role (creator only)
 memberRouter.patch(
   '/:userId/role',
+  creatorOnlyGuard,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tripId = req.params['id']!;
@@ -170,7 +191,7 @@ memberRouter.patch(
         throw createHttpError("Cannot change the trip creator's role", 400, 'VALIDATION_ERROR');
       }
 
-      await Trip.updateOne(
+      await TripModel.updateOne(
         { _id: tripId, 'members.userId': userId },
         { $set: { 'members.$.tripRole': tripRole } },
       );
@@ -182,9 +203,10 @@ memberRouter.patch(
   },
 );
 
-// DELETE /:userId — Remove a member
+// DELETE /:userId — Remove a member (creator only)
 memberRouter.delete(
   '/:userId',
+  creatorOnlyGuard,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tripId = req.params['id']!;
@@ -206,7 +228,7 @@ memberRouter.delete(
         throw createHttpError('Cannot remove the trip creator', 400, 'VALIDATION_ERROR');
       }
 
-      await Trip.updateOne({ _id: tripId }, { $pull: { members: { userId } } });
+      await TripModel.updateOne({ _id: tripId }, { $pull: { members: { userId } } });
 
       res.status(204).send();
     } catch (err) {

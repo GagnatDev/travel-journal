@@ -13,6 +13,7 @@ export const tripHandlers = [
         name: body.name,
         status: 'planned',
         createdBy: 'user-1',
+        allowContributorInvites: false,
         members: [
           {
             userId: 'user-1',
@@ -55,6 +56,9 @@ export const tripHandlers = [
       id: params['id'],
       name: typeof body['name'] === 'string' ? body['name'] : 'Mock Trip',
       ...(typeof body['description'] === 'string' ? { description: body['description'] } : {}),
+      ...(typeof body['allowContributorInvites'] === 'boolean'
+        ? { allowContributorInvites: body['allowContributorInvites'] }
+        : {}),
     });
   }),
 

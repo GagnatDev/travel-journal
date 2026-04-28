@@ -15,6 +15,13 @@ export function canManageTripInvitesAndMembers(role: TripRole | undefined): bool
   return role === 'creator';
 }
 
+/** Invite people to the trip (add existing users or create email invites). */
+export function canUseTripInviteActions(trip: Trip | undefined, role: TripRole | undefined): boolean {
+  if (role === 'creator') return true;
+  if (role === 'contributor' && trip?.allowContributorInvites === true) return true;
+  return false;
+}
+
 export function canEditTripDetailsAndLifecycle(role: TripRole | undefined): boolean {
   return role === 'creator';
 }
