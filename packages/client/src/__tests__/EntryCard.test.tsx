@@ -7,6 +7,7 @@ import { http, HttpResponse } from 'msw';
 import type { Entry } from '@travel-journal/shared';
 
 import { EntryCard } from '../components/EntryCard.js';
+
 import { server } from './mocks/server.js';
 
 vi.mock('../components/AuthenticatedImage.js', () => ({
@@ -289,6 +290,7 @@ describe('EntryCard', () => {
     await waitFor(() => {
       expect(lastPatchBody).toEqual({ photobookCoverImageKey: 'media/trip-1/a.jpg' });
     });
+    expect(screen.getByTestId('entry-image-carousel-photobook-settings')).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('closes the carousel on browser back without leaving the timeline route', async () => {

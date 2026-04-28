@@ -302,9 +302,9 @@ export function EntryImageCarouselModal({
                     role="menuitemcheckbox"
                     aria-checked={photobookCoverAction.isCurrentCover}
                     disabled={photobookCoverAction.busy}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       togglePhotobookCover();
-                      setPhotobookMenuOpen(false);
                     }}
                     className="font-ui flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 disabled:opacity-50"
                   >

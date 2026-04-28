@@ -128,11 +128,15 @@ export function TripPhotobookPdfSection({ t, trip, accessToken, pdfUiLanguage }:
                 {t('common.close')}
               </button>
               <div className="max-h-[85vh] max-w-[min(100%,42rem)] w-full flex flex-col items-center gap-3">
+                {/*
+                  AuthenticatedImage wraps content in a positioned span; the <img> is
+                  absolute inset-0 and needs an explicit height on that frame.
+                */}
                 <AuthenticatedImage
                   mediaKey={coverKey}
                   alt={t('trips.settings.photobookCoverPreviewImageAlt')}
                   loading="eager"
-                  className="max-h-[75vh] w-full object-contain"
+                  className="h-[min(75vh,52rem)] w-full min-h-[12rem] object-contain"
                 />
               </div>
             </div>,
