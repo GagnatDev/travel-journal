@@ -140,9 +140,13 @@ export function TimelineScreen() {
       tripId: tripId!,
       currentUserId: user?.id ?? '',
       canManageEntries: tripRole === 'creator' || tripRole === 'contributor',
+      isTripCreator: tripRole === 'creator',
       onDelete: requestDeleteEntry,
+      ...(trip?.photobookCoverImageKey != null && trip.photobookCoverImageKey !== ''
+        ? { photobookCoverImageKey: trip.photobookCoverImageKey }
+        : {}),
     }),
-    [tripId, user?.id, tripRole, requestDeleteEntry],
+    [tripId, user?.id, tripRole, trip?.photobookCoverImageKey, requestDeleteEntry],
   );
 
   const entriesErrorMessage =

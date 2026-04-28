@@ -342,6 +342,76 @@ describe('PATCH /api/v1/trips/:id', () => {
     expect(res.status).toBe(200);
     expect(res.body.allowContributorInvites).toBe(true);
   });
+
+  it('returns 200 and persists photobookCoverImageKey when image is on an entry', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'Cover Trip' });
+
+    const tripId = createRes.body.id as string;
+    const imageKey = `media/${tripId}/hero.jpg`;
+
+    await Entry.create({
+      tripId: new mongoose.Types.ObjectId(tripId),
+      authorId: creator._id,
+      title: 'One',
+      content: 'Text',
+      images: [
+        {
+          key: imageKey,
+          width: 100,
+          height: 100,
+          order: 0,
+          uploadedAt: new Date(),
+        },
+      ],
+      deletedAt: null,
+    });
+
+    const setRes = await request(app)
+      .patch(`/api/v1/trips/${tripId}`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ photobookCoverImageKey: imageKey });
+
+    expect(setRes.status).toBe(200);
+    expect(setRes.body.photobookCoverImageKey).toBe(imageKey);
+
+    const getRes = await request(app)
+      .get(`/api/v1/trips/${tripId}`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.photobookCoverImageKey).toBe(imageKey);
+
+    const clearRes = await request(app)
+      .patch(`/api/v1/trips/${tripId}`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ photobookCoverImageKey: null });
+
+    expect(clearRes.status).toBe(200);
+    expect(clearRes.body.photobookCoverImageKey).toBeUndefined();
+  });
+
+  it('returns 400 when photobookCoverImageKey is not on any entry', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'No Entry Images' });
+
+    const tripId = createRes.body.id as string;
+
+    const res = await request(app)
+      .patch(`/api/v1/trips/${tripId}`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ photobookCoverImageKey: `media/${tripId}/nope.jpg` });
+
+    expect(res.status).toBe(400);
+  });
 });
 
 describe('PATCH /api/v1/trips/:id/members/me/notification-preferences', () => {

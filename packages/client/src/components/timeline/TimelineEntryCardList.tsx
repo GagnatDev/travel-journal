@@ -12,6 +12,8 @@ interface TimelineEntryCardListProps {
   tripId: string;
   currentUserId: string;
   canManageEntries: boolean;
+  isTripCreator?: boolean;
+  photobookCoverImageKey?: string;
   onDelete: (entryId: string) => void;
 }
 
@@ -21,6 +23,8 @@ function TimelineEntryCardListFlat({
   tripId,
   currentUserId,
   canManageEntries,
+  isTripCreator,
+  photobookCoverImageKey,
   onDelete,
 }: TimelineEntryCardListProps) {
   return (
@@ -32,6 +36,10 @@ function TimelineEntryCardListFlat({
             tripId={tripId}
             currentUserId={currentUserId}
             canManageEntries={canManageEntries}
+            isTripCreator={Boolean(isTripCreator)}
+            {...(photobookCoverImageKey != null && photobookCoverImageKey !== ''
+              ? { photobookCoverImageKey }
+              : {})}
             onDelete={onDelete}
           />
         </div>
@@ -45,6 +53,8 @@ function TimelineEntryCardListVirtual({
   tripId,
   currentUserId,
   canManageEntries,
+  isTripCreator,
+  photobookCoverImageKey,
   onDelete,
 }: TimelineEntryCardListProps) {
   const rowVirtualizer = useWindowVirtualizer({
@@ -73,6 +83,10 @@ function TimelineEntryCardListVirtual({
               tripId={tripId}
               currentUserId={currentUserId}
               canManageEntries={canManageEntries}
+              isTripCreator={Boolean(isTripCreator)}
+              {...(photobookCoverImageKey != null && photobookCoverImageKey !== ''
+                ? { photobookCoverImageKey }
+                : {})}
               onDelete={onDelete}
             />
           </div>

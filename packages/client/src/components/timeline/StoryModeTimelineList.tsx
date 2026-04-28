@@ -47,6 +47,8 @@ interface StoryModeTimelineListProps {
   tripId: string;
   currentUserId: string;
   canManageEntries: boolean;
+  isTripCreator?: boolean;
+  photobookCoverImageKey?: string;
   onDelete: (entryId: string) => void;
 }
 
@@ -55,6 +57,8 @@ function StoryModeTimelineListFlat({
   tripId,
   currentUserId,
   canManageEntries,
+  isTripCreator,
+  photobookCoverImageKey,
   onDelete,
 }: StoryModeTimelineListProps) {
   const rows = useMemo(() => flattenDayGroups(dayGroups), [dayGroups]);
@@ -79,6 +83,10 @@ function StoryModeTimelineListFlat({
               tripId={tripId}
               currentUserId={currentUserId}
               canManageEntries={canManageEntries}
+              isTripCreator={Boolean(isTripCreator)}
+              {...(photobookCoverImageKey != null && photobookCoverImageKey !== ''
+                ? { photobookCoverImageKey }
+                : {})}
               onDelete={onDelete}
             />
           </div>
@@ -93,6 +101,8 @@ function StoryModeTimelineListVirtual({
   tripId,
   currentUserId,
   canManageEntries,
+  isTripCreator,
+  photobookCoverImageKey,
   onDelete,
 }: StoryModeTimelineListProps) {
   const rows = useMemo(() => flattenDayGroups(dayGroups), [dayGroups]);
@@ -143,6 +153,10 @@ function StoryModeTimelineListVirtual({
               tripId={tripId}
               currentUserId={currentUserId}
               canManageEntries={canManageEntries}
+              isTripCreator={Boolean(isTripCreator)}
+              {...(photobookCoverImageKey != null && photobookCoverImageKey !== ''
+                ? { photobookCoverImageKey }
+                : {})}
               onDelete={onDelete}
             />
           </div>

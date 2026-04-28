@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
@@ -13,6 +13,19 @@ import { TripSettingsScreen } from '../screens/TripSettingsScreen.js';
 import { server } from './mocks/server.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
+
+vi.mock('../lib/authenticatedMedia.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/authenticatedMedia.js')>();
+  return {
+    ...actual,
+    acquireAuthenticatedMediaObjectUrl: vi.fn((mediaKey: string, accessToken: string) =>
+      Promise.resolve({
+        cacheKey: actual.createMediaCacheKey(accessToken, mediaKey),
+        objectUrl: 'blob:http://localhost/photobook-cover-preview-test',
+      }),
+    ),
+  };
+});
 
 vi.mock('../notifications/push.js', () => ({
   ensurePushSubscription: vi.fn(async () => 'granted'),
@@ -314,4 +327,32 @@ describe('TripSettingsScreen', () => {
     });
   });
 
+  it('shows photobook cover warning when no cover is chosen', async () => {
+    renderSettings(makeTrip('active'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('photobook-cover-warning')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('photobook-cover-preview-open')).not.toBeInTheDocument();
+  });
+
+  it('shows cover preview control when a photobook cover is chosen', async () => {
+    const trip = { ...makeTrip('active'), photobookCoverImageKey: 'media/trip-1/cover.jpg' };
+    server.use(http.get('/api/v1/trips/:id', () => HttpResponse.json(trip)));
+
+    renderSettings(trip);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('photobook-cover-preview-open')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('photobook-cover-warning')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId('photobook-cover-preview-open'));
+    const dialog = screen.getByRole('dialog', { name: /forhåndsvisning av omslag|photobook cover preview/i });
+    expect(dialog).toBeInTheDocument();
+    await waitFor(() => {
+      const img = within(dialog).getByRole('img');
+      expect((img as HTMLImageElement).src).toMatch(/^blob:/);
+    });
+  });
 });

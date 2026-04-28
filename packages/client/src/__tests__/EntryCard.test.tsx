@@ -3,9 +3,12 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http, HttpResponse } from 'msw';
 import type { Entry } from '@travel-journal/shared';
 
 import { EntryCard } from '../components/EntryCard.js';
+
+import { server } from './mocks/server.js';
 
 vi.mock('../components/AuthenticatedImage.js', () => ({
   AuthenticatedImage: ({
@@ -53,6 +56,7 @@ function renderCard(
   currentUserId: string,
   onDelete = vi.fn(),
   canManageEntries = false,
+  opts?: { isTripCreator?: boolean; photobookCoverImageKey?: string },
 ): ReturnType<typeof render> {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -68,6 +72,10 @@ function renderCard(
                   tripId="trip-1"
                   currentUserId={currentUserId}
                   canManageEntries={canManageEntries}
+                  {...(opts?.isTripCreator !== undefined ? { isTripCreator: opts.isTripCreator } : {})}
+                  {...(opts?.photobookCoverImageKey !== undefined
+                    ? { photobookCoverImageKey: opts.photobookCoverImageKey }
+                    : {})}
                   onDelete={onDelete}
                 />
               }
@@ -221,28 +229,68 @@ describe('EntryCard', () => {
     const user = userEvent.setup();
     renderCard(entry, 'other-user');
 
-    const openSecondImageButton = await screen.findByRole('button', { name: /open image 2/i });
+    const openSecondImageButton = await screen.findByRole('button', { name: /åpne bilde 2|open image 2/i });
     await user.click(openSecondImageButton);
 
     expect(
-      screen.getByRole('dialog', { name: /image carousel|entries\.carousel\.dialogLabel/i }),
+      screen.getByRole('dialog', { name: /bildekarusell|image carousel/i }),
     ).toBeInTheDocument();
     expect(screen.getByText('2 / 3')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /next image|entries\.carousel\.nextImage/i }));
+    await user.click(screen.getByRole('button', { name: /neste bilde|next image/i }));
     expect(screen.getByText('3 / 3')).toBeInTheDocument();
 
-    await user.click(
-      screen.getByRole('button', { name: /previous image|entries\.carousel\.previousImage/i }),
-    );
+    await user.click(screen.getByRole('button', { name: /forrige bilde|previous image/i }));
     expect(screen.getByText('2 / 3')).toBeInTheDocument();
 
-    await user.click(
-      screen.getByRole('button', { name: /close image carousel|entries\.carousel\.closeImageCarousel/i }),
-    );
+    await user.click(screen.getByRole('button', { name: /lukk bildekarusell|close image carousel/i }));
     expect(
-      screen.queryByRole('dialog', { name: /image carousel|entries\.carousel\.dialogLabel/i }),
+      screen.queryByRole('dialog', { name: /bildekarusell|image carousel/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it('trip creator sees photobook settings in carousel and PATCH sets cover', async () => {
+    let lastPatchBody: unknown;
+    server.use(
+      http.patch('/api/v1/trips/trip-1', async ({ request }) => {
+        lastPatchBody = await request.json();
+        return HttpResponse.json({
+          id: 'trip-1',
+          name: 'My Trip',
+          status: 'active',
+          createdBy: 'user-1',
+          allowContributorInvites: false,
+          members: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          photobookCoverImageKey: (lastPatchBody as { photobookCoverImageKey?: string }).photobookCoverImageKey,
+        });
+      }),
+    );
+
+    const entry = makeEntry({
+      images: [
+        { key: 'media/trip-1/a.jpg', width: 800, height: 600, order: 0, uploadedAt: new Date().toISOString() },
+        { key: 'media/trip-1/b.jpg', width: 800, height: 600, order: 1, uploadedAt: new Date().toISOString() },
+      ],
+    });
+    const user = userEvent.setup();
+    renderCard(entry, 'user-1', vi.fn(), true, { isTripCreator: true });
+
+    await user.click(await screen.findByRole('button', { name: /åpne bildekarusell|open image carousel/i }));
+    expect(screen.getByTestId('entry-image-carousel-photobook-settings')).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('entry-image-carousel-photobook-settings'));
+    const toggle = await screen.findByRole('menuitemcheckbox', {
+      name: /photobook cover|omslagsbilde/i,
+    });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+
+    await user.click(toggle);
+    await waitFor(() => {
+      expect(lastPatchBody).toEqual({ photobookCoverImageKey: 'media/trip-1/a.jpg' });
+    });
+    expect(screen.getByTestId('entry-image-carousel-photobook-settings')).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('closes the carousel on browser back without leaving the timeline route', async () => {
@@ -255,16 +303,16 @@ describe('EntryCard', () => {
     const user = userEvent.setup();
     renderCard(entry, 'other-user');
 
-    await user.click(await screen.findByRole('button', { name: /open image carousel/i }));
+    await user.click(await screen.findByRole('button', { name: /åpne bildekarusell|open image carousel/i }));
     expect(
-      screen.getByRole('dialog', { name: /image carousel|entries\.carousel\.dialogLabel/i }),
+      screen.getByRole('dialog', { name: /bildekarusell|image carousel/i }),
     ).toBeInTheDocument();
 
     window.history.back();
 
     await waitFor(() =>
       expect(
-        screen.queryByRole('dialog', { name: /image carousel|entries\.carousel\.dialogLabel/i }),
+        screen.queryByRole('dialog', { name: /bildekarusell|image carousel/i }),
       ).not.toBeInTheDocument(),
     );
   });
@@ -279,7 +327,7 @@ describe('EntryCard', () => {
     const user = userEvent.setup();
     renderCard(entry, 'other-user');
 
-    await user.click(await screen.findByRole('button', { name: /open image carousel/i }));
+    await user.click(await screen.findByRole('button', { name: /åpne bildekarusell|open image carousel/i }));
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
 
     const carouselContainer = screen.getByTestId('entry-image-carousel-swipe-area');
@@ -315,7 +363,7 @@ describe('EntryCard', () => {
     const user = userEvent.setup();
     renderCard(entry, 'other-user');
 
-    await user.click(await screen.findByRole('button', { name: /open image carousel/i }));
+    await user.click(await screen.findByRole('button', { name: /åpne bildekarusell|open image carousel/i }));
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
 
     const carouselContainer = screen.getByTestId('entry-image-carousel-swipe-area');
@@ -400,10 +448,14 @@ describe('EntryCard', () => {
       </QueryClientProvider>,
     );
 
-    await user.click((await screen.findAllByRole('button', { name: /open image carousel/i }))[0]!);
+    await user.click(
+      (await screen.findAllByRole('button', { name: /åpne bildekarusell|open image carousel/i }))[0]!,
+    );
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
 
-    await user.click((await screen.findAllByRole('button', { name: /open image carousel/i }))[1]!);
+    await user.click(
+      (await screen.findAllByRole('button', { name: /åpne bildekarusell|open image carousel/i }))[1]!,
+    );
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
     expect(screen.queryByText('1 / 3')).not.toBeInTheDocument();
   });
