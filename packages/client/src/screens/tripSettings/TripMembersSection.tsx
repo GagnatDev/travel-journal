@@ -39,7 +39,13 @@ interface TripMembersSectionProps {
   >;
   removeMemberMutation: UseMutationResult<void, Error, string, unknown>;
   revokeInviteMutation: UseMutationResult<void, Error, string, unknown>;
-  updateTripMutation: UseMutationResult<Trip, Error, { allowContributorInvites: boolean }, unknown>;
+  /** Same mutation as trip details save (name/description); also used for contributor-invite toggle. */
+  updateTripMutation: UseMutationResult<
+    Trip,
+    Error,
+    { name?: string; description?: string; allowContributorInvites?: boolean },
+    unknown
+  >;
 }
 
 export function TripMembersSection({
