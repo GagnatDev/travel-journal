@@ -238,6 +238,11 @@ const nb = {
       allowContributorInvites: 'La bidragsytere invitere andre',
       collaborativeChaptersTitle: 'Samarbeidskapitler',
       collaborativeChaptersInfo: 'Medlemmer kan skrive innlegg sammen og dele minner.',
+      photobookPdfTitle: 'Fotobok (PDF)',
+      photobookPdfDescription:
+        'Last ned en kvadratisk PDF med innlegg gruppert per dag — egnet som minnebok. Språket i PDF-en følger appens språk (norsk eller engelsk).',
+      photobookPdfButton: 'Last ned PDF',
+      photobookPdfError: 'Kunne ikke generere PDF. Prøv igjen.',
     },
     notificationMode: {
       triggerLabel: 'Varsler om nye innlegg ({{current}})',

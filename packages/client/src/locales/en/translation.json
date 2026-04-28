@@ -216,7 +216,11 @@
       "privacyPrivate": "Private Journal",
       "allowContributorInvites": "Allow contributors to invite others",
       "collaborativeChaptersTitle": "Collaborative Chapters",
-      "collaborativeChaptersInfo": "Members can co-author entries and share memories together."
+      "collaborativeChaptersInfo": "Members can co-author entries and share memories together.",
+      "photobookPdfTitle": "Photobook (PDF)",
+      "photobookPdfDescription": "Download a square PDF with entries grouped by day — great as a keepsake. PDF language follows the app language (Norwegian or English).",
+      "photobookPdfButton": "Download PDF",
+      "photobookPdfError": "Could not generate the PDF. Please try again."
     },
     "notificationMode": {
       "triggerLabel": "New-entry notifications ({{current}})",

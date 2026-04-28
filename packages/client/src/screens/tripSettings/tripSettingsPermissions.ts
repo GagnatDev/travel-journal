@@ -1,4 +1,4 @@
-import type { Trip, TripRole } from '@travel-journal/shared';
+import type { Trip, TripRole, TripStatus } from '@travel-journal/shared';
 
 /** Trip role for the signed-in user when `trip` and `userId` are known. */
 export function viewerTripRoleForUser(trip: Trip | undefined, userId: string | undefined): TripRole | undefined {
@@ -21,4 +21,10 @@ export function canEditTripDetailsAndLifecycle(role: TripRole | undefined): bool
 
 export function canDeleteTrip(role: TripRole | undefined): boolean {
   return role === 'creator';
+}
+
+/** Photobook PDF download (API also enforces trip creator + active/completed). */
+export function canDownloadTripPhotobookPdf(role: TripRole | undefined, tripStatus: TripStatus): boolean {
+  if (role !== 'creator') return false;
+  return tripStatus === 'active' || tripStatus === 'completed';
 }
