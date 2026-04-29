@@ -33,6 +33,23 @@ export const tripHandlers = [
     return HttpResponse.json({ ...mockTrip, id: params['id'] });
   }),
 
+  http.post('/api/v1/trips/:id/photobook/generate', async ({ params, request }) => {
+    const body = (await request.json().catch(() => ({}))) as { locale?: string; timeZone?: string };
+    return HttpResponse.json(
+      {
+        ...mockTrip,
+        id: params['id'],
+        status: 'active',
+        photobookPdfJob: {
+          status: 'pending',
+          localeKey: body.locale,
+          timeZone: body.timeZone,
+        },
+      },
+      { status: 202 },
+    );
+  }),
+
   /** Minimal PDF bytes for photobook download tests */
   http.get('/api/v1/trips/:id/photobook.pdf', () => {
     const pdf = new Uint8Array([

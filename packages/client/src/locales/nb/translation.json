@@ -130,6 +130,11 @@
         "body_one": "Ta deg tid til dagens nye innlegg.",
         "body_other": "Ta deg tid til dagens {{count}} nye innlegg."
       },
+      "tripPhotobookPdfReady": {
+        "title": "Fotobok (PDF) klar: {{tripName}}",
+        "body": "Du kan laste ned PDF-en fra turens innstillinger.",
+        "openAction": "Åpne innstillinger"
+      },
       "releaseAnnouncement": {
         "title": "Travel Journal er oppdatert til {{version}}",
         "body": "En ny versjon er klar. Last siden på nytt for å få de siste forbedringene.",
@@ -215,8 +220,12 @@
       "collaborativeChaptersTitle": "Samarbeidskapitler",
       "collaborativeChaptersInfo": "Medlemmer kan skrive innlegg sammen og dele minner.",
       "photobookPdfTitle": "Fotobok (PDF)",
-      "photobookPdfDescription": "Last ned en kvadratisk PDF med innlegg gruppert per dag — egnet som minnebok. Språket i PDF-en følger appens språk (norsk eller engelsk).",
-      "photobookPdfButton": "Last ned PDF",
+      "photobookPdfDescription": "Generer en kvadratisk PDF med innlegg gruppert per dag — egnet som minnebok. Språket i PDF-en følger appens språk (norsk eller engelsk). Når genereringen er ferdig, laster du ned her.",
+      "photobookPdfGenerateButton": "Generer PDF",
+      "photobookPdfRegenerateButton": "Generer PDF på nytt",
+      "photobookPdfDownloadLink": "Last ned PDF",
+      "photobookPdfGenerating": "Genererer PDF — dette kan ta et øyeblikk. Du får varsel når den er klar.",
+      "photobookPdfReadyMessage": "PDF-en er klar. Bruk knappen under for å laste ned.",
       "photobookPdfError": "Kunne ikke generere PDF. Prøv igjen.",
       "photobookCoverNotChosenWarning": "Du har ikke valgt omslagsbilde ennå. PDF-en bruker et tilfeldig turbilde på omslaget. Velg et fra tidslinjens bildekarusell (innstillinger på et bilde).",
       "photobookCoverPreviewOpen": "Forhåndsvis valgt omslagsbilde",

@@ -6,7 +6,6 @@ import type { Invite, PublicUser, TripMemberInviteSuggestion } from '@travel-jou
 import { IInvite, Invite as InviteModel } from '../models/Invite.model.js';
 import { Trip } from '../models/Trip.model.js';
 import { User } from '../models/User.model.js';
-
 import { generateAccessToken, hashPassword, hashToken } from './auth.service.js';
 
 const INVITE_EXPIRY_DAYS = 7;

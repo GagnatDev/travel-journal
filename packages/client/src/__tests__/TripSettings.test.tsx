@@ -9,7 +9,6 @@ import type { Trip } from '@travel-journal/shared';
 import { AuthProvider } from '../context/AuthContext.js';
 import { TimelineScreen } from '../screens/TimelineScreen.js';
 import { TripSettingsScreen } from '../screens/TripSettingsScreen.js';
-
 import { server } from './mocks/server.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
@@ -212,7 +211,7 @@ describe('TripSettingsScreen', () => {
       screen.queryByRole('button', { name: /inviter nytt medlem|invite new member/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /last ned pdf|download pdf/i }),
+      screen.queryByRole('button', { name: /generer pdf|generate pdf|last ned pdf|download pdf/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -299,9 +298,19 @@ describe('TripSettingsScreen', () => {
     });
   });
 
-  it('creator sees photobook PDF section and download sends authorized GET to photobook.pdf', async () => {
+  it('creator sees photobook PDF section; download sends authorized GET when PDF is ready', async () => {
     let authHeader: string | null = null;
+    const tripReady: Trip = {
+      ...makeTrip('active'),
+      photobookPdfJob: {
+        status: 'ready',
+        pdfStorageKey: 'pdf/trip-1/x.pdf',
+        finishedAt: new Date().toISOString(),
+      },
+    };
     server.use(
+      http.get('/api/v1/trips/:id', () => HttpResponse.json(tripReady)),
+      http.post('/api/v1/trips/:id/photobook/generate', () => HttpResponse.json(tripReady, { status: 202 })),
       http.get('/api/v1/trips/:id/photobook.pdf', ({ request }) => {
         authHeader = request.headers.get('Authorization');
         const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34, 0x0a, 0x25, 0xc4, 0xe5, 0xf6, 0xe7, 0x0a]);
@@ -314,13 +323,13 @@ describe('TripSettingsScreen', () => {
       }),
     );
 
-    renderSettings(makeTrip('active'));
+    renderSettings(tripReady);
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: /fotobok \(pdf\)|photobook \(pdf\)/i })).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole('button', { name: /last ned pdf|download pdf/i }));
+    await userEvent.click(screen.getByTestId('photobook-download-pdf'));
 
     await waitFor(() => {
       expect(authHeader).toMatch(/^Bearer /);

@@ -15,11 +15,24 @@ const { onePxPng } = vi.hoisted(() => ({
   ),
 }));
 
+vi.mock('../services/trip-photobook-job.service.js', () => ({
+  schedulePhotobookPdfJob: vi.fn(),
+}));
+
 vi.mock('../services/media.service.js', async (importOriginal) => {
   const mod = await importOriginal<typeof import('../services/media.service.js')>();
   return {
     ...mod,
     getObjectBuffer: vi.fn().mockResolvedValue(onePxPng),
+    streamMediaObject: vi.fn(async (_key: string, res: import('express').Response) => {
+      const header = Buffer.from('%PDF-1.4 test photobook\n');
+      const buf = Buffer.alloc(600, 0x0a);
+      header.copy(buf, 0);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="trip-photobook.pdf"');
+      res.setHeader('Content-Length', String(buf.length));
+      res.send(buf);
+    }),
   };
 });
 
@@ -142,6 +155,22 @@ describe('GET /api/v1/trips/:id/photobook.pdf', () => {
     expect(res.status).toBe(400);
   });
 
+  it('returns 409 when PDF has not been generated yet', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'Active No Pdf' });
+    const tripId = createRes.body.id as string;
+    await Trip.updateOne({ _id: tripId }, { $set: { status: 'active' } });
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${tripId}/photobook.pdf`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(res.status).toBe(409);
+  });
+
   it('returns 403 for member who is not trip creator', async () => {
     const creator = await makeUser('creator@test.com', 'creator');
     const contributor = await makeUser('contrib@test.com', 'creator');
@@ -182,7 +211,19 @@ describe('GET /api/v1/trips/:id/photobook.pdf', () => {
       .send({ name: 'Active Trip' });
     const tripId = createRes.body.id as string;
 
-    await Trip.updateOne({ _id: tripId }, { $set: { status: 'active' } });
+    await Trip.updateOne(
+      { _id: tripId },
+      {
+        $set: {
+          status: 'active',
+          photobookPdfJob: {
+            status: 'ready',
+            pdfStorageKey: `pdf/${tripId}/stub.pdf`,
+            finishedAt: new Date(),
+          },
+        },
+      },
+    );
 
     await Entry.create({
       tripId: new mongoose.Types.ObjectId(tripId),

@@ -11,7 +11,6 @@ import { CreateEntryScreen } from '../screens/CreateEntryScreen.js';
 import { getPendingEntry } from '../offline/db.js';
 import { saveOfflineEntry } from '../offline/entrySync.js';
 import { compressImage } from '../utils/compressImage.js';
-
 import { server } from './mocks/server.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';

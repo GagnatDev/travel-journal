@@ -12,7 +12,6 @@ import { uploadEntryLocalFiles } from '../../utils/uploadEntryLocalFiles.js';
 import { getPendingEntry } from '../../offline/db.js';
 import { saveOfflineEntry } from '../../offline/entrySync.js';
 import { QUERY_STALE_MS } from '../../lib/appQueryClient.js';
-
 import { EMPTY_ENTRY_FORM, type EntryFormState } from './entryFormState.js';
 import { useEntryForm } from './useEntryForm.js';
 

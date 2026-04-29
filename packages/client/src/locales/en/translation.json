@@ -130,6 +130,11 @@
         "body_one": "Catch up on today's 1 new entry.",
         "body_other": "Catch up on today's {{count}} new entries."
       },
+      "tripPhotobookPdfReady": {
+        "title": "Photobook (PDF) ready: {{tripName}}",
+        "body": "You can download the PDF from this trip’s settings.",
+        "openAction": "Open settings"
+      },
       "releaseAnnouncement": {
         "title": "Travel Journal updated to {{version}}",
         "body": "A newer version is ready. Reload to get the latest improvements.",
@@ -215,8 +220,12 @@
       "collaborativeChaptersTitle": "Collaborative Chapters",
       "collaborativeChaptersInfo": "Members can co-author entries and share memories together.",
       "photobookPdfTitle": "Photobook (PDF)",
-      "photobookPdfDescription": "Download a square PDF with entries grouped by day — great as a keepsake. PDF language follows the app language (Norwegian or English).",
-      "photobookPdfButton": "Download PDF",
+      "photobookPdfDescription": "Generate a square PDF with entries grouped by day — great as a keepsake. PDF language follows the app language (Norwegian or English). When it’s ready, download it here.",
+      "photobookPdfGenerateButton": "Generate PDF",
+      "photobookPdfRegenerateButton": "Regenerate PDF",
+      "photobookPdfDownloadLink": "Download PDF",
+      "photobookPdfGenerating": "Generating PDF — this may take a moment. We’ll notify you when it’s ready.",
+      "photobookPdfReadyMessage": "Your PDF is ready. Use the button below to download.",
       "photobookPdfError": "Could not generate the PDF. Please try again.",
       "photobookCoverNotChosenWarning": "No cover photo is chosen yet. The PDF will use a random trip photo for the cover. Pick one from the timeline image carousel (settings on a photo).",
       "photobookCoverPreviewOpen": "Preview chosen photobook cover",

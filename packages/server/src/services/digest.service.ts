@@ -4,7 +4,6 @@ import type { TripNewEntryDigestNotificationData } from '@travel-journal/shared'
 import { logger } from '../logger.js';
 import { Entry } from '../models/Entry.model.js';
 import { Trip as TripModel, readTripMemberEntryMode } from '../models/Trip.model.js';
-
 import { deliverWebPush, enqueueNotifications } from './notification.service.js';
 
 /** How far back the evening digest looks for new entries. */

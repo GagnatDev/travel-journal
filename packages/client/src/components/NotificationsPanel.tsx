@@ -12,7 +12,6 @@ import {
   useMarkNotificationsRead,
   useNotifications,
 } from '../notifications/useNotifications.js';
-
 import { NotificationItem } from './notifications/NotificationItem.js';
 
 interface NotificationsPanelProps {

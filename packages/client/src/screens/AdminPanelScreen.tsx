@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../context/AuthContext.js';
-
 import { AdminInvitesTab } from './adminPanel/AdminInvitesTab.js';
 import { AdminUsersTab } from './adminPanel/AdminUsersTab.js';
 import type { AdminPanelTab } from './adminPanel/types.js';

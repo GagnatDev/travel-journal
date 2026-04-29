@@ -6,7 +6,6 @@ import { IconBadge } from '../../components/ui/IconBadge.js';
 import { PillButton } from '../../components/ui/PillButton.js';
 import { ImageReorder } from '../../components/ImageReorder.js';
 import { entryTextControlClass } from '../../components/ui/fieldStyles.js';
-
 import type { EntryFormState } from './entryFormState.js';
 import { EntryPhotoUploadProgress, type EntryUploadProgress } from './EntryPhotoUploadProgress.js';
 

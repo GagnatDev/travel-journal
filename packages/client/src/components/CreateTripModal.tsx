@@ -6,7 +6,6 @@ import type { Trip, CreateTripRequest } from '@travel-journal/shared';
 
 import { apiJson } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.js';
-
 import { TextArea } from './ui/TextArea.js';
 import { TextField } from './ui/TextField.js';
 

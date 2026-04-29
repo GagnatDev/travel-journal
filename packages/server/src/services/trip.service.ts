@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import type { CreateTripRequest, Trip, TripStatus, UpdateTripRequest } from '@travel-journal/shared';
+import type { CreateTripRequest, Trip, TripStatus, UpdateTripRequest, TripPhotobookPdfJob } from '@travel-journal/shared';
 
 import { Trip as TripModel, ITrip, readTripMemberEntryMode } from '../models/Trip.model.js';
 import { Entry as EntryModel } from '../models/Entry.model.js';
@@ -16,6 +16,26 @@ function normalizeTripDescription(input: string | undefined): string | undefined
   if (input === undefined) return undefined;
   const trimmed = input.trim();
   return trimmed === '' ? undefined : trimmed;
+}
+
+function toPhotobookPdfJob(doc: ITrip): TripPhotobookPdfJob | undefined {
+  const job = doc.photobookPdfJob;
+  if (!job || typeof job !== 'object') return undefined;
+  const status = job.status;
+  if (status !== 'idle' && status !== 'pending' && status !== 'ready' && status !== 'failed') {
+    return undefined;
+  }
+  const out: TripPhotobookPdfJob = { status };
+  if (typeof job.pdfStorageKey === 'string' && job.pdfStorageKey.trim()) {
+    out.pdfStorageKey = job.pdfStorageKey.trim();
+  }
+  if (job.finishedAt instanceof Date) {
+    out.finishedAt = job.finishedAt.toISOString();
+  }
+  if (typeof job.errorMessage === 'string' && job.errorMessage.trim()) {
+    out.errorMessage = job.errorMessage.trim();
+  }
+  return out;
 }
 
 async function toTrip(doc: ITrip): Promise<Trip> {
@@ -52,6 +72,11 @@ async function toTrip(doc: ITrip): Promise<Trip> {
     trip.photobookCoverImageKey = doc.coverImageKey.trim();
   }
 
+  const photobookJob = toPhotobookPdfJob(doc);
+  if (photobookJob) {
+    trip.photobookPdfJob = photobookJob;
+  }
+
   return trip;
 }
 
@@ -67,6 +92,22 @@ export function assertTripCreator(trip: Trip, userId: string): void {
   if (!member || member.tripRole !== 'creator') {
     throw createHttpError('Forbidden', 403, 'FORBIDDEN');
   }
+}
+
+export function isTripCreator(trip: Trip, userId: string): boolean {
+  return trip.members.some((m) => m.userId === userId && m.tripRole === 'creator');
+}
+
+/**
+ * Photobook job metadata (incl. storage key) is for the trip creator only.
+ */
+export function redactPhotobookPdfJobForNonCreator(trip: Trip, viewerId: string): Trip {
+  if (isTripCreator(trip, viewerId) || !trip.photobookPdfJob) {
+    return trip;
+  }
+  const next = { ...trip };
+  delete next.photobookPdfJob;
+  return next;
 }
 
 export async function createTrip(data: CreateTripRequest, creatorId: string): Promise<Trip> {
@@ -105,7 +146,8 @@ export async function listTripsForUser(userId: string): Promise<Trip[]> {
   const docs = await TripModel.find({
     'members.userId': new mongoose.Types.ObjectId(userId),
   });
-  return Promise.all(docs.map(toTrip));
+  const trips = await Promise.all(docs.map(toTrip));
+  return trips.map((t) => redactPhotobookPdfJobForNonCreator(t, userId));
 }
 
 export async function updateTrip(

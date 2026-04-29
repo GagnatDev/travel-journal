@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { TFunction } from 'i18next';
 import { useMutation } from '@tanstack/react-query';
 import type { Trip } from '@travel-journal/shared';
 
-import { fetchTripPhotobookPdf } from '../../api/trips.js';
+import { fetchTripPhotobookPdf, startTripPhotobookPdfGeneration } from '../../api/trips.js';
 import { AuthenticatedImage } from '../../components/AuthenticatedImage.js';
 
 interface TripPhotobookPdfSectionProps {
@@ -13,6 +13,7 @@ interface TripPhotobookPdfSectionProps {
   accessToken: string;
   /** i18next language code (`nb` | `en`) for PDF strings */
   pdfUiLanguage: string;
+  refetchTrip: () => void;
 }
 
 function sanitizeFilenamePart(name: string): string {
@@ -39,14 +40,51 @@ function EyeIcon({ className }: { className?: string }) {
   );
 }
 
-export function TripPhotobookPdfSection({ t, trip, accessToken, pdfUiLanguage }: TripPhotobookPdfSectionProps) {
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+export function TripPhotobookPdfSection({
+  t,
+  trip,
+  accessToken,
+  pdfUiLanguage,
+  refetchTrip,
+}: TripPhotobookPdfSectionProps) {
+  const [localError, setLocalError] = useState<string | null>(null);
   const [coverPreviewOpen, setCoverPreviewOpen] = useState(false);
+
+  const job = trip.photobookPdfJob;
+  const status = job?.status;
+  const isPending = status === 'pending';
+  const isReady = status === 'ready';
+  const isFailed = status === 'failed';
+
+  useEffect(() => {
+    if (!isPending) return;
+    const id = window.setInterval(() => {
+      refetchTrip();
+    }, 2000);
+    return () => window.clearInterval(id);
+  }, [isPending, refetchTrip]);
+
+  const generateMutation = useMutation({
+    mutationFn: async () => {
+      setLocalError(null);
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      return startTripPhotobookPdfGeneration(trip.id, accessToken, {
+        locale: pdfUiLanguage,
+        timeZone: tz,
+      });
+    },
+    onSuccess: () => {
+      refetchTrip();
+    },
+    onError: (err: Error) => {
+      setLocalError(err.message || t('trips.settings.photobookPdfError'));
+    },
+  });
 
   const downloadMutation = useMutation({
     mutationFn: async () => {
-      setErrorMessage(null);
-      const blob = await fetchTripPhotobookPdf(trip.id, accessToken, { locale: pdfUiLanguage });
+      setLocalError(null);
+      const blob = await fetchTripPhotobookPdf(trip.id, accessToken);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -58,12 +96,15 @@ export function TripPhotobookPdfSection({ t, trip, accessToken, pdfUiLanguage }:
       URL.revokeObjectURL(url);
     },
     onError: (err: Error) => {
-      setErrorMessage(err.message || t('trips.settings.photobookPdfError'));
+      setLocalError(err.message || t('trips.settings.photobookPdfError'));
     },
   });
 
   const coverKey = trip.photobookCoverImageKey?.trim();
   const hasChosenCover = Boolean(coverKey);
+
+  const jobError = isFailed && job?.errorMessage ? job.errorMessage : null;
+  const errorMessage = localError ?? jobError;
 
   return (
     <section>
@@ -95,18 +136,56 @@ export function TripPhotobookPdfSection({ t, trip, accessToken, pdfUiLanguage }:
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => downloadMutation.mutate()}
-          disabled={downloadMutation.isPending}
-          className="px-4 py-2 bg-accent text-white font-ui text-sm font-semibold rounded-round-eight hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+      {isPending ? (
+        <p
+          className="font-ui text-sm text-body bg-bg-secondary border border-caption/20 rounded-round-eight px-3 py-2 mb-3"
+          role="status"
+          data-testid="photobook-pdf-pending"
         >
-          {downloadMutation.isPending ? t('common.loading') : t('trips.settings.photobookPdfButton')}
-        </button>
+          {t('trips.settings.photobookPdfGenerating')}
+        </p>
+      ) : null}
+
+      {isReady ? (
+        <p
+          className="font-ui text-sm text-body bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/50 rounded-round-eight px-3 py-2 mb-3"
+          role="status"
+          data-testid="photobook-pdf-ready"
+        >
+          {t('trips.settings.photobookPdfReadyMessage')}
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-2">
+        {!isPending ? (
+          <button
+            type="button"
+            data-testid="photobook-generate-or-regenerate"
+            onClick={() => generateMutation.mutate()}
+            disabled={generateMutation.isPending}
+            className="px-4 py-2 bg-accent text-white font-ui text-sm font-semibold rounded-round-eight hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+          >
+            {generateMutation.isPending
+              ? t('common.loading')
+              : isReady
+                ? t('trips.settings.photobookPdfRegenerateButton')
+                : t('trips.settings.photobookPdfGenerateButton')}
+          </button>
+        ) : null}
+        {isReady ? (
+          <button
+            type="button"
+            data-testid="photobook-download-pdf"
+            onClick={() => downloadMutation.mutate()}
+            disabled={downloadMutation.isPending}
+            className="px-4 py-2 border border-accent text-accent font-ui text-sm font-semibold rounded-round-eight hover:bg-accent/10 active:scale-95 transition-all disabled:opacity-50"
+          >
+            {downloadMutation.isPending ? t('common.loading') : t('trips.settings.photobookPdfDownloadLink')}
+          </button>
+        ) : null}
       </div>
       {errorMessage ? (
-        <p className="mt-2 font-ui text-sm text-accent" role="alert">
+        <p className="mt-2 font-ui text-sm text-accent" role="alert" data-testid="photobook-pdf-error">
           {errorMessage}
         </p>
       ) : null}
@@ -128,10 +207,6 @@ export function TripPhotobookPdfSection({ t, trip, accessToken, pdfUiLanguage }:
                 {t('common.close')}
               </button>
               <div className="max-h-[85vh] max-w-[min(100%,42rem)] w-full flex flex-col items-center gap-3">
-                {/*
-                  AuthenticatedImage wraps content in a positioned span; the <img> is
-                  absolute inset-0 and needs an explicit height on that frame.
-                */}
                 <AuthenticatedImage
                   mediaKey={coverKey}
                   alt={t('trips.settings.photobookCoverPreviewImageAlt')}

@@ -16,7 +16,6 @@ import {
   revokeTripMemberInvite,
 } from '../../api/trips.js';
 import { QUERY_STALE_MS } from '../../lib/appQueryClient.js';
-
 import { canUseTripInviteActions, viewerTripRoleForUser } from './tripSettingsPermissions.js';
 
 /** React Query keys shared by trip settings queries and invalidations. */
@@ -50,7 +49,7 @@ export function useTripSettings({
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: trip, isLoading } = useQuery({
+  const { data: trip, isLoading, refetch: refetchTrip } = useQuery({
     queryKey: tripSettingsQueryKeys.trip(tripId),
     queryFn: () => fetchTrip(tripId!, accessToken!),
     enabled: !!tripId && !!accessToken,
@@ -143,6 +142,7 @@ export function useTripSettings({
   return {
     trip,
     isLoading,
+    refetchTrip,
     pendingInvites,
     inviteSuggestions,
     updateMutation,

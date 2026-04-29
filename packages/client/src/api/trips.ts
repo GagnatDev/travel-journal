@@ -15,18 +15,24 @@ export function fetchTrip(tripId: string, token: string): Promise<Trip> {
   return apiJson<Trip>(`/api/v1/trips/${tripId}`, { token });
 }
 
-/** Trip photobook PDF; `locale` drives PDF UI language (`nb` or `en`). */
-export function fetchTripPhotobookPdf(
+/** Trip photobook PDF download (streams from storage after async generation). */
+export function fetchTripPhotobookPdf(tripId: string, token: string): Promise<Blob> {
+  return apiBlob(`/api/v1/trips/${tripId}/photobook.pdf`, { token });
+}
+
+export function startTripPhotobookPdfGeneration(
   tripId: string,
   token: string,
   options?: { locale?: string; timeZone?: string },
-): Promise<Blob> {
-  const params = new URLSearchParams();
-  if (options?.locale) params.set('locale', options.locale);
-  if (options?.timeZone) params.set('tz', options.timeZone);
-  const q = params.toString();
-  const path = `/api/v1/trips/${tripId}/photobook.pdf${q ? `?${q}` : ''}`;
-  return apiBlob(path, { token });
+): Promise<Trip> {
+  return apiJson<Trip>(`/api/v1/trips/${tripId}/photobook/generate`, {
+    method: 'POST',
+    token,
+    body: {
+      ...(options?.locale ? { locale: options.locale } : {}),
+      ...(options?.timeZone ? { timeZone: options.timeZone } : {}),
+    },
+  });
 }
 
 export function fetchTrips(token: string): Promise<Trip[]> {

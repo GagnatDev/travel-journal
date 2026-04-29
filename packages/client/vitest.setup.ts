@@ -237,8 +237,12 @@ const nb = {
       collaborativeChaptersInfo: 'Medlemmer kan skrive innlegg sammen og dele minner.',
       photobookPdfTitle: 'Fotobok (PDF)',
       photobookPdfDescription:
-        'Last ned en kvadratisk PDF med innlegg gruppert per dag — egnet som minnebok. Språket i PDF-en følger appens språk (norsk eller engelsk).',
-      photobookPdfButton: 'Last ned PDF',
+        'Generer en kvadratisk PDF med innlegg gruppert per dag — egnet som minnebok. Språket i PDF-en følger appens språk (norsk eller engelsk). Når genereringen er ferdig, laster du ned her.',
+      photobookPdfGenerateButton: 'Generer PDF',
+      photobookPdfRegenerateButton: 'Generer PDF på nytt',
+      photobookPdfDownloadLink: 'Last ned PDF',
+      photobookPdfGenerating: 'Genererer PDF — dette kan ta et øyeblikk.',
+      photobookPdfReadyMessage: 'PDF-en er klar.',
       photobookPdfError: 'Kunne ikke generere PDF. Prøv igjen.',
       photobookCoverNotChosenWarning:
         'Du har ikke valgt omslagsbilde ennå. PDF-en bruker et tilfeldig turbilde på omslaget.',
