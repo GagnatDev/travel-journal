@@ -9,7 +9,6 @@ import type { Trip } from '@travel-journal/shared';
 import { AuthProvider } from '../context/AuthContext.js';
 import { TimelineScreen } from '../screens/TimelineScreen.js';
 import { TripSettingsScreen } from '../screens/TripSettingsScreen.js';
-
 import { server } from './mocks/server.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';

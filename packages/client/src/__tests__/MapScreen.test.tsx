@@ -10,7 +10,6 @@ import type { Trip } from '@travel-journal/shared';
 import { AuthProvider } from '../context/AuthContext.js';
 import { MapScreen } from '../screens/MapScreen.js';
 import type { EntryLocationPin } from '../api/entries.js';
-
 import { server } from './mocks/server.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';

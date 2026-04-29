@@ -8,7 +8,6 @@ import {
   createMediaCacheKey,
   releaseAuthenticatedMediaObjectUrl,
 } from '../lib/authenticatedMedia.js';
-
 import { AuthenticatedImage } from './AuthenticatedImage.js';
 
 interface EntryImageCarouselModalProps {

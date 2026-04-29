@@ -7,7 +7,6 @@ import {
 
 import { logger } from '../logger.js';
 import { Trip as TripModel, type ITrip } from '../models/Trip.model.js';
-
 import { enqueueNotifications, deliverWebPush } from './notification.service.js';
 import { listAllEntriesChronological } from './entry.service.js';
 import { uploadTripPdf } from './media.service.js';

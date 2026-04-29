@@ -12,7 +12,6 @@ import {
   releaseAuthenticatedMediaObjectUrl,
 } from '../lib/authenticatedMedia.js';
 import { patchTrip } from '../api/trips.js';
-
 import { AuthenticatedImage } from './AuthenticatedImage.js';
 import { EntryImageCarouselModal } from './EntryImageCarouselModal.js';
 import { Avatar } from './ui/Avatar.js';

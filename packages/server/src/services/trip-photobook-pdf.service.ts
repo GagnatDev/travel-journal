@@ -10,7 +10,6 @@ import {
 } from '@travel-journal/shared';
 
 import { logger } from '../logger.js';
-
 import { getObjectBuffer } from './media.service.js';
 import { resolvePhotobookFontPaths } from './trip-photobook-fonts.js';
 

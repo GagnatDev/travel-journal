@@ -6,7 +6,6 @@ import { BrowserRouter } from 'react-router-dom';
 
 import { AuthProvider, useAuth } from '../context/AuthContext.js';
 import { routerFutureV7 } from '../reactRouterFuture.js';
-
 import { server } from './mocks/server.js';
 import { mockUser } from './mocks/handlers.js';
 

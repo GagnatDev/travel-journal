@@ -10,7 +10,6 @@ import type {
 import { Entry as EntryModel, IEntry } from '../models/Entry.model.js';
 import { logger } from '../logger.js';
 import { User } from '../models/User.model.js';
-
 import { dispatchNewEntryNotification } from './notification.service.js';
 
 export interface EntryLocationPin {

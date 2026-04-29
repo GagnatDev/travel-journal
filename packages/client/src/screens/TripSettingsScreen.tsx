@@ -5,7 +5,6 @@ import i18n from 'i18next';
 
 import { useAuth } from '../context/AuthContext.js';
 import { BottomNavBar } from '../components/BottomNavBar.js';
-
 import { TripDeleteSection } from './tripSettings/TripDeleteSection.js';
 import { TripDetailsSection } from './tripSettings/TripDetailsSection.js';
 import { TripMembersSection } from './tripSettings/TripMembersSection.js';

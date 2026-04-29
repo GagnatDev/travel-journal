@@ -16,7 +16,6 @@ import {
   revokeTripMemberInvite,
 } from '../../api/trips.js';
 import { QUERY_STALE_MS } from '../../lib/appQueryClient.js';
-
 import { canUseTripInviteActions, viewerTripRoleForUser } from './tripSettingsPermissions.js';
 
 /** React Query keys shared by trip settings queries and invalidations. */

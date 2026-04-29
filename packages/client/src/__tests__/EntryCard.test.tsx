@@ -7,7 +7,7 @@ import { http, HttpResponse } from 'msw';
 import type { Entry } from '@travel-journal/shared';
 
 import { EntryCard } from '../components/EntryCard.js';
-
+// eslint-disable-next-line import/order -- sibling after parent in merged relative-import group (rule wants alphabetical merge)
 import { server } from './mocks/server.js';
 
 vi.mock('../components/AuthenticatedImage.js', () => ({

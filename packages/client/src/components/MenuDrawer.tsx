@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../context/ThemeContext.js';
 import { useAuth } from '../context/AuthContext.js';
-
 import { ToggleSwitch } from './ui/ToggleSwitch.js';
 
 interface MenuDrawerProps {

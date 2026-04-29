@@ -105,8 +105,9 @@ export function redactPhotobookPdfJobForNonCreator(trip: Trip, viewerId: string)
   if (isTripCreator(trip, viewerId) || !trip.photobookPdfJob) {
     return trip;
   }
-  const { photobookPdfJob: _j, ...rest } = trip;
-  return rest;
+  const next = { ...trip };
+  delete next.photobookPdfJob;
+  return next;
 }
 
 export async function createTrip(data: CreateTripRequest, creatorId: string): Promise<Trip> {
