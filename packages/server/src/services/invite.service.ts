@@ -7,6 +7,7 @@ import { IInvite, Invite as InviteModel } from '../models/Invite.model.js';
 import { Trip } from '../models/Trip.model.js';
 import { User } from '../models/User.model.js';
 import { generateAccessToken, hashPassword, hashToken } from './auth.service.js';
+import { dispatchTripMemberAddedNotification } from './notification.service.js';
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -160,6 +161,22 @@ export async function acceptInvite(
   await doc.save();
 
   const accessToken = generateAccessToken({ userId, email: user.email, appRole: user.appRole });
+
+  if (doc.type === 'trip' && doc.tripId && doc.tripRole) {
+    const tripLean = await Trip.findById(doc.tripId).select(['name', 'members']).lean();
+    if (tripLean && typeof tripLean.name === 'string') {
+      const inviter = await User.findById(doc.invitedBy).select(['displayName']).lean();
+      const inviterName = (inviter?.displayName as string | undefined)?.trim() || '';
+      await dispatchTripMemberAddedNotification({
+        recipientUserId: userId,
+        tripId: String(doc.tripId),
+        tripName: tripLean.name,
+        tripRole: doc.tripRole,
+        addedByUserId: String(doc.invitedBy),
+        addedByDisplayName: inviterName,
+      });
+    }
+  }
 
   return { user: toPublicUser(user), accessToken, userId };
 }
@@ -326,6 +343,16 @@ export async function addTripMember(
         },
       },
     );
+    const issuer = await User.findById(issuedBy).select(['displayName']).lean();
+    const issuerName = (issuer?.displayName as string | undefined)?.trim() || '';
+    await dispatchTripMemberAddedNotification({
+      recipientUserId: String(user._id),
+      tripId,
+      tripName: tripDoc.name,
+      tripRole,
+      addedByUserId: issuedBy,
+      addedByDisplayName: issuerName,
+    });
     return { type: 'added' };
   }
 

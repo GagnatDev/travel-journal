@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import webpush from 'web-push';
-import type { Entry, NotificationData } from '@travel-journal/shared';
+import type { Entry, NotificationData, TripMemberAddedNotificationData } from '@travel-journal/shared';
 import { notificationLinkFor } from '@travel-journal/shared';
 
 import { logger } from '../logger.js';
@@ -134,6 +134,41 @@ export async function deliverWebPush(
       }
     }),
   );
+}
+
+export async function dispatchTripMemberAddedNotification(options: {
+  recipientUserId: string;
+  tripId: string;
+  tripName: string;
+  tripRole: 'contributor' | 'follower';
+  addedByUserId: string;
+  addedByDisplayName: string;
+}): Promise<void> {
+  const data: TripMemberAddedNotificationData = {
+    type: 'trip.member_added',
+    tripId: options.tripId,
+    tripName: options.tripName,
+    tripRole: options.tripRole,
+    addedByUserId: options.addedByUserId,
+    addedByDisplayName: options.addedByDisplayName,
+  };
+
+  const recipientOid = new mongoose.Types.ObjectId(options.recipientUserId);
+  const notificationIdByUser = await enqueueNotifications([recipientOid], data);
+
+  const byName = options.addedByDisplayName.trim() || 'Someone';
+  const title = `Du er lagt til på ${options.tripName}`;
+  const body =
+    options.tripRole === 'contributor'
+      ? `${byName} la deg til som bidragsyter.`
+      : `${byName} la deg til som følger.`;
+
+  await deliverWebPush([recipientOid], {
+    title,
+    body,
+    data,
+    notificationIdByUser,
+  });
 }
 
 export async function dispatchNewEntryNotification(entry: Entry): Promise<void> {

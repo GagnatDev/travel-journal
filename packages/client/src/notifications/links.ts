@@ -13,6 +13,8 @@ export function notificationLinkFor(data: NotificationData): string {
       return `/trips/${data.tripId}/timeline?entryId=${data.entryId}`;
     case 'trip.new_entry_digest':
       return `/trips/${data.tripId}/timeline`;
+    case 'trip.member_added':
+      return `/trips?highlightTripId=${data.tripId}`;
     case 'trip.photobook_pdf_ready':
       return `/trips/${data.tripId}/settings`;
     case 'system.release_announcement':

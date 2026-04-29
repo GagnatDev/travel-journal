@@ -1,6 +1,7 @@
 export type NotificationType =
   | 'trip.new_entry'
   | 'trip.new_entry_digest'
+  | 'trip.member_added'
   | 'trip.photobook_pdf_ready'
   | 'system.release_announcement'
   | 'user.private_message';
@@ -55,6 +56,16 @@ export interface TripPhotobookPdfReadyNotificationData {
   tripName: string;
 }
 
+/** The current user was added to a trip as contributor or follower. */
+export interface TripMemberAddedNotificationData {
+  type: 'trip.member_added';
+  tripId: string;
+  tripName: string;
+  tripRole: 'contributor' | 'follower';
+  addedByUserId: string;
+  addedByDisplayName: string;
+}
+
 export interface ReleaseAnnouncementNotificationData {
   type: 'system.release_announcement';
   version: string;
@@ -73,6 +84,7 @@ export type NotificationData =
   | TripNewEntryNotificationData
   | TripNewEntryDigestNotificationData
   | TripPhotobookPdfReadyNotificationData
+  | TripMemberAddedNotificationData
   | ReleaseAnnouncementNotificationData
   | PrivateMessageNotificationData;
 
@@ -102,6 +114,8 @@ export function notificationLinkFor(data: NotificationData): string {
       return `/trips/${data.tripId}/timeline?entryId=${data.entryId}`;
     case 'trip.new_entry_digest':
       return `/trips/${data.tripId}/timeline`;
+    case 'trip.member_added':
+      return `/trips?highlightTripId=${data.tripId}`;
     case 'trip.photobook_pdf_ready':
       return `/trips/${data.tripId}/settings`;
     case 'system.release_announcement':
