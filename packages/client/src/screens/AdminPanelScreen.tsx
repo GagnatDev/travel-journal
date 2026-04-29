@@ -16,7 +16,7 @@ export function AdminPanelScreen() {
 
   if (!user || user.appRole !== 'admin') {
     return (
-      <div className="min-h-screen bg-bg-primary flex items-center justify-center px-4">
+      <div className="min-h-screen bg-bg-primary flex items-center justify-center px-4 pt-14">
         <p role="alert" className="font-ui text-body text-caption">
           {t('admin.accessDenied')}
         </p>
@@ -32,8 +32,8 @@ export function AdminPanelScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-primary pb-24">
-      <header className="px-4 pt-8 pb-4">
+    <div className="min-h-screen bg-bg-primary pb-24 pt-14">
+      <header className="px-4 pt-4 pb-4">
         <h1 className="font-display text-2xl text-heading">{t('admin.title')}</h1>
       </header>
 

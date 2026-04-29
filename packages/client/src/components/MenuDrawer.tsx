@@ -30,6 +30,11 @@ export function MenuDrawer({ isOpen, onClose }: MenuDrawerProps) {
     onClose();
   };
 
+  const handleAdminClick = () => {
+    navigate('/admin');
+    onClose();
+  };
+
   // Close on Escape
   useEffect(() => {
     if (!isOpen) return;
@@ -113,6 +118,16 @@ export function MenuDrawer({ isOpen, onClose }: MenuDrawerProps) {
           </div>
 
           <hr className="border-caption/10 my-2" />
+
+          {user?.appRole === 'admin' && (
+            <button
+              type="button"
+              onClick={handleAdminClick}
+              className="w-full text-left font-ui text-sm text-body hover:text-heading transition-colors py-2"
+            >
+              {t('nav.admin')}
+            </button>
+          )}
 
           {/* Profile link */}
           <button
