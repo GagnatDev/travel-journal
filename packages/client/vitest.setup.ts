@@ -59,6 +59,7 @@ const nb = {
       submitButton: 'Logg inn',
       invalidCredentials: 'Ugyldig e-post eller passord',
       sessionExpired: 'Økten din har utløpt. Vennligst logg inn på nytt.',
+      passwordResetComplete: 'Passordet ditt er oppdatert. Logg inn med det nye passordet.',
     },
     register: {
       title: 'Opprett administratorkonto',
@@ -86,6 +87,16 @@ const nb = {
       passwordMinLength: 'Passordet må ha minst 8 tegn',
     },
   },
+  passwordReset: {
+    title: 'Velg nytt passord',
+    expiredError:
+      'Lenken er ugyldig eller har utløpt. Be en administrator om en ny nullstillingslenke.',
+    passwordLabel: 'Nytt passord',
+    confirmPasswordLabel: 'Bekreft nytt passord',
+    submitButton: 'Lagre passord',
+    passwordMinLength: 'Passordet må ha minst 8 tegn',
+    passwordMismatch: 'Passordene er ikke like',
+  },
   admin: {
     title: 'Adminpanel',
     accessDenied: 'Tilgang nektet. Kun for admins.',
@@ -107,6 +118,8 @@ const nb = {
       title: 'Alle brukere',
       promoteButton: 'Forfrem til oppretter',
       noUsers: 'Ingen brukere funnet.',
+      resetPasswordButton: 'Lenke for å nullstille passord',
+      resetPasswordLinkLabel: 'Lenke for å nullstille passord',
     },
   },
   nav: { trips: 'Turer', admin: 'Admin', back: 'Gå tilbake' },

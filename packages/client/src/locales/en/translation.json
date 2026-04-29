@@ -11,7 +11,8 @@
       "passwordPlaceholder": "Your password",
       "submitButton": "Sign in",
       "invalidCredentials": "Invalid email or password",
-      "sessionExpired": "Your session has expired. Please sign in again."
+      "sessionExpired": "Your session has expired. Please sign in again.",
+      "passwordResetComplete": "Your password was updated. Sign in with your new password."
     },
     "register": {
       "title": "Create admin account",
@@ -37,6 +38,15 @@
       "submitButton": "Create account",
       "passwordMinLength": "Password must be at least 8 characters"
     }
+  },
+  "passwordReset": {
+    "title": "Set new password",
+    "expiredError": "This link is invalid or has expired. Ask an admin for a new reset link.",
+    "passwordLabel": "New password",
+    "confirmPasswordLabel": "Confirm new password",
+    "submitButton": "Save password",
+    "passwordMinLength": "Password must be at least 8 characters",
+    "passwordMismatch": "Passwords do not match"
   },
   "admin": {
     "title": "Admin Panel",
@@ -64,7 +74,9 @@
     "users": {
       "title": "All Users",
       "promoteButton": "Promote to Creator",
-      "noUsers": "No users found."
+      "noUsers": "No users found.",
+      "resetPasswordButton": "Password reset link",
+      "resetPasswordLinkLabel": "Password reset link"
     }
   },
   "nav": {

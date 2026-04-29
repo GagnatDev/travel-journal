@@ -14,6 +14,7 @@ import { AdminRegisterScreen } from './screens/AdminRegisterScreen.js';
 import { CreateEntryScreen } from './screens/CreateEntryScreen.js';
 import { InviteAcceptScreen } from './screens/InviteAcceptScreen.js';
 import { LoginScreen } from './screens/LoginScreen.js';
+import { PasswordResetScreen } from './screens/PasswordResetScreen.js';
 import { TimelineScreen } from './screens/TimelineScreen.js';
 import { TripDashboardScreen } from './screens/TripDashboardScreen.js';
 import { TripSettingsScreen } from './screens/TripSettingsScreen.js';
@@ -60,6 +61,7 @@ export function App() {
         <Route path="/register" element={<AdminRegisterScreen />} />
         <Route path="/login" element={<LoginScreen />} />
         <Route path="/invite/accept" element={<InviteAcceptScreen />} />
+        <Route path="/password-reset" element={<PasswordResetScreen />} />
         <Route element={<ProtectedLayout />}>
           <Route path="/trips" element={<TripDashboardScreen />} />
           <Route path="/trips/:id/timeline" element={<TimelineScreen />} />
