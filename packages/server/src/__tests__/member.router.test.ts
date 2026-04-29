@@ -186,6 +186,27 @@ describe('POST /api/v1/trips/:id/members', () => {
   });
 });
 
+describe('GET /api/v1/trips/:id/members/invites', () => {
+  it('includes inviteLink for pending trip invites', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const trip = await makeTrip(String(creator._id));
+
+    await request(app)
+      .post(`/api/v1/trips/${trip.id}/members`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ emailOrNickname: 'unknown-invites@test.com', tripRole: 'follower' });
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${trip.id}/members/invites`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].inviteLink).toContain('/invite/accept?token=');
+  });
+});
+
 describe('PATCH /api/v1/trips/:id/members/:userId/role', () => {
   it('returns 403 for non-creator', async () => {
     const creator = await makeUser('creator@test.com', 'creator');

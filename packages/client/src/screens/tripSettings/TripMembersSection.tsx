@@ -295,22 +295,35 @@ export function TripMembersSection({
           <ul className="space-y-2">
             {pendingInvites.map((inv) => (
               <li key={inv.id}>
-                <div className="border-2 border-dashed border-caption/40 rounded-card p-4 flex items-center gap-3">
-                  <HourglassIcon width={18} height={18} className="text-caption shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-ui text-sm font-medium text-body truncate">{inv.email}</p>
-                    <p className="font-ui text-xs text-caption">
-                      {inv.tripRole} · {new Date(inv.expiresAt).toLocaleDateString()}
-                    </p>
+                <div className="border-2 border-dashed border-caption/40 rounded-card p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <HourglassIcon width={18} height={18} className="text-caption shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-ui text-sm font-medium text-body truncate">{inv.email}</p>
+                      <p className="font-ui text-xs text-caption">
+                        {inv.tripRole} · {new Date(inv.expiresAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => revokeInviteMutation.mutate(inv.id)}
+                      disabled={revokeInviteMutation.isPending}
+                      className="font-ui text-xs font-semibold text-accent uppercase shrink-0 hover:opacity-70 disabled:opacity-50 transition-opacity"
+                    >
+                      {t('trips.settings.revokeInviteButton')}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => revokeInviteMutation.mutate(inv.id)}
-                    disabled={revokeInviteMutation.isPending}
-                    className="font-ui text-xs font-semibold text-accent uppercase shrink-0 hover:opacity-70 disabled:opacity-50 transition-opacity"
-                  >
-                    {t('trips.settings.revokeInviteButton')}
-                  </button>
+                  {inv.inviteLink ? (
+                    <CopyableLinkField
+                      value={window.location.origin + inv.inviteLink}
+                      description={t('trips.settings.pendingInviteCopyHint')}
+                      inputAriaLabel={t('trips.settings.pendingInviteCopyHint')}
+                      copyLabel={t('trips.settings.copyLink')}
+                      copiedLabel={t('trips.settings.linkCopied')}
+                      errorLabel={t('common.copyFailed')}
+                      className="p-0 bg-transparent space-y-2"
+                    />
+                  ) : null}
                 </div>
               </li>
             ))}
