@@ -8,6 +8,7 @@ import type { Entry } from '@travel-journal/shared';
 
 import { AuthProvider } from '../context/AuthContext.js';
 import { CreateEntryScreen } from '../screens/CreateEntryScreen.js';
+import { formatComposerEntryDate } from '../screens/createEntry/formatComposerEntryDate.js';
 import { getPendingEntry } from '../offline/db.js';
 import { saveOfflineEntry } from '../offline/entrySync.js';
 import { compressImage } from '../utils/compressImage.js';
@@ -252,6 +253,32 @@ describe('CreateEntryScreen', () => {
     });
   });
 
+  it('server edit shows persisted createdAt in the metadata row', async () => {
+    const historicalCreated = '2020-06-15T14:30:00.000Z';
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries/:entryId`, () =>
+        HttpResponse.json({ ...mockEntry, createdAt: historicalCreated }),
+      ),
+    );
+
+    renderCreate(`/trips/${TRIP_ID}/entries/entry-1/edit`);
+
+    const expected = formatComposerEntryDate(historicalCreated, 'nb');
+    await waitFor(() => {
+      expect(screen.getByTestId('entry-composer-entry-date')).toHaveTextContent(expected);
+    });
+  });
+
+  it('new entry metadata shows the composer-open day formatted for the locale', async () => {
+    const expected = formatComposerEntryDate(Date.now(), 'nb');
+    renderCreate();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/tittel|title/i)).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('entry-composer-entry-date')).toHaveTextContent(expected);
+  });
+
   it('pending edit loads from IDB and save keeps localId and createdAt', async () => {
     vi.mocked(getPendingEntry).mockResolvedValue({
       localId: 'local-pending-1',
@@ -272,6 +299,10 @@ describe('CreateEntryScreen', () => {
     await waitFor(() => {
       expect(screen.getByDisplayValue('Offline title')).toBeInTheDocument();
     });
+
+    expect(screen.getByTestId('entry-composer-entry-date')).toHaveTextContent(
+      formatComposerEntryDate(FIXED_CREATED_AT, 'nb'),
+    );
 
     await userEvent.clear(screen.getByLabelText(/tittel|title/i));
     await userEvent.type(screen.getByLabelText(/tittel|title/i), 'Fixed title');

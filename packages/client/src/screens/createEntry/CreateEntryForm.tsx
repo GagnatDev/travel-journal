@@ -28,6 +28,8 @@ export interface CreateEntryFormProps {
   savedOffline: boolean;
   createMutationError: boolean;
   updateMutationError: boolean;
+  /** Formatted registration date, or null while server/pending metadata is still loading. */
+  entryDateLabel: string | null;
 }
 
 export function CreateEntryForm({
@@ -49,6 +51,7 @@ export function CreateEntryForm({
   savedOffline,
   createMutationError,
   updateMutationError,
+  entryDateLabel,
 }: CreateEntryFormProps) {
   const { t } = useTranslation();
   const hasImages = images.length > 0 || localPreviews.length > 0;
@@ -182,8 +185,13 @@ export function CreateEntryForm({
           <CalendarIcon width={16} height={16} className="text-body" />
         </IconBadge>
         <div>
-          <p className="font-ui text-xs text-caption uppercase tracking-wide">{t('entries.entryDate', 'Entry Date')}</p>
-          <p className="font-ui text-sm text-body mt-0.5">{new Date().toLocaleDateString()}</p>
+          <p className="font-ui text-xs text-caption uppercase tracking-wide">{t('entries.entryDate')}</p>
+          <p
+            data-testid="entry-composer-entry-date"
+            className="font-ui text-sm text-body mt-0.5"
+          >
+            {entryDateLabel ?? '…'}
+          </p>
         </div>
       </div>
 
