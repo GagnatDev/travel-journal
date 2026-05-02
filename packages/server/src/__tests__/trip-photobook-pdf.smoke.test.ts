@@ -62,5 +62,10 @@ describe('buildTripPhotobookPdf smoke', () => {
 
     expect(Buffer.isBuffer(buf)).toBe(true);
     expect(buf.subarray(0, 4).toString('ascii')).toBe('%PDF');
+    const latin1 = buf.toString('latin1');
+    expect(latin1).toContain('%PDF-1.6');
+    expect(latin1).toContain('/OutputIntent');
+    expect(latin1).toContain('GTS_PDFX');
+    expect(latin1).toContain('pdfxid');
   });
 });

@@ -12,6 +12,7 @@ import {
 import { logger } from '../logger.js';
 import { getObjectBuffer } from './media.service.js';
 import { resolvePhotobookFontPaths } from './trip-photobook-fonts.js';
+import { attachPhotobookPdfX4 } from './trip-photobook-pdfx.js';
 
 type PDFDoc = InstanceType<typeof PDFDocument>;
 
@@ -641,7 +642,10 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
     size: [PAGE_SIZE_PT, PAGE_SIZE_PT],
     margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
     autoFirstPage: false,
+    pdfVersion: '1.6',
   });
+
+  await attachPhotobookPdfX4(doc);
 
   const fontsOk = registerPhotobookFonts(doc);
 
