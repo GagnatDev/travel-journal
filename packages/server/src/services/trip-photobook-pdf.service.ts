@@ -228,6 +228,7 @@ async function toPdfImageJpeg(buffer: Buffer, layoutWPt: number, layoutHPt: numb
   const maxW = Math.max(1, Math.ceil(layoutWPt * dpr));
   const maxH = Math.max(1, Math.ceil(layoutHPt * dpr));
   return sharp(buffer)
+    .rotate()
     .resize(maxW, maxH, {
       fit: 'inside',
       withoutEnlargement: true,
@@ -239,7 +240,7 @@ async function toPdfImageJpeg(buffer: Buffer, layoutWPt: number, layoutHPt: numb
 }
 
 async function intrinsicImageSizePt(buffer: Buffer): Promise<{ iw: number; ih: number }> {
-  const meta = await sharp(buffer).metadata();
+  const meta = await sharp(buffer).rotate().metadata();
   const iw = Math.max(1, meta.width ?? 1);
   const ih = Math.max(1, meta.height ?? 1);
   return { iw, ih };
