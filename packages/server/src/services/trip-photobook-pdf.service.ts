@@ -26,20 +26,10 @@ const MAX_IMAGES_PER_PAGE = 4;
 const BODY_RESERVE_WITH_TEXT_MM = 34;
 const BODY_RESERVE_EMPTY_MM = 3;
 
-/** Polaroid-style card: white bottom strip + side padding (points). */
-const POLAROID_SIDE_PAD = 8;
-const POLAROID_TOP_PAD = 6;
-const POLAROID_BOTTOM_STRIP = 16;
-const POLAROID_IMG_CORNER = 2;
-const POLAROID_CARD_CORNER = 3;
-
 const CREAM = '#fbf9f5';
 const ACCENT = '#9b3f2b';
 const BODY = '#58624a';
 const CAPTION = '#70573f';
-const FRAME_WHITE = '#ffffff';
-/** CREAM + dark shadow @ 11% — pre-blended for print (no transparency operators). */
-const SHADOW_FLAT = '#e2e0dc';
 
 const FONT = {
   display: 'PhotobookDisplay',
@@ -171,22 +161,6 @@ function addSquarePage(doc: PDFDoc): void {
   fillPageBackground(doc);
 }
 
-function drawDropShadowBehind(
-  doc: PDFDoc,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-  dx: number,
-  dy: number,
-): void {
-  doc.save();
-  doc.fillColor(SHADOW_FLAT);
-  doc.roundedRect(x + dx, y + dy, w, h, r).fill();
-  doc.restore();
-}
-
 function collectTripImageKeys(entries: Entry[]): string[] {
   const keys: string[] = [];
   const seen = new Set<string>();
@@ -254,7 +228,6 @@ async function toPdfImageJpeg(buffer: Buffer, layoutWPt: number, layoutHPt: numb
   const maxW = Math.max(1, Math.ceil(layoutWPt * dpr));
   const maxH = Math.max(1, Math.ceil(layoutHPt * dpr));
   return sharp(buffer)
-    .rotate()
     .resize(maxW, maxH, {
       fit: 'inside',
       withoutEnlargement: true,
@@ -266,7 +239,7 @@ async function toPdfImageJpeg(buffer: Buffer, layoutWPt: number, layoutHPt: numb
 }
 
 async function intrinsicImageSizePt(buffer: Buffer): Promise<{ iw: number; ih: number }> {
-  const meta = await sharp(buffer).rotate().metadata();
+  const meta = await sharp(buffer).metadata();
   const iw = Math.max(1, meta.width ?? 1);
   const ih = Math.max(1, meta.height ?? 1);
   return { iw, ih };
@@ -296,27 +269,19 @@ async function intrinsicsForSlots(
   );
 }
 
-function computePolaroidLayout(
+/** Scale image to fit inside maxImgW × maxImgH while preserving aspect ratio. */
+function computeImageFitLayout(
   iw: number,
   ih: number,
   maxImgW: number,
   maxImgH: number,
-): { imgW: number; imgH: number; cardW: number; cardH: number } {
+): { imgW: number; imgH: number } {
   const scale = Math.min(maxImgW / Math.max(1, iw), maxImgH / Math.max(1, ih));
-  const imgW = iw * scale;
-  const imgH = ih * scale;
-  return {
-    imgW,
-    imgH,
-    cardW: imgW + POLAROID_SIDE_PAD * 2,
-    cardH: POLAROID_TOP_PAD + imgH + POLAROID_BOTTOM_STRIP,
-  };
+  return { imgW: iw * scale, imgH: ih * scale };
 }
 
-/**
- * Polaroid-style card: frame outer size follows image aspect ratio (image scaled to fit max box).
- */
-async function drawPolaroidPhoto(
+/** Centered image in the slot; no frame, shadow, or canvas rotation. */
+async function drawPhotobookImage(
   doc: PDFDoc,
   fontsOk: boolean,
   slot: EntryImageSlot,
@@ -325,7 +290,6 @@ async function drawPolaroidPhoto(
   cy: number,
   maxImgW: number,
   maxImgH: number,
-  rotationDeg: number,
 ): Promise<void> {
   let iw: number;
   let ih: number;
@@ -336,46 +300,24 @@ async function drawPolaroidPhoto(
     ih = maxImgH;
   }
 
-  const { imgW, imgH, cardW, cardH } = computePolaroidLayout(iw, ih, maxImgW, maxImgH);
-  const imgX = POLAROID_SIDE_PAD;
-  const imgY = POLAROID_TOP_PAD;
+  const { imgW, imgH } = computeImageFitLayout(iw, ih, maxImgW, maxImgH);
+  const left = cx - imgW / 2;
+  const top = cy - imgH / 2;
 
   try {
     const jpg = await toPdfImageJpeg(slot.buffer, imgW, imgH);
-
-    doc.save();
-    doc.translate(cx, cy);
-    doc.rotate(rotationDeg);
-    doc.translate(-cardW / 2, -cardH / 2);
-
-    drawDropShadowBehind(doc, 0, 0, cardW, cardH, POLAROID_CARD_CORNER, 2.5, 3.2);
-
-    doc.roundedRect(0, 0, cardW, cardH, POLAROID_CARD_CORNER).fill(FRAME_WHITE);
-
-    doc.save();
-    doc.roundedRect(imgX, imgY, imgW, imgH, POLAROID_IMG_CORNER).clip();
-    doc.image(jpg, imgX, imgY, { width: imgW, height: imgH });
-    doc.restore();
-
-    doc.roundedRect(imgX, imgY, imgW, imgH, POLAROID_IMG_CORNER).strokeColor('#e8e4dc').lineWidth(0.3).stroke();
-    doc.restore();
+    doc.image(jpg, left, top, { width: imgW, height: imgH });
   } catch {
-    doc.save();
-    doc.translate(cx, cy);
-    doc.rotate(rotationDeg);
-    doc.translate(-cardW / 2, -cardH / 2);
-    doc.roundedRect(0, 0, cardW, cardH, POLAROID_CARD_CORNER).fill(FRAME_WHITE);
-    doc.roundedRect(imgX, imgY, imgW, imgH, POLAROID_IMG_CORNER).stroke('#cccccc');
+    doc.rect(left, top, imgW, imgH).stroke('#cccccc');
     setPhotobookFont(doc, fontsOk, 'ui');
-    doc.fontSize(8).fillColor(CAPTION).text(imagePlaceholder, imgX, imgY + imgH / 2 - 4, {
+    doc.fontSize(8).fillColor(CAPTION).text(imagePlaceholder, left, top + imgH / 2 - 4, {
       width: imgW,
       align: 'center',
     });
-    doc.restore();
   }
 }
 
-async function embedPolaroidImages(
+async function embedPhotobookImages(
   doc: PDFDoc,
   fontsOk: boolean,
   slots: EntryImageSlot[],
@@ -392,14 +334,11 @@ async function embedPolaroidImages(
   const cyMid = bandTop + bandH / 2;
 
   if (n === 1) {
-    await drawPolaroidPhoto(doc, fontsOk, slots[0]!, imagePlaceholder, cxMid, cyMid, bandW * 0.98, bandH * 0.98, -2);
+    await drawPhotobookImage(doc, fontsOk, slots[0]!, imagePlaceholder, cxMid, cyMid, bandW * 0.98, bandH * 0.98);
     return;
   }
 
   const infos = await intrinsicsForSlots(slots.slice(0, n));
-  const t2: [number, number] = [-3, 3.5];
-  const t3: [number, number, number] = [-2.5, 3, -2.2];
-  const t4: [number, number, number, number] = [-2.5, 3.2, -2.2, 2.8];
 
   const isPortraitLike = (o: PhotoOrient) => o === 'portrait' || o === 'square';
   const isLandscapeLike = (o: PhotoOrient) => o === 'landscape';
@@ -420,8 +359,8 @@ async function embedPolaroidImages(
       const cx0 = bandLeft + colW / 2;
       const cx1 = bandLeft + colW + GAP + colW / 2;
       const cy = cyMid;
-      await drawPolaroidPhoto(doc, fontsOk, a.slot, imagePlaceholder, cx0, cy, colW * 0.97, bandH * 0.97, t2[0]!);
-      await drawPolaroidPhoto(doc, fontsOk, b.slot, imagePlaceholder, cx1, cy, colW * 0.97, bandH * 0.97, t2[1]!);
+      await drawPhotobookImage(doc, fontsOk, a.slot, imagePlaceholder, cx0, cy, colW * 0.97, bandH * 0.97);
+      await drawPhotobookImage(doc, fontsOk, b.slot, imagePlaceholder, cx1, cy, colW * 0.97, bandH * 0.97);
       return;
     }
 
@@ -429,8 +368,8 @@ async function embedPolaroidImages(
       const rowH = (bandH - GAP) / 2;
       const cy0 = bandTop + rowH / 2;
       const cy1 = bandTop + rowH + GAP + rowH / 2;
-      await drawPolaroidPhoto(doc, fontsOk, a.slot, imagePlaceholder, cxMid, cy0, bandW * 0.97, rowH * 0.97, t2[0]!);
-      await drawPolaroidPhoto(doc, fontsOk, b.slot, imagePlaceholder, cxMid, cy1, bandW * 0.97, rowH * 0.97, t2[1]!);
+      await drawPhotobookImage(doc, fontsOk, a.slot, imagePlaceholder, cxMid, cy0, bandW * 0.97, rowH * 0.97);
+      await drawPhotobookImage(doc, fontsOk, b.slot, imagePlaceholder, cxMid, cy1, bandW * 0.97, rowH * 0.97);
       return;
     }
 
@@ -440,29 +379,29 @@ async function embedPolaroidImages(
     if (al && !bl && bp) {
       const cxL = bandLeft + stackW / 2;
       const cxR = bandLeft + stackW + GAP + sideW / 2;
-      await drawPolaroidPhoto(doc, fontsOk, a.slot, imagePlaceholder, cxL, cyMid, stackW * 0.96, bandH * 0.97, t2[0]!);
-      await drawPolaroidPhoto(doc, fontsOk, b.slot, imagePlaceholder, cxR, cyMid, sideW * 0.96, bandH * 0.97, t2[1]!);
+      await drawPhotobookImage(doc, fontsOk, a.slot, imagePlaceholder, cxL, cyMid, stackW * 0.96, bandH * 0.97);
+      await drawPhotobookImage(doc, fontsOk, b.slot, imagePlaceholder, cxR, cyMid, sideW * 0.96, bandH * 0.97);
       return;
     }
     if (ap && !bp && bl) {
       const cxL = bandLeft + sideW / 2;
       const cxR = bandLeft + sideW + GAP + stackW / 2;
-      await drawPolaroidPhoto(doc, fontsOk, a.slot, imagePlaceholder, cxL, cyMid, sideW * 0.96, bandH * 0.97, t2[0]!);
-      await drawPolaroidPhoto(doc, fontsOk, b.slot, imagePlaceholder, cxR, cyMid, stackW * 0.96, bandH * 0.97, t2[1]!);
+      await drawPhotobookImage(doc, fontsOk, a.slot, imagePlaceholder, cxL, cyMid, sideW * 0.96, bandH * 0.97);
+      await drawPhotobookImage(doc, fontsOk, b.slot, imagePlaceholder, cxR, cyMid, stackW * 0.96, bandH * 0.97);
       return;
     }
     if (bl && !al && ap) {
       const cxL = bandLeft + stackW / 2;
       const cxR = bandLeft + stackW + GAP + sideW / 2;
-      await drawPolaroidPhoto(doc, fontsOk, b.slot, imagePlaceholder, cxL, cyMid, stackW * 0.96, bandH * 0.97, t2[0]!);
-      await drawPolaroidPhoto(doc, fontsOk, a.slot, imagePlaceholder, cxR, cyMid, sideW * 0.96, bandH * 0.97, t2[1]!);
+      await drawPhotobookImage(doc, fontsOk, b.slot, imagePlaceholder, cxL, cyMid, stackW * 0.96, bandH * 0.97);
+      await drawPhotobookImage(doc, fontsOk, a.slot, imagePlaceholder, cxR, cyMid, sideW * 0.96, bandH * 0.97);
       return;
     }
 
     const cxL = bandLeft + stackW / 2;
     const cxR = bandLeft + stackW + GAP + sideW / 2;
-    await drawPolaroidPhoto(doc, fontsOk, a.slot, imagePlaceholder, cxL, cyMid, stackW * 0.96, bandH * 0.97, t2[0]!);
-    await drawPolaroidPhoto(doc, fontsOk, b.slot, imagePlaceholder, cxR, cyMid, sideW * 0.96, bandH * 0.97, t2[1]!);
+    await drawPhotobookImage(doc, fontsOk, a.slot, imagePlaceholder, cxL, cyMid, stackW * 0.96, bandH * 0.97);
+    await drawPhotobookImage(doc, fontsOk, b.slot, imagePlaceholder, cxR, cyMid, sideW * 0.96, bandH * 0.97);
     return;
   }
 
@@ -476,17 +415,7 @@ async function embedPolaroidImages(
       const colW = (bandW - 2 * GAP) / 3;
       for (let i = 0; i < 3; i++) {
         const cx = bandLeft + colW / 2 + i * (colW + GAP);
-        await drawPolaroidPhoto(
-          doc,
-          fontsOk,
-          infos[i]!.slot,
-          imagePlaceholder,
-          cx,
-          cyMid,
-          colW * 0.96,
-          bandH * 0.96,
-          t3[i]!,
-        );
+        await drawPhotobookImage(doc, fontsOk, infos[i]!.slot, imagePlaceholder, cx, cyMid, colW * 0.96, bandH * 0.96);
       }
       return;
     }
@@ -495,7 +424,7 @@ async function embedPolaroidImages(
       const rowH = (bandH - 2 * GAP) / 3;
       for (let i = 0; i < 3; i++) {
         const cy = bandTop + rowH / 2 + i * (rowH + GAP);
-        await drawPolaroidPhoto(
+        await drawPhotobookImage(
           doc,
           fontsOk,
           infos[i]!.slot,
@@ -504,7 +433,6 @@ async function embedPolaroidImages(
           cy,
           bandW * 0.96,
           rowH * 0.96,
-          t3[i]!,
         );
       }
       return;
@@ -520,9 +448,9 @@ async function embedPolaroidImages(
       const cy1 = bandTop + rowH + GAP + rowH / 2;
       const [L1, L2] = [lInfos[0]!, lInfos[1]!];
       const P = pInfos[0]!;
-      await drawPolaroidPhoto(doc, fontsOk, L1.slot, imagePlaceholder, cxL, cy0, stackW * 0.95, rowH * 0.95, t3[0]!);
-      await drawPolaroidPhoto(doc, fontsOk, L2.slot, imagePlaceholder, cxL, cy1, stackW * 0.95, rowH * 0.95, t3[1]!);
-      await drawPolaroidPhoto(doc, fontsOk, P.slot, imagePlaceholder, cxR, cyMid, sideW * 0.95, bandH * 0.97, t3[2]!);
+      await drawPhotobookImage(doc, fontsOk, L1.slot, imagePlaceholder, cxL, cy0, stackW * 0.95, rowH * 0.95);
+      await drawPhotobookImage(doc, fontsOk, L2.slot, imagePlaceholder, cxL, cy1, stackW * 0.95, rowH * 0.95);
+      await drawPhotobookImage(doc, fontsOk, P.slot, imagePlaceholder, cxR, cyMid, sideW * 0.95, bandH * 0.97);
       return;
     }
 
@@ -536,16 +464,16 @@ async function embedPolaroidImages(
       const cy1 = bandTop + rowH + GAP + rowH / 2;
       const [P1, P2] = [pInfos[0]!, pInfos[1]!];
       const L = lInfos[0]!;
-      await drawPolaroidPhoto(doc, fontsOk, P1.slot, imagePlaceholder, cxL, cy0, sideW * 0.95, rowH * 0.95, t3[0]!);
-      await drawPolaroidPhoto(doc, fontsOk, P2.slot, imagePlaceholder, cxL, cy1, sideW * 0.95, rowH * 0.95, t3[1]!);
-      await drawPolaroidPhoto(doc, fontsOk, L.slot, imagePlaceholder, cxR, cyMid, stackW * 0.95, bandH * 0.97, t3[2]!);
+      await drawPhotobookImage(doc, fontsOk, P1.slot, imagePlaceholder, cxL, cy0, sideW * 0.95, rowH * 0.95);
+      await drawPhotobookImage(doc, fontsOk, P2.slot, imagePlaceholder, cxL, cy1, sideW * 0.95, rowH * 0.95);
+      await drawPhotobookImage(doc, fontsOk, L.slot, imagePlaceholder, cxR, cyMid, stackW * 0.95, bandH * 0.97);
       return;
     }
 
     const colW = (bandW - 2 * GAP) / 3;
     for (let i = 0; i < 3; i++) {
       const cx = bandLeft + colW / 2 + i * (colW + GAP);
-      await drawPolaroidPhoto(doc, fontsOk, infos[i]!.slot, imagePlaceholder, cx, cyMid, colW * 0.94, bandH * 0.94, t3[i]!);
+      await drawPhotobookImage(doc, fontsOk, infos[i]!.slot, imagePlaceholder, cx, cyMid, colW * 0.94, bandH * 0.94);
     }
     return;
   }
@@ -560,7 +488,7 @@ async function embedPolaroidImages(
       const row = Math.floor(i / cols);
       const cx = bandLeft + col * (cellW + GAP) + cellW / 2;
       const cy = bandTop + row * (cellH + GAP) + cellH / 2;
-      await drawPolaroidPhoto(doc, fontsOk, infos[i]!.slot, imagePlaceholder, cx, cy, cellW * 0.96, cellH * 0.96, t4[i]!);
+      await drawPhotobookImage(doc, fontsOk, infos[i]!.slot, imagePlaceholder, cx, cy, cellW * 0.96, cellH * 0.96);
     }
   }
 }
@@ -617,7 +545,7 @@ async function drawCoverPage(
       meta: { key: '', width: 1, height: 1, order: 0, uploadedAt: new Date(0).toISOString() },
       buffer: coverBuf,
     };
-    await drawPolaroidPhoto(doc, fontsOk, fakeSlot, strings.imagePlaceholder, cx, cy, heroW * 0.92, heroH * 0.92, 0);
+    await drawPhotobookImage(doc, fontsOk, fakeSlot, strings.imagePlaceholder, cx, cy, heroW * 0.92, heroH * 0.92);
   } else {
     setPhotobookFont(doc, fontsOk, 'ui');
     doc.fontSize(10).fillColor(CAPTION).text(strings.coverNoPhotoHint, MARGIN, cy - 6, { width: w, align: 'center' });
@@ -625,7 +553,7 @@ async function drawCoverPage(
 }
 
 /**
- * Square photobook PDF: cream pages, embedded fonts, polaroid-style images, day prefix in header (no footer).
+ * Square photobook PDF: cream pages, embedded fonts, images fitted without frame or tilt, day prefix in header (no footer).
  */
 export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promise<Buffer> {
   const timeZone = input.timeZone ?? process.env['TRIP_PDF_TIMEZONE'] ?? 'UTC';
@@ -719,7 +647,7 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
         if (slice.length > 0) {
           const bandLeft = MARGIN;
           const bandW = PAGE_SIZE_PT - 2 * MARGIN;
-          await embedPolaroidImages(
+          await embedPhotobookImages(
             doc,
             fontsOk,
             slice,
