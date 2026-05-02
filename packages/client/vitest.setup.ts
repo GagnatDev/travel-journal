@@ -293,6 +293,7 @@ const nb = {
     newTitle: 'Nytt innlegg',
     editTitle: 'Rediger innlegg',
     draft: 'Kladd',
+    entryDate: 'Innleggsdato',
     sectionLabel: 'Siste nytt fra reisen',
     loadError: 'Kunne ikke laste innlegg.',
     retryLoad: 'Prøv igjen',

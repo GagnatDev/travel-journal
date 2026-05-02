@@ -13,6 +13,7 @@ import { getPendingEntry } from '../../offline/db.js';
 import { saveOfflineEntry } from '../../offline/entrySync.js';
 import { QUERY_STALE_MS } from '../../lib/appQueryClient.js';
 import { EMPTY_ENTRY_FORM, type EntryFormState } from './entryFormState.js';
+import { formatComposerEntryDate } from './formatComposerEntryDate.js';
 import { useEntryForm } from './useEntryForm.js';
 
 export function useCreateEntryScreen() {
@@ -23,7 +24,7 @@ export function useCreateEntryScreen() {
   }>();
   const { accessToken } = useAuth();
   const queryClient = useQueryClient();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const isPendingEdit = Boolean(pendingLocalId);
@@ -52,6 +53,8 @@ export function useCreateEntryScreen() {
     completed: number;
     total: number;
   } | null>(null);
+  /** Calendar anchor for new drafts — reset when opening the new-entry route. */
+  const [newComposerDate, setNewComposerDate] = useState(() => new Date());
 
   const localPreviews = useMemo(
     () => localFiles.map((f) => URL.createObjectURL(f)),
@@ -74,6 +77,7 @@ export function useCreateEntryScreen() {
     setLocalFiles([]);
     setInitialLocalFiles([]);
     setSavedOffline(false);
+    setNewComposerDate(new Date());
   }, [tripId, location.pathname]);
 
   const { data: existingEntry } = useQuery({
@@ -82,6 +86,25 @@ export function useCreateEntryScreen() {
     enabled: isServerEdit && !!accessToken && !!tripId && !!entryId,
     staleTime: QUERY_STALE_MS.entryEditor,
   });
+
+  const entryDateLabel = useMemo(() => {
+    if (isServerEdit) {
+      if (!existingEntry) return null;
+      return formatComposerEntryDate(existingEntry.createdAt, i18n.language);
+    }
+    if (isPendingEdit) {
+      if (!pendingOfflineMeta) return null;
+      return formatComposerEntryDate(pendingOfflineMeta.createdAt, i18n.language);
+    }
+    return formatComposerEntryDate(newComposerDate.getTime(), i18n.language);
+  }, [
+    isServerEdit,
+    isPendingEdit,
+    existingEntry,
+    pendingOfflineMeta,
+    newComposerDate,
+    i18n.language,
+  ]);
 
   useEffect(() => {
     if (!existingEntry) return;
@@ -388,6 +411,7 @@ export function useCreateEntryScreen() {
   return {
     isServerEdit,
     isPendingEdit,
+    entryDateLabel,
     form,
     setForm,
     titleError,

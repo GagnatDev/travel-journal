@@ -280,6 +280,7 @@
     "newTitle": "New Entry",
     "editTitle": "Edit Entry",
     "draft": "Draft",
+    "entryDate": "Entry date",
     "sectionLabel": "Latest from the Road",
     "loadError": "Could not load entries.",
     "retryLoad": "Try again",

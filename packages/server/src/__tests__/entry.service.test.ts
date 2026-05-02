@@ -288,6 +288,24 @@ describe('updateEntry', () => {
     expect(updated.content).toBe('new');
   });
 
+  it('preserves createdAt after updates (registration time is immutable)', async () => {
+    const user = await makeUser('creator@test.com');
+    const trip = await makeTrip(String(user._id));
+
+    const entry = await createEntry(trip.id, String(user._id), {
+      title: 'Original',
+      content: 'old',
+    });
+    const originalCreatedAt = entry.createdAt;
+
+    const updated = await updateEntry(trip.id, entry.id, 'creator', {
+      title: 'Updated',
+      content: 'new',
+    });
+
+    expect(updated.createdAt).toBe(originalCreatedAt);
+  });
+
   it('clears location when null is provided', async () => {
     const user = await makeUser('creator@test.com');
     const trip = await makeTrip(String(user._id));
