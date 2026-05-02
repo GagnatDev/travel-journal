@@ -1,7 +1,7 @@
 export async function compressImage(
   file: File,
-  maxDimension = 1920,
-  quality = 0.82,
+  maxDimension = 2560,
+  quality = 0.9,
 ): Promise<{ blob: Blob; width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const img = new Image();

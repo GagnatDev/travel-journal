@@ -37,7 +37,8 @@ const ACCENT = '#9b3f2b';
 const BODY = '#58624a';
 const CAPTION = '#70573f';
 const FRAME_WHITE = '#ffffff';
-const SHADOW = '#1b1c1a';
+/** CREAM + dark shadow @ 11% — pre-blended for print (no transparency operators). */
+const SHADOW_FLAT = '#e2e0dc';
 
 const FONT = {
   display: 'PhotobookDisplay',
@@ -48,10 +49,10 @@ const FONT = {
 
 function pdfImageRasterDpr(): number {
   const raw = process.env['TRIP_PDF_IMAGE_DPR'];
-  if (raw === undefined || raw === '') return 3;
+  if (raw === undefined || raw === '') return 5;
   const n = Number.parseFloat(raw);
-  if (!Number.isFinite(n)) return 3;
-  return Math.min(4, Math.max(1, n));
+  if (!Number.isFinite(n)) return 5;
+  return Math.min(6, Math.max(1, n));
 }
 
 /** Bottom Y of the content area (10 mm margin). */
@@ -180,8 +181,7 @@ function drawDropShadowBehind(
   dy: number,
 ): void {
   doc.save();
-  doc.fillOpacity(0.11);
-  doc.fillColor(SHADOW);
+  doc.fillColor(SHADOW_FLAT);
   doc.roundedRect(x + dx, y + dy, w, h, r).fill();
   doc.restore();
 }
@@ -248,7 +248,7 @@ async function loadEntryImageSlots(entry: Entry): Promise<EntryImageSlot[]> {
   return out;
 }
 
-async function toPdfImagePng(buffer: Buffer, layoutWPt: number, layoutHPt: number): Promise<Buffer> {
+async function toPdfImageJpeg(buffer: Buffer, layoutWPt: number, layoutHPt: number): Promise<Buffer> {
   const dpr = pdfImageRasterDpr();
   const maxW = Math.max(1, Math.ceil(layoutWPt * dpr));
   const maxH = Math.max(1, Math.ceil(layoutHPt * dpr));
@@ -256,10 +256,11 @@ async function toPdfImagePng(buffer: Buffer, layoutWPt: number, layoutHPt: numbe
     .rotate()
     .resize(maxW, maxH, {
       fit: 'inside',
-      withoutEnlargement: false,
+      withoutEnlargement: true,
       kernel: sharp.kernel.lanczos3,
     })
-    .png({ compressionLevel: 4, effort: 5 })
+    .toColourspace('srgb')
+    .jpeg({ quality: 95, mozjpeg: true, chromaSubsampling: '4:4:4' })
     .toBuffer();
 }
 
@@ -339,7 +340,7 @@ async function drawPolaroidPhoto(
   const imgY = POLAROID_TOP_PAD;
 
   try {
-    const png = await toPdfImagePng(slot.buffer, imgW, imgH);
+    const jpg = await toPdfImageJpeg(slot.buffer, imgW, imgH);
 
     doc.save();
     doc.translate(cx, cy);
@@ -352,7 +353,7 @@ async function drawPolaroidPhoto(
 
     doc.save();
     doc.roundedRect(imgX, imgY, imgW, imgH, POLAROID_IMG_CORNER).clip();
-    doc.image(png, imgX, imgY, { width: imgW, height: imgH });
+    doc.image(jpg, imgX, imgY, { width: imgW, height: imgH });
     doc.restore();
 
     doc.roundedRect(imgX, imgY, imgW, imgH, POLAROID_IMG_CORNER).strokeColor('#e8e4dc').lineWidth(0.3).stroke();
