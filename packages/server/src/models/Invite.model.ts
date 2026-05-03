@@ -7,6 +7,8 @@ export interface IInvite extends Document {
   tripId?: Types.ObjectId;
   tripRole?: 'contributor' | 'follower';
   tokenHash: string;
+  /** AES-GCM ciphertext of raw token so invite links can be shown again until expiry (optional on legacy docs). */
+  encryptedInviteToken?: string;
   status: 'pending' | 'accepted' | 'revoked';
   invitedBy: Types.ObjectId;
   expiresAt: Date;
@@ -22,6 +24,7 @@ const inviteSchema = new Schema<IInvite>(
     tripId: { type: Schema.Types.ObjectId, ref: 'Trip' },
     tripRole: { type: String, enum: ['contributor', 'follower'] },
     tokenHash: { type: String, required: true },
+    encryptedInviteToken: { type: String },
     status: { type: String, enum: ['pending', 'accepted', 'revoked'], default: 'pending' },
     invitedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     expiresAt: { type: Date, required: true },

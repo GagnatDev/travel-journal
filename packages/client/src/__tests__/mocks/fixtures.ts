@@ -43,4 +43,5 @@ export const mockInvite: Invite = {
   invitedBy: 'admin-1',
   expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
   createdAt: new Date().toISOString(),
+  inviteLink: '/invite/accept?token=mock-pending-token',
 };

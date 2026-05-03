@@ -10,8 +10,10 @@ import {
   addTripMember,
   createPlatformInvite,
   createTripInvite,
+  listTripInvites,
   validateInviteToken,
 } from '../services/invite.service.js';
+import { decryptInviteToken } from '../services/invite-token-crypto.js';
 import { createTrip } from '../services/trip.service.js';
 
 const MONGO_URI =
@@ -43,7 +45,7 @@ async function makeUser(email: string, appRole: 'admin' | 'creator' | 'follower'
 }
 
 describe('createPlatformInvite', () => {
-  it('stores only tokenHash (not the raw token), and the raw token hashes to the stored value', async () => {
+  it('stores tokenHash and encrypted ciphertext (not plaintext raw token); raw token hashes to stored hash', async () => {
     const admin = await makeUser('admin@test.com', 'admin');
 
     const { invite, rawToken } = await createPlatformInvite(
@@ -56,6 +58,9 @@ describe('createPlatformInvite', () => {
     expect(doc).toBeTruthy();
     expect(doc!.tokenHash).not.toBe(rawToken);
     expect(doc!.tokenHash).toBe(hashToken(rawToken));
+    expect(doc!.encryptedInviteToken).toBeTruthy();
+    expect(doc!.encryptedInviteToken).not.toContain(rawToken);
+    expect(decryptInviteToken(doc!.encryptedInviteToken)).toBe(rawToken);
   });
 
   it('creates platform invite with correct fields', async () => {
@@ -67,6 +72,31 @@ describe('createPlatformInvite', () => {
     expect(invite.email).toBe('user@test.com');
     expect(invite.assignedAppRole).toBe('follower');
     expect(invite.status).toBe('pending');
+  });
+});
+
+describe('listTripInvites', () => {
+  it('includes inviteLink for pending invites created with encrypted token storage', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const trip = await createTrip({ name: 'Trip' }, String(creator._id));
+
+    await addTripMember(trip.id, 'pending@test.com', 'follower', String(creator._id));
+
+    const list = await listTripInvites(trip.id);
+    expect(list).toHaveLength(1);
+    expect(list[0]!.inviteLink).toMatch(/^\/invite\/accept\?token=/);
+  });
+
+  it('omits inviteLink when encrypted ciphertext is missing (legacy documents)', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const trip = await createTrip({ name: 'Trip' }, String(creator._id));
+
+    await addTripMember(trip.id, 'legacy@test.com', 'follower', String(creator._id));
+    await Invite.updateOne({ email: 'legacy@test.com' }, { $unset: { encryptedInviteToken: 1 } });
+
+    const list = await listTripInvites(trip.id);
+    expect(list).toHaveLength(1);
+    expect(list[0]!.inviteLink).toBeUndefined();
   });
 });
 

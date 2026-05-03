@@ -7,6 +7,7 @@ import { IInvite, Invite as InviteModel } from '../models/Invite.model.js';
 import { Trip } from '../models/Trip.model.js';
 import { User } from '../models/User.model.js';
 import { generateAccessToken, hashPassword, hashToken } from './auth.service.js';
+import { decryptInviteToken, encryptInviteToken } from './invite-token-crypto.js';
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -17,7 +18,15 @@ function createHttpError(message: string, status: number, code: string): Error {
   return err;
 }
 
-function toInvite(doc: IInvite): Invite {
+function inviteLinkPathIfRevealable(doc: IInvite): string | undefined {
+  if (doc.status !== 'pending') return undefined;
+  if (doc.expiresAt < new Date()) return undefined;
+  const raw = decryptInviteToken(doc.encryptedInviteToken);
+  if (!raw) return undefined;
+  return `/invite/accept?token=${raw}`;
+}
+
+function toInvite(doc: IInvite, options?: { includeInviteLink?: boolean }): Invite {
   const invite: Invite = {
     id: String(doc._id),
     type: doc.type,
@@ -30,6 +39,10 @@ function toInvite(doc: IInvite): Invite {
   };
   if (doc.tripId) invite.tripId = String(doc.tripId);
   if (doc.tripRole) invite.tripRole = doc.tripRole;
+  if (options?.includeInviteLink) {
+    const path = inviteLinkPathIfRevealable(doc);
+    if (path) invite.inviteLink = path;
+  }
   return invite;
 }
 
@@ -70,6 +83,7 @@ export async function createPlatformInvite(
     email: email.toLowerCase().trim(),
     assignedAppRole,
     tokenHash,
+    encryptedInviteToken: encryptInviteToken(rawToken),
     invitedBy: new mongoose.Types.ObjectId(issuedBy),
     expiresAt: inviteExpiresAt(),
   });
@@ -93,6 +107,7 @@ export async function createTripInvite(
     tripId: new mongoose.Types.ObjectId(tripId),
     tripRole,
     tokenHash,
+    encryptedInviteToken: encryptInviteToken(rawToken),
     invitedBy: new mongoose.Types.ObjectId(issuedBy),
     expiresAt: inviteExpiresAt(),
   });
@@ -158,6 +173,7 @@ export async function acceptInvite(
 
   doc.status = 'accepted';
   await doc.save();
+  await InviteModel.updateOne({ _id: doc._id }, { $unset: { encryptedInviteToken: 1 } });
 
   const accessToken = generateAccessToken({ userId, email: user.email, appRole: user.appRole });
 
@@ -175,13 +191,14 @@ export async function revokeInvite(inviteId: string): Promise<void> {
   }
   doc.status = 'revoked';
   await doc.save();
+  await InviteModel.updateOne({ _id: doc._id }, { $unset: { encryptedInviteToken: 1 } });
 }
 
 export async function listPlatformInvites(status?: string): Promise<Invite[]> {
   const query: Record<string, unknown> = { type: 'platform' };
   if (status) query['status'] = status;
   const docs = await InviteModel.find(query).sort({ createdAt: -1 });
-  return docs.map(toInvite);
+  return docs.map((d) => toInvite(d, { includeInviteLink: true }));
 }
 
 export async function listTripInvites(tripId: string): Promise<Invite[]> {
@@ -190,7 +207,7 @@ export async function listTripInvites(tripId: string): Promise<Invite[]> {
     tripId: new mongoose.Types.ObjectId(tripId),
     status: 'pending',
   }).sort({ createdAt: -1 });
-  return docs.map(toInvite);
+  return docs.map((d) => toInvite(d, { includeInviteLink: true }));
 }
 
 /**
