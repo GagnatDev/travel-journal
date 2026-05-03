@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import mongoose from 'mongoose';
 
 import { Invite } from '../models/Invite.model.js';
+import { Notification } from '../models/Notification.model.js';
 import { Trip } from '../models/Trip.model.js';
 import { User } from '../models/User.model.js';
 import { hashPassword, hashToken } from '../services/auth.service.js';
@@ -26,6 +27,7 @@ beforeEach(async () => {
   await User.deleteMany({});
   await Trip.deleteMany({});
   await Invite.deleteMany({});
+  await Notification.deleteMany({});
 });
 
 afterAll(async () => {
@@ -144,12 +146,22 @@ describe('acceptInvite', () => {
       String(creator._id),
     );
 
-    await acceptInvite(rawToken, 'New Member', 'password123');
+    const { userId } = await acceptInvite(rawToken, 'New Member', 'password123');
 
     const tripDoc = await Trip.findById(trip.id);
     expect(tripDoc!.members.some((m) => m.tripRole === 'contributor')).toBe(true);
     const newMember = tripDoc!.members.find((m) => m.tripRole === 'contributor');
     expect(newMember).toBeTruthy();
+
+    const notif = await Notification.findOne({ userId, type: 'trip.member_added' }).lean();
+    expect(notif).toBeTruthy();
+    expect(notif!.data).toMatchObject({
+      type: 'trip.member_added',
+      tripId: trip.id,
+      tripName: 'My Trip',
+      tripRole: 'contributor',
+      addedByUserId: String(creator._id),
+    });
   });
 
   it('returns a valid access token', async () => {
@@ -196,6 +208,19 @@ describe('addTripMember', () => {
     const newMember = tripDoc!.members.find((m) => String(m.userId) === String(other._id));
     expect(newMember).toBeTruthy();
     expect(newMember!.tripRole).toBe('follower');
+
+    const notif = await Notification.findOne({
+      userId: other._id,
+      type: 'trip.member_added',
+    }).lean();
+    expect(notif).toBeTruthy();
+    expect(notif!.data).toMatchObject({
+      type: 'trip.member_added',
+      tripId: trip.id,
+      tripName: 'Trip',
+      tripRole: 'follower',
+      addedByUserId: String(creator._id),
+    });
   });
 
   it('adds an existing user by displayName (case-insensitive)', async () => {
