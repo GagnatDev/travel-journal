@@ -328,4 +328,18 @@ describe('Notifications inbox (bell badge + panel)', () => {
       );
     });
   });
+
+  it('shows a deployment reload notice in the panel when the server has a newer build id', async () => {
+    server.use(
+      http.get(/\/version\.json(\?.*)?$/, () =>
+        HttpResponse.json({ buildId: 'newer-server-build' }, { headers: { 'Cache-Control': 'no-store' } }),
+      ),
+    );
+    renderPanel({ notifications: [], unreadCount: 0 });
+    await waitFor(() => {
+      expect(screen.getByTestId('deployment-update-notice')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('status')).toHaveTextContent(/ny versjon|new version/i);
+    expect(screen.getByRole('button', { name: /Last inn på nytt|Reload app/i })).toBeInTheDocument();
+  });
 });
