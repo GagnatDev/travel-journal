@@ -18,10 +18,10 @@ export function CommentSection({ tripId, entryId }: CommentSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [text, setText] = useState('');
 
-  const { data: comments = [], isLoading } = useQuery<Comment[]>({
+  const { data: comments = [], isLoading, isPending } = useQuery<Comment[]>({
     queryKey: ['comments', entryId],
     queryFn: () => fetchComments(tripId, entryId, accessToken!),
-    enabled: isOpen && !!accessToken,
+    enabled: !!accessToken,
   });
 
   const addMutation = useMutation({
@@ -46,7 +46,7 @@ export function CommentSection({ tripId, entryId }: CommentSectionProps) {
     addMutation.mutate(trimmed);
   }
 
-  const totalComments = isOpen ? comments.length : 0;
+  const showCommentCount = !!accessToken && !isPending;
 
   return (
     <div className="pt-2 border-t border-caption/10 mt-2">
@@ -57,7 +57,9 @@ export function CommentSection({ tripId, entryId }: CommentSectionProps) {
       >
         {isOpen
           ? t('comments.hide')
-          : t('comments.count', { count: totalComments })}
+          : showCommentCount
+            ? t('comments.count', { count: comments.length })
+            : t('comments.showCollapsed')}
       </button>
 
       {isOpen && (

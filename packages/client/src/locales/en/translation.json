@@ -332,9 +332,10 @@
     "placeholder": "Write a comment…",
     "delete": "Delete",
     "hide": "Hide comments",
+    "showCollapsed": "Show comments",
     "empty": "No comments yet.",
-    "count_one": "{{count}} comment",
-    "count_other": "{{count}} comments",
-    "count_zero": "Add a comment"
+    "count_one": "Show comments ({{count}})",
+    "count_other": "Show comments ({{count}})",
+    "count_zero": "Show comments ({{count}})"
   }
 }
