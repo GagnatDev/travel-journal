@@ -341,9 +341,7 @@ const nb = {
     hide: 'Skjul kommentarer',
     showCollapsed: 'Vis kommentarer',
     empty: 'Ingen kommentarer ennå.',
-    count_one: 'Vis kommentarer ({{count}})',
-    count_other: 'Vis kommentarer ({{count}})',
-    count_zero: 'Vis kommentarer ({{count}})',
+    count: 'Vis kommentarer ({{count}})',
   },
 };
 

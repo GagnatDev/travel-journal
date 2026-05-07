@@ -334,8 +334,6 @@
     "hide": "Hide comments",
     "showCollapsed": "Show comments",
     "empty": "No comments yet.",
-    "count_one": "Show comments ({{count}})",
-    "count_other": "Show comments ({{count}})",
-    "count_zero": "Show comments ({{count}})"
+    "count": "Show comments ({{count}})"
   }
 }
