@@ -339,10 +339,9 @@ const nb = {
     placeholder: 'Skriv en kommentar…',
     delete: 'Slett',
     hide: 'Skjul kommentarer',
+    showCollapsed: 'Vis kommentarer',
     empty: 'Ingen kommentarer ennå.',
-    count_one: '{{count}} kommentar',
-    count_other: '{{count}} kommentarer',
-    count_zero: 'Legg til kommentar',
+    count: 'Vis kommentarer ({{count}})',
   },
 };
 
