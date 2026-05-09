@@ -60,6 +60,11 @@ export interface CreateEntryRequest {
   clientCreatedAt?: string;
   /** When creating from a saved map pin — server validates and removes that bookmark atomically with the entry. */
   consumedSavedLocationId?: string;
+  /**
+   * When true together with consumedSavedLocationId, the server sets the entry's createdAt
+   * from the saved location document (not from clientCreatedAt).
+   */
+  useSavedLocationCreatedAt?: boolean;
 }
 
 /** Entry-backed pin on trip map */
@@ -98,6 +103,8 @@ export interface ComposeFromSavedLocationPayload {
   savedLocationId: string;
   lat: number;
   lng: number;
+  /** ISO 8601 — bookmark creation time for display; optional when opening without map context. */
+  createdAt?: string;
   name?: string;
 }
 

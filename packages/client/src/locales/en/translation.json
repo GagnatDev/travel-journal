@@ -300,6 +300,7 @@
     "editTitle": "Edit Entry",
     "draft": "Draft",
     "entryDate": "Entry date",
+    "useSavedLocationTimestamp": "Use saved spot's date and time",
     "sectionLabel": "Latest from the Road",
     "loadError": "Could not load entries.",
     "retryLoad": "Try again",

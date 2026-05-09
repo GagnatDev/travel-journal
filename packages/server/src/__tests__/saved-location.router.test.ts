@@ -288,6 +288,33 @@ describe('Saved locations API', () => {
       expect(await SavedLocation.countDocuments({ _id: savedId })).toBe(0);
     });
 
+    it('useSavedLocationCreatedAt uses bookmark createdAt on the entry', async () => {
+      const { creator, trip } = await setupTripWithMember();
+
+      const postRes = await request(app)
+        .post(`/api/v1/trips/${trip.id}/saved-locations`)
+        .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+        .send({ lat: 71, lng: 8, name: 'North' });
+
+      expect(postRes.status).toBe(201);
+      const savedId = postRes.body.id as string;
+      const bookmarkCreatedAt = postRes.body.createdAt as string;
+
+      const entryRes = await request(app)
+        .post(`/api/v1/trips/${trip.id}/entries`)
+        .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+        .send({
+          title: 'From bookmark',
+          content: 'Story',
+          location: { lat: 71, lng: 8, name: 'North' },
+          consumedSavedLocationId: savedId,
+          useSavedLocationCreatedAt: true,
+        });
+
+      expect(entryRes.status).toBe(201);
+      expect(entryRes.body.createdAt).toBe(bookmarkCreatedAt);
+    });
+
     it('wrong bookmark id → 400 and no orphan entry without bookmark deletion', async () => {
       const { creator, trip } = await setupTripWithMember();
 

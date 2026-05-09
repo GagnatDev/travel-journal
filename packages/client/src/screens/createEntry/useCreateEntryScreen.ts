@@ -61,6 +61,8 @@ export function useCreateEntryScreen() {
   /** Calendar anchor for new drafts — reset when opening the new-entry route. */
   const [newComposerDate, setNewComposerDate] = useState(() => new Date());
   const [linkedSavedLocationId, setLinkedSavedLocationId] = useState<string | null>(null);
+  const [savedLocationCreatedAtIso, setSavedLocationCreatedAtIso] = useState<string | null>(null);
+  const [keepSavedLocationTimestamp, setKeepSavedLocationTimestamp] = useState(false);
 
   const localPreviews = useMemo(
     () => localFiles.map((f) => URL.createObjectURL(f)),
@@ -88,6 +90,12 @@ export function useCreateEntryScreen() {
       !Number.isNaN(fromSaved.lng)
     ) {
       setLinkedSavedLocationId(fromSaved.savedLocationId);
+      const iso =
+        typeof fromSaved.createdAt === 'string' && fromSaved.createdAt.trim() !== ''
+          ? fromSaved.createdAt.trim()
+          : null;
+      setSavedLocationCreatedAtIso(iso);
+      setKeepSavedLocationTimestamp(false);
       nextInitial = {
         ...EMPTY_ENTRY_FORM,
         locationEnabled: true,
@@ -97,6 +105,8 @@ export function useCreateEntryScreen() {
       };
     } else {
       setLinkedSavedLocationId(null);
+      setSavedLocationCreatedAtIso(null);
+      setKeepSavedLocationTimestamp(false);
     }
 
     setForm(nextInitial);
@@ -125,6 +135,16 @@ export function useCreateEntryScreen() {
       if (!pendingOfflineMeta) return null;
       return formatComposerEntryDate(pendingOfflineMeta.createdAt, i18n.language);
     }
+    if (
+      linkedSavedLocationId !== null &&
+      keepSavedLocationTimestamp &&
+      savedLocationCreatedAtIso !== null
+    ) {
+      const ms = Date.parse(savedLocationCreatedAtIso);
+      if (!Number.isNaN(ms)) {
+        return formatComposerEntryDate(ms, i18n.language);
+      }
+    }
     return formatComposerEntryDate(newComposerDate.getTime(), i18n.language);
   }, [
     isServerEdit,
@@ -133,6 +153,9 @@ export function useCreateEntryScreen() {
     pendingOfflineMeta,
     newComposerDate,
     i18n.language,
+    linkedSavedLocationId,
+    keepSavedLocationTimestamp,
+    savedLocationCreatedAtIso,
   ]);
 
   useEffect(() => {
@@ -264,14 +287,14 @@ export function useCreateEntryScreen() {
   );
 
   const queueOfflineAfterNetworkFailure = useCallback(
-    (payload: CreateEntryRequest, files: File[]) => {
+    (payload: CreateEntryRequest, files: File[], createdAtForQueue: number) => {
       void saveOfflineEntry({
         localId: crypto.randomUUID(),
         tripId: tripId!,
         status: 'pending',
         payload,
         images: files,
-        createdAt: Date.now(),
+        createdAt: createdAtForQueue,
       });
       setSavedOffline(true);
       setTimeout(() => navigate(`/trips/${tripId}/timeline`), 1500);
@@ -305,6 +328,8 @@ export function useCreateEntryScreen() {
   const handleLocationToggle = useCallback(() => {
     if (form.locationEnabled) {
       setLinkedSavedLocationId(null);
+      setSavedLocationCreatedAtIso(null);
+      setKeepSavedLocationTimestamp(false);
     }
     toggleLocationInner();
   }, [form.locationEnabled, toggleLocationInner]);
@@ -330,12 +355,28 @@ export function useCreateEntryScreen() {
         form.locationLat !== null &&
         form.locationLng !== null;
 
+      const resolveOfflineQueueCreatedAt = (): number => {
+        if (
+          consumeBookmark &&
+          keepSavedLocationTimestamp &&
+          savedLocationCreatedAtIso !== null
+        ) {
+          const ms = Date.parse(savedLocationCreatedAtIso);
+          if (!Number.isNaN(ms)) return ms;
+        }
+        return Date.now();
+      };
+
       const buildCreatePayload = (imageList: EntryImage[]): CreateEntryRequest => ({
         title: form.title.trim(),
         content: form.content,
         images: imageList,
         ...(location !== undefined && { location }),
         ...(consumeBookmark && { consumedSavedLocationId: linkedSavedLocationId! }),
+        ...(consumeBookmark &&
+          keepSavedLocationTimestamp && {
+            useSavedLocationCreatedAt: true,
+          }),
       });
 
       if (isServerEdit) {
@@ -370,7 +411,7 @@ export function useCreateEntryScreen() {
           status: 'pending',
           payload: buildCreatePayload(images),
           images: localFiles,
-          createdAt: Date.now(),
+          createdAt: resolveOfflineQueueCreatedAt(),
         });
         setSavedOffline(true);
         setTimeout(() => navigate(`/trips/${tripId}/timeline`), 1500);
@@ -402,7 +443,11 @@ export function useCreateEntryScreen() {
           setLocalFiles(nextLocalFiles);
           if (result.failedFiles.length > 0) {
             setUploadError(t('entries.uploadQueuedOffline'));
-            queueOfflineAfterNetworkFailure(buildCreatePayload(nextImages), nextLocalFiles);
+            queueOfflineAfterNetworkFailure(
+              buildCreatePayload(nextImages),
+              nextLocalFiles,
+              resolveOfflineQueueCreatedAt(),
+            );
             return;
           }
         } finally {
@@ -416,7 +461,7 @@ export function useCreateEntryScreen() {
       try {
         await createMutation.mutateAsync(createData);
       } catch {
-        queueOfflineAfterNetworkFailure(createData, nextLocalFiles);
+        queueOfflineAfterNetworkFailure(createData, nextLocalFiles, resolveOfflineQueueCreatedAt());
       }
     },
     [
@@ -435,6 +480,8 @@ export function useCreateEntryScreen() {
       queueOfflineAfterNetworkFailure,
       t,
       linkedSavedLocationId,
+      keepSavedLocationTimestamp,
+      savedLocationCreatedAtIso,
     ],
   );
 
@@ -456,10 +503,16 @@ export function useCreateEntryScreen() {
         ? { ...flushUploadProgress, phase: 'finishing' as const }
         : null;
 
+  const showSavedLocationTimestampOption =
+    !isServerEdit && !isPendingEdit && linkedSavedLocationId !== null;
+
   return {
     isServerEdit,
     isPendingEdit,
     entryDateLabel,
+    showSavedLocationTimestampOption,
+    keepSavedLocationTimestamp,
+    setKeepSavedLocationTimestamp,
     form,
     setForm,
     titleError,

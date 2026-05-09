@@ -109,6 +109,7 @@ export async function createEntry(
   const {
     clientCreatedAt: clientCreatedAtRaw,
     consumedSavedLocationId: consumedRaw,
+    useSavedLocationCreatedAt: useSavedLocationCreatedAtRaw,
     ...rest
   } = data;
   const normalizedImages = rest.images ? normalizeImageOrder(rest.images) : [];
@@ -122,9 +123,23 @@ export async function createEntry(
     throw createHttpError('Invalid consumedSavedLocationId', 400, 'VALIDATION_ERROR');
   }
 
+  const useBookmarkCreatedAt =
+    bookmarkId !== undefined && useSavedLocationCreatedAtRaw === true;
+
   const now = new Date();
+  let bookmarkSnapshot: { createdAt: Date } | undefined;
+  if (bookmarkId !== undefined) {
+    bookmarkSnapshot = await requireConsumableSavedLocation(tripId, bookmarkId);
+  }
+
   let createdAt: Date | undefined;
-  if (clientCreatedAtRaw !== undefined && clientCreatedAtRaw !== null && String(clientCreatedAtRaw).trim() !== '') {
+  if (useBookmarkCreatedAt && bookmarkSnapshot !== undefined) {
+    createdAt = bookmarkSnapshot.createdAt;
+  } else if (
+    clientCreatedAtRaw !== undefined &&
+    clientCreatedAtRaw !== null &&
+    String(clientCreatedAtRaw).trim() !== ''
+  ) {
     const parsed = tryParseClientCreatedAt(String(clientCreatedAtRaw).trim());
     if (!parsed) {
       throw createHttpError('Invalid clientCreatedAt', 400, 'VALIDATION_ERROR');
@@ -155,7 +170,6 @@ export async function createEntry(
   }
 
   if (bookmarkId !== undefined) {
-    await requireConsumableSavedLocation(tripId, bookmarkId);
     const doc = await EntryModel.create(entryPayload);
     await finalizeConsumedSavedLocation(tripId, bookmarkId);
     return saveAndNotify(doc);
