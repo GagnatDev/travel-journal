@@ -294,6 +294,7 @@ const nb = {
     editTitle: 'Rediger innlegg',
     draft: 'Kladd',
     entryDate: 'Innleggsdato',
+    useSavedLocationTimestamp: 'Bruk lagret steds dato og klokkeslett',
     sectionLabel: 'Siste nytt fra reisen',
     loadError: 'Kunne ikke laste innlegg.',
     retryLoad: 'Prøv igjen',

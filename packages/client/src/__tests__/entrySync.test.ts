@@ -161,4 +161,28 @@ describe('syncPendingEntries', () => {
     expect(createEntry).not.toHaveBeenCalled();
     expect(onEntryCreated).not.toHaveBeenCalled();
   });
+
+  it('omits clientCreatedAt when syncing entry that preserves saved-location timestamp', async () => {
+    const savedId = '507f1f77bcf86cd799439011';
+    await saveOfflineEntry({
+      ...baseEntry,
+      payload: {
+        ...baseEntry.payload,
+        consumedSavedLocationId: savedId,
+        useSavedLocationCreatedAt: true,
+      },
+    });
+
+    await syncPendingEntries('token-abc', vi.fn());
+
+    expect(createEntry).toHaveBeenCalledTimes(1);
+    const sent = (createEntry as Mock).mock.calls[0][1] as {
+      clientCreatedAt?: string;
+      useSavedLocationCreatedAt?: boolean;
+      consumedSavedLocationId?: string;
+    };
+    expect(sent).not.toHaveProperty('clientCreatedAt');
+    expect(sent.useSavedLocationCreatedAt).toBe(true);
+    expect(sent.consumedSavedLocationId).toBe(savedId);
+  });
 });

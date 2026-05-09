@@ -127,18 +127,23 @@ export async function deleteSavedLocation(
   }
 }
 
-/** Validates bookmark belongs to trip before inserting the consuming entry. */
-export async function requireConsumableSavedLocation(tripId: string, savedLocationId: string): Promise<void> {
+/** Validates bookmark belongs to trip and returns its timestamps for entry creation. */
+export async function requireConsumableSavedLocation(
+  tripId: string,
+  savedLocationId: string,
+): Promise<{ createdAt: Date }> {
   const found = await SavedLocation.findOne({
     _id: new mongoose.Types.ObjectId(savedLocationId),
     tripId: new mongoose.Types.ObjectId(tripId),
   })
-    .select('_id')
+    .select('createdAt')
     .lean();
 
-  if (!found) {
+  if (!found || found.createdAt === undefined) {
     throw createHttpError('Saved location not found', 400, 'VALIDATION_ERROR');
   }
+
+  return { createdAt: found.createdAt as Date };
 }
 
 /** Removes bookmark after entry create (standalone Mongo-compatible; avoids multi-document transactions). */

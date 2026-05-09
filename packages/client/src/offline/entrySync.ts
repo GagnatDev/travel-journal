@@ -56,12 +56,20 @@ export async function syncPendingEntries(
         }),
       );
 
+      const useSavedLocationTimestamp =
+        entry.payload.useSavedLocationCreatedAt === true &&
+        entry.payload.consumedSavedLocationId !== undefined &&
+        entry.payload.consumedSavedLocationId !== null &&
+        String(entry.payload.consumedSavedLocationId).trim() !== '';
+
       await createEntry(
         entry.tripId,
         {
           ...entry.payload,
           images: [...(entry.payload.images ?? []), ...uploadedImages],
-          clientCreatedAt: new Date(entry.createdAt).toISOString(),
+          ...(!useSavedLocationTimestamp && {
+            clientCreatedAt: new Date(entry.createdAt).toISOString(),
+          }),
         },
         token,
       );

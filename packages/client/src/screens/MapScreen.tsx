@@ -293,12 +293,14 @@ export function MapScreen() {
         const lat = Number(composeBtn.dataset['lat']);
         const lng = Number(composeBtn.dataset['lng']);
         const nm = composeBtn.dataset['pinName'];
+        const savedCreatedAt = composeBtn.dataset['savedCreatedAt'];
 
         const payload: ComposeFromSavedLocationPayload = {
           savedLocationId,
           lat,
           lng,
           ...(nm?.trim() && { name: nm.trim() }),
+          ...(savedCreatedAt?.trim() && { createdAt: savedCreatedAt.trim() }),
         };
 
         nv(`/trips/${tid}/entries/new`, { state: { fromSavedLocation: payload } });
@@ -441,7 +443,7 @@ export function MapScreen() {
           <div style="font-weight:600;font-size:14px;margin-bottom:4px">${label}</div>
           <div style="font-size:11px;color:#666;margin-bottom:4px">${escapeHtml(t('map.savedBy'))} ${escapeHtml(pin.savedByDisplayName)}</div>
           <div style="font-size:12px;color:#666;margin-bottom:8px">${dateFormatted}</div>
-          <button type="button" data-compose-from-saved="${escapeHtml(pin.id)}" data-lat="${String(pin.lat)}" data-lng="${String(pin.lng)}" ${pin.name?.trim() ? `data-pin-name="${escapeHtml(pin.name.trim())}"` : ''}
+          <button type="button" data-compose-from-saved="${escapeHtml(pin.id)}" data-lat="${String(pin.lat)}" data-lng="${String(pin.lng)}" data-saved-created-at="${escapeHtml(pin.createdAt)}" ${pin.name?.trim() ? `data-pin-name="${escapeHtml(pin.name.trim())}"` : ''}
             style="display:block;margin-bottom:6px;font-size:12px;color:#2563eb;text-decoration:underline;background:none;border:none;padding:0;cursor:pointer;text-align:left"
           >${escapeHtml(t('map.createEntryFromSaved'))}</button>
           ${deleteBtn}

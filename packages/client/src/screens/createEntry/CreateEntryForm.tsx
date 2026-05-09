@@ -30,6 +30,9 @@ export interface CreateEntryFormProps {
   updateMutationError: boolean;
   /** Formatted registration date, or null while server/pending metadata is still loading. */
   entryDateLabel: string | null;
+  showSavedLocationTimestampOption?: boolean;
+  keepSavedLocationTimestamp?: boolean;
+  setKeepSavedLocationTimestamp?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export function CreateEntryForm({
@@ -52,6 +55,9 @@ export function CreateEntryForm({
   createMutationError,
   updateMutationError,
   entryDateLabel,
+  showSavedLocationTimestampOption = false,
+  keepSavedLocationTimestamp = false,
+  setKeepSavedLocationTimestamp,
 }: CreateEntryFormProps) {
   const { t } = useTranslation();
   const hasImages = images.length > 0 || localPreviews.length > 0;
@@ -184,14 +190,30 @@ export function CreateEntryForm({
         <IconBadge>
           <CalendarIcon width={16} height={16} className="text-body" />
         </IconBadge>
-        <div>
-          <p className="font-ui text-xs text-caption uppercase tracking-wide">{t('entries.entryDate')}</p>
-          <p
-            data-testid="entry-composer-entry-date"
-            className="font-ui text-sm text-body mt-0.5"
-          >
-            {entryDateLabel ?? '…'}
-          </p>
+        <div className="flex-1 min-w-0 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+          <div className="min-w-0">
+            <p className="font-ui text-xs text-caption uppercase tracking-wide">{t('entries.entryDate')}</p>
+            <p
+              data-testid="entry-composer-entry-date"
+              className="font-ui text-sm text-body mt-0.5"
+            >
+              {entryDateLabel ?? '…'}
+            </p>
+          </div>
+          {showSavedLocationTimestampOption && setKeepSavedLocationTimestamp !== undefined && (
+            <label className="flex items-center gap-2 cursor-pointer shrink-0 max-w-full">
+              <input
+                type="checkbox"
+                data-testid="entry-use-saved-location-timestamp"
+                checked={keepSavedLocationTimestamp}
+                onChange={(e) => setKeepSavedLocationTimestamp(e.target.checked)}
+                className="w-4 h-4 accent-accent shrink-0 mt-0.5"
+              />
+              <span className="font-ui text-xs text-body leading-snug">
+                {t('entries.useSavedLocationTimestamp')}
+              </span>
+            </label>
+          )}
         </div>
       </div>
 

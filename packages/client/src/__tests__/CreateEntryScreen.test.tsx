@@ -58,16 +58,21 @@ const mockEntry: Entry = {
   updatedAt: new Date().toISOString(),
 };
 
-function renderCreate(initialPath = `/trips/${TRIP_ID}/entries/new`) {
+function renderCreate(
+  initialPathOrEntry:
+    | string
+    | { pathname: string; state?: unknown } = `/trips/${TRIP_ID}/entries/new`,
+) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   server.use(
     http.post('/api/v1/auth/refresh', () =>
       HttpResponse.json({ accessToken: 'mock-token', user: mockUser }),
     ),
   );
+  const initialEntries = typeof initialPathOrEntry === 'string' ? [initialPathOrEntry] : [initialPathOrEntry];
   return render(
     <QueryClientProvider client={qc}>
-      <TestMemoryRouter initialEntries={[initialPath]}>
+      <TestMemoryRouter initialEntries={initialEntries}>
         <AuthProvider>
           <Routes>
             <Route path="/trips/:id/entries/new" element={<CreateEntryScreen />} />
@@ -277,6 +282,37 @@ describe('CreateEntryScreen', () => {
       expect(screen.getByLabelText(/tittel|title/i)).toBeInTheDocument();
     });
     expect(screen.getByTestId('entry-composer-entry-date')).toHaveTextContent(expected);
+  });
+
+  it('from saved map location offers checkbox to show bookmark time as entry date', async () => {
+    const historicalIso = '2023-04-01T12:00:00.000Z';
+    renderCreate({
+      pathname: `/trips/${TRIP_ID}/entries/new`,
+      state: {
+        fromSavedLocation: {
+          savedLocationId: '507f1f77bcf86cd799439011',
+          lat: 59,
+          lng: 10,
+          name: 'Spot',
+          createdAt: historicalIso,
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/tittel|title/i)).toBeInTheDocument();
+    });
+
+    const expectedToday = formatComposerEntryDate(Date.now(), 'nb');
+    expect(screen.getByTestId('entry-composer-entry-date')).toHaveTextContent(expectedToday);
+
+    const cb = screen.getByTestId('entry-use-saved-location-timestamp');
+    expect(cb).not.toBeChecked();
+
+    await userEvent.click(cb);
+    expect(screen.getByTestId('entry-composer-entry-date')).toHaveTextContent(
+      formatComposerEntryDate(historicalIso, 'nb'),
+    );
   });
 
   it('pending edit loads from IDB and save keeps localId and createdAt', async () => {
