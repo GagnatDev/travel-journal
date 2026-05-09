@@ -87,6 +87,7 @@ export function TimelineScreen() {
     mutationFn: (entryId: string) => deleteEntry(tripId!, entryId, accessToken!),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['entries', tripId] });
+      void queryClient.invalidateQueries({ queryKey: ['mapPins', tripId] });
     },
   });
 

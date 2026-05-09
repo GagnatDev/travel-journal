@@ -177,6 +177,30 @@ Stores both platform invites (admin-issued) and trip invites (trip-creator-issue
 
 ---
 
+### SavedLocation
+
+Quick bookmarks on the trip map (GPS + optional label) before a full journal entry exists.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `_id` | ObjectId | |
+| `tripId` | ObjectId | ref → Trip |
+| `userId` | ObjectId | ref → User who tapped “save here” |
+| `lat` | number | latitude |
+| `lng` | number | longitude |
+| `name` | string? | optional label |
+| `createdAt` | Date | |
+| `updatedAt` | Date | |
+
+**Indexes:**
+- `{ tripId: 1, createdAt: -1 }` — list pins for trip map merge
+
+Consuming bookmark: posting an entry may include `consumedSavedLocationId`; the API validates the bookmark belongs to the same trip, creates the entry, then deletes that `SavedLocation` document.
+
+The client may also queue bookmarks in **IndexedDB** while offline (`pendingSavedLocations`); those rows sync with `POST /trips/:id/saved-locations` when connectivity returns before they exist in MongoDB.
+
+---
+
 ### Reaction
 
 | Field | Type | Notes |
@@ -237,6 +261,7 @@ User ──< Session (refresh tokens)
 User ──< TripMember (embedded in Trip) >── Trip
 User ──< Entry
 Trip ──< Entry
+Trip ──< SavedLocation
 Entry ──< Image (embedded)
 Entry ──< Reaction
 Entry ──< Comment

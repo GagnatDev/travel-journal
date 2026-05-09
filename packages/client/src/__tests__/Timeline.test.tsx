@@ -52,7 +52,7 @@ function renderTimeline(user = mockUser, tripPartial?: Partial<Trip>) {
     ),
     http.get('/api/v1/trips/:id', () => HttpResponse.json(trip)),
   );
-  return render(
+  const renderResult = render(
     <QueryClientProvider client={qc}>
       <TestMemoryRouter initialEntries={[`/trips/${TRIP_ID}/timeline`]}>
         <AuthProvider>
@@ -65,6 +65,7 @@ function renderTimeline(user = mockUser, tripPartial?: Partial<Trip>) {
       </TestMemoryRouter>
     </QueryClientProvider>,
   );
+  return { qc, ...renderResult };
 }
 
 describe('TimelineScreen', () => {
@@ -383,7 +384,17 @@ describe('TimelineScreen', () => {
       }),
     );
 
-    renderTimeline();
+    const { qc } = renderTimeline();
+    qc.setQueryData(['mapPins', TRIP_ID], [
+      {
+        kind: 'entry',
+        entryId: 'entry-1',
+        title: 'Test Entry',
+        lat: 10,
+        lng: 20,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
 
     await waitFor(() => {
       expect(screen.getByText('Test Entry')).toBeInTheDocument();
@@ -397,6 +408,10 @@ describe('TimelineScreen', () => {
 
     await waitFor(() => {
       expect(screen.queryByText('Test Entry')).not.toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(qc.getQueryState(['mapPins', TRIP_ID])?.isInvalidated).toBe(true);
     });
   });
 });

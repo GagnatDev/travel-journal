@@ -6,16 +6,28 @@ import { saveOfflineEntry, getPendingCount, syncPendingEntries } from '../offlin
 // ------------------------------------------------------------------
 // Mock the IDB layer — jsdom does not implement IndexedDB natively
 // ------------------------------------------------------------------
-const store = new Map<string, object>();
+type StoreName = 'pendingEntries' | 'pendingSavedLocations';
+
+const bucket: Record<StoreName, Map<string, object>> = {
+  pendingEntries: new Map(),
+  pendingSavedLocations: new Map(),
+};
 
 const mockDb = {
-  put: vi.fn(async (_storeName: string, value: { localId: string }) => {
-    store.set(value.localId, value);
+  put: vi.fn(async (storeName: string, value: { localId: string }) => {
+    const name = storeName === 'pendingSavedLocations' ? 'pendingSavedLocations' : 'pendingEntries';
+    bucket[name].set(value.localId, value);
   }),
-  get: vi.fn(async (_storeName: string, key: string) => store.get(key)),
-  getAll: vi.fn(async (_storeName: string) => Array.from(store.values())),
-  delete: vi.fn(async (_storeName: string, key: string) => { store.delete(key); }),
-  count: vi.fn(async () => store.size),
+  get: vi.fn(async (storeName: string, key: string) => bucket[storeName as StoreName]?.get(key)),
+  getAll: vi.fn(async (storeName: string) => Array.from(bucket[storeName as StoreName]?.values() ?? [])),
+  delete: vi.fn(async (storeName: string, key: string) => {
+    bucket[storeName as StoreName]?.delete(key);
+  }),
+  count: vi.fn(async (storeName?: string) => {
+    const name =
+      storeName === 'pendingSavedLocations' ? 'pendingSavedLocations' : 'pendingEntries';
+    return bucket[name].size;
+  }),
 };
 
 vi.mock('../offline/db.js', () => ({
@@ -44,13 +56,24 @@ const baseEntry = {
 };
 
 beforeEach(() => {
-  store.clear();
+  bucket.pendingEntries.clear();
+  bucket.pendingSavedLocations.clear();
   vi.clearAllMocks();
-  // Reset mock implementations to defaults
-  mockDb.put.mockImplementation(async (_s: string, value: { localId: string }) => { store.set(value.localId, value); });
-  mockDb.getAll.mockImplementation(async () => Array.from(store.values()));
-  mockDb.delete.mockImplementation(async (_s: string, key: string) => { store.delete(key); });
-  mockDb.count.mockImplementation(async () => store.size);
+  mockDb.put.mockImplementation(async (storeName: string, value: { localId: string }) => {
+    const name = storeName === 'pendingSavedLocations' ? 'pendingSavedLocations' : 'pendingEntries';
+    bucket[name].set(value.localId, value);
+  });
+  mockDb.getAll.mockImplementation(async (storeName: string) =>
+    Array.from(bucket[storeName as StoreName]?.values() ?? []),
+  );
+  mockDb.delete.mockImplementation(async (storeName: string, key: string) => {
+    bucket[storeName as StoreName]?.delete(key);
+  });
+  mockDb.count.mockImplementation(async (storeName?: string) => {
+    const name =
+      storeName === 'pendingSavedLocations' ? 'pendingSavedLocations' : 'pendingEntries';
+    return bucket[name].size;
+  });
 });
 
 describe('saveOfflineEntry', () => {

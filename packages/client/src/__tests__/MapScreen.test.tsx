@@ -5,11 +5,11 @@ import { Route, Routes } from 'react-router-dom';
 import mapboxgl from 'mapbox-gl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
-import type { Trip } from '@travel-journal/shared';
+import type { MapPin, Trip } from '@travel-journal/shared';
 
+import i18n from '../i18n.js';
 import { AuthProvider } from '../context/AuthContext.js';
 import { MapScreen } from '../screens/MapScreen.js';
-import type { EntryLocationPin } from '../api/entries.js';
 import { server } from './mocks/server.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
@@ -82,8 +82,9 @@ const mockTrip: Trip = {
   updatedAt: new Date().toISOString(),
 };
 
-const mockPins: EntryLocationPin[] = [
+const mockPins: MapPin[] = [
   {
+    kind: 'entry',
     entryId: 'entry-1',
     title: 'Paris Stop',
     lat: 48.8566,
@@ -92,6 +93,7 @@ const mockPins: EntryLocationPin[] = [
     createdAt: new Date().toISOString(),
   },
   {
+    kind: 'entry',
     entryId: 'entry-2',
     title: 'Rome Stop',
     lat: 41.9028,
@@ -124,6 +126,7 @@ function renderMap(user = mockUser) {
 
 describe('MapScreen', () => {
   beforeEach(() => {
+    void i18n.changeLanguage('nb');
     // Provide a dummy VITE_MAPBOX_TOKEN so the map initialises
     vi.stubEnv('VITE_MAPBOX_TOKEN', 'pk.test-token');
     vi.mocked(mapboxgl.Map).mockClear();
@@ -135,9 +138,7 @@ describe('MapScreen', () => {
 
   it('renders the map view with bottom navigation', async () => {
     server.use(
-      http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, () =>
-        HttpResponse.json(mockPins),
-      ),
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json(mockPins)),
     );
 
     renderMap();
@@ -148,10 +149,12 @@ describe('MapScreen', () => {
     expect(screen.getByRole('button', { name: /kart|map/i })).toBeInTheDocument();
   });
 
-  it('shows loading state while fetching locations', async () => {
+  it('shows loading state while fetching map pins', async () => {
     server.use(
-      http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, async () => {
-        await new Promise(() => { /* never resolves */ });
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, async () => {
+        await new Promise(() => {
+          /* never resolves */
+        });
         return HttpResponse.json([]);
       }),
     );
@@ -164,39 +167,44 @@ describe('MapScreen', () => {
     });
   });
 
-  it('shows empty state when no entries have locations', async () => {
-    server.use(
-      http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, () =>
-        HttpResponse.json([]),
-      ),
-    );
+  it('shows empty state when there are no map pins', async () => {
+    server.use(http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json([])));
 
     renderMap();
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Ingen innlegg med plassering ennå/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Ingen kartmerker ennå/i)).toBeInTheDocument();
     });
   });
 
-  it('does not show empty overlay when entries have locations', async () => {
+  it('shows save-location control when user can contribute', async () => {
+    server.use(http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json([])));
+
+    renderMap();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Åpne kartmeny/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /Åpne kartmeny/i }));
+    expect(screen.getByRole('menuitem', { name: /Lagre nåværende sted/i })).toBeInTheDocument();
+  });
+
+  it('does not show empty overlay when entries have pins', async () => {
     server.use(
-      http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, () =>
-        HttpResponse.json(mockPins),
-      ),
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json(mockPins)),
     );
 
     renderMap();
 
     await waitFor(() => {
-      expect(screen.queryByText(/Ingen innlegg med plassering ennå/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Ingen kartmerker ennå/i)).not.toBeInTheDocument();
     });
   });
 
   it('shows error state when the query fails', async () => {
     server.use(
-      http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, () =>
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () =>
         HttpResponse.json({ error: { message: 'Server error' } }, { status: 500 }),
       ),
     );
@@ -214,9 +222,7 @@ describe('MapScreen', () => {
     // host/CI VITE_MAPBOX_TOKEN would make this test fail intermittently.
     vi.stubEnv('VITE_MAPBOX_TOKEN', '');
     server.use(
-      http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, () =>
-        HttpResponse.json(mockPins),
-      ),
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json(mockPins)),
     );
 
     renderMap();
@@ -228,10 +234,10 @@ describe('MapScreen', () => {
     expect(mapboxgl.Map).not.toHaveBeenCalled();
   });
 
-  it('refetches locations when retry is clicked after an error', async () => {
+  it('refetches pins when retry is clicked after an error', async () => {
     let requestCount = 0;
     server.use(
-      http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, () => {
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => {
         requestCount += 1;
         if (requestCount === 1) {
           return HttpResponse.json({ error: { message: 'Server error' } }, { status: 500 });

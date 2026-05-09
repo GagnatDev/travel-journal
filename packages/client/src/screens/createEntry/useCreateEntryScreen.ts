@@ -2,7 +2,12 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import type { CreateEntryRequest, EntryImage, UpdateEntryRequest } from '@travel-journal/shared';
+import type {
+  ComposeFromSavedLocationPayload,
+  CreateEntryRequest,
+  EntryImage,
+  UpdateEntryRequest,
+} from '@travel-journal/shared';
 
 import { createEntry, fetchEntry, updateEntry } from '../../api/entries.js';
 import { uploadMedia } from '../../api/media.js';
@@ -55,6 +60,7 @@ export function useCreateEntryScreen() {
   } | null>(null);
   /** Calendar anchor for new drafts — reset when opening the new-entry route. */
   const [newComposerDate, setNewComposerDate] = useState(() => new Date());
+  const [linkedSavedLocationId, setLinkedSavedLocationId] = useState<string | null>(null);
 
   const localPreviews = useMemo(
     () => localFiles.map((f) => URL.createObjectURL(f)),
@@ -69,16 +75,39 @@ export function useCreateEntryScreen() {
 
   useEffect(() => {
     if (!tripId || !location.pathname.endsWith('/entries/new')) return;
+    const routerState = location.state as { fromSavedLocation?: ComposeFromSavedLocationPayload } | null;
+    const fromSaved = routerState?.fromSavedLocation;
+
     setPendingOfflineMeta(null);
-    setForm(EMPTY_ENTRY_FORM);
-    setInitialForm(EMPTY_ENTRY_FORM);
+
+    let nextInitial: EntryFormState = EMPTY_ENTRY_FORM;
+    if (
+      fromSaved !== undefined &&
+      fromSaved.savedLocationId !== '' &&
+      !Number.isNaN(fromSaved.lat) &&
+      !Number.isNaN(fromSaved.lng)
+    ) {
+      setLinkedSavedLocationId(fromSaved.savedLocationId);
+      nextInitial = {
+        ...EMPTY_ENTRY_FORM,
+        locationEnabled: true,
+        locationLat: fromSaved.lat,
+        locationLng: fromSaved.lng,
+        locationName: fromSaved.name?.trim() ? fromSaved.name.trim() : '',
+      };
+    } else {
+      setLinkedSavedLocationId(null);
+    }
+
+    setForm(nextInitial);
+    setInitialForm(nextInitial);
     setImages([]);
     setInitialImages([]);
     setLocalFiles([]);
     setInitialLocalFiles([]);
     setSavedOffline(false);
     setNewComposerDate(new Date());
-  }, [tripId, location.pathname]);
+  }, [tripId, location.pathname, location.key]);
 
   const { data: existingEntry } = useQuery({
     queryKey: ['entry', tripId, entryId],
@@ -164,7 +193,7 @@ export function useCreateEntryScreen() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['entries', tripId] }),
-        queryClient.invalidateQueries({ queryKey: ['entryLocations', tripId] }),
+        queryClient.invalidateQueries({ queryKey: ['mapPins', tripId] }),
       ]);
       navigate(`/trips/${tripId}/timeline`);
     },
@@ -176,7 +205,7 @@ export function useCreateEntryScreen() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['entries', tripId] }),
-        queryClient.invalidateQueries({ queryKey: ['entryLocations', tripId] }),
+        queryClient.invalidateQueries({ queryKey: ['mapPins', tripId] }),
         queryClient.invalidateQueries({ queryKey: ['entry', tripId, entryId] }),
       ]);
       navigate(`/trips/${tripId}/timeline`);
@@ -254,7 +283,11 @@ export function useCreateEntryScreen() {
     setLocalFiles((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const { handleLocationToggle, handleDiscard, validateRequiredFields } = useEntryForm(
+  const {
+    handleLocationToggle: toggleLocationInner,
+    handleDiscard,
+    validateRequiredFields,
+  } = useEntryForm(
     form,
     setForm,
     initialForm,
@@ -268,6 +301,13 @@ export function useCreateEntryScreen() {
     navigate,
     tripId,
   );
+
+  const handleLocationToggle = useCallback(() => {
+    if (form.locationEnabled) {
+      setLinkedSavedLocationId(null);
+    }
+    toggleLocationInner();
+  }, [form.locationEnabled, toggleLocationInner]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -284,11 +324,18 @@ export function useCreateEntryScreen() {
             }
           : undefined;
 
+      const consumeBookmark =
+        linkedSavedLocationId !== null &&
+        form.locationEnabled &&
+        form.locationLat !== null &&
+        form.locationLng !== null;
+
       const buildCreatePayload = (imageList: EntryImage[]): CreateEntryRequest => ({
         title: form.title.trim(),
         content: form.content,
         images: imageList,
         ...(location !== undefined && { location }),
+        ...(consumeBookmark && { consumedSavedLocationId: linkedSavedLocationId! }),
       });
 
       if (isServerEdit) {
@@ -387,6 +434,7 @@ export function useCreateEntryScreen() {
       accessToken,
       queueOfflineAfterNetworkFailure,
       t,
+      linkedSavedLocationId,
     ],
   );
 

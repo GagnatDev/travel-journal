@@ -18,6 +18,7 @@ import { TimelineScreen } from './screens/TimelineScreen.js';
 import { TripDashboardScreen } from './screens/TripDashboardScreen.js';
 import { TripSettingsScreen } from './screens/TripSettingsScreen.js';
 import { syncPendingEntries } from './offline/entrySync.js';
+import { syncPendingSavedLocations } from './offline/savedLocationSync.js';
 import { syncPushSubscriptionIfPermitted } from './notifications/push.js';
 import { useNotificationClickListener } from './notifications/useNotificationClickListener.js';
 
@@ -37,6 +38,9 @@ export function App() {
     function runSync() {
       void syncPendingEntries(accessToken!, (tripId) => {
         void queryClient.invalidateQueries({ queryKey: ['entries', tripId] });
+      });
+      void syncPendingSavedLocations(accessToken!, (tripId) => {
+        void queryClient.invalidateQueries({ queryKey: ['mapPins', tripId] });
       });
     }
 

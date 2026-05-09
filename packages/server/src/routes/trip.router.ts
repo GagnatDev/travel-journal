@@ -26,6 +26,8 @@ import { streamMediaObject } from '../services/media.service.js';
 import { schedulePhotobookPdfJob } from '../services/trip-photobook-job.service.js';
 import { entryRouter } from './entry.router.js';
 import { memberRouter } from './member.router.js';
+import { savedLocationRouter } from './saved-location.router.js';
+import { listMapPins } from '../services/map-pins.service.js';
 
 export const tripRouter: Router = Router();
 
@@ -239,6 +241,24 @@ tripRouter.get(
     }
   },
 );
+
+// GET /:id/map-pins — Entry + saved-location pins for map (member only)
+tripRouter.get(
+  '/:id/map-pins',
+  membershipGuard,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tripId = req.params['id']!;
+      const pins = await listMapPins(tripId);
+      res.json(pins);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Mount saved-location sub-router (paths like /:id/saved-locations)
+tripRouter.use('/:id/saved-locations', savedLocationRouter);
 
 // GET /:id — Trip detail (member only)
 tripRouter.get('/:id', membershipGuard, (_req: Request, res: Response): void => {

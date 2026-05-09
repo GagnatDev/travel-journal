@@ -11,6 +11,10 @@ import { Entry as EntryModel, IEntry } from '../models/Entry.model.js';
 import { logger } from '../logger.js';
 import { User } from '../models/User.model.js';
 import { dispatchNewEntryNotification } from './notification.service.js';
+import {
+  finalizeConsumedSavedLocation,
+  requireConsumableSavedLocation,
+} from './saved-location.service.js';
 
 export interface EntryLocationPin {
   entryId: string;
@@ -102,8 +106,21 @@ export async function createEntry(
   authorId: string,
   data: CreateEntryRequest,
 ): Promise<Entry> {
-  const { clientCreatedAt: clientCreatedAtRaw, ...rest } = data;
+  const {
+    clientCreatedAt: clientCreatedAtRaw,
+    consumedSavedLocationId: consumedRaw,
+    ...rest
+  } = data;
   const normalizedImages = rest.images ? normalizeImageOrder(rest.images) : [];
+
+  const bookmarkId =
+    consumedRaw !== undefined && consumedRaw !== null && String(consumedRaw).trim() !== ''
+      ? String(consumedRaw).trim()
+      : undefined;
+
+  if (bookmarkId !== undefined && !mongoose.Types.ObjectId.isValid(bookmarkId)) {
+    throw createHttpError('Invalid consumedSavedLocationId', 400, 'VALIDATION_ERROR');
+  }
 
   const now = new Date();
   let createdAt: Date | undefined;
@@ -115,7 +132,7 @@ export async function createEntry(
     createdAt = parsed;
   }
 
-  const doc = await EntryModel.create({
+  const entryPayload = {
     tripId: new mongoose.Types.ObjectId(tripId),
     authorId: new mongoose.Types.ObjectId(authorId),
     title: rest.title.trim(),
@@ -127,13 +144,25 @@ export async function createEntry(
     location: rest.location,
     deletedAt: null,
     ...(createdAt !== undefined && { createdAt, updatedAt: now }),
-  });
+  };
 
-  const entry = await toEntry(doc);
-  void dispatchNewEntryNotification(entry).catch((err: unknown) => {
-    logger.warn({ err, entryId: entry.id }, 'Failed to dispatch new-entry notifications');
-  });
-  return entry;
+  async function saveAndNotify(doc: IEntry): Promise<Entry> {
+    const entry = await toEntry(doc);
+    void dispatchNewEntryNotification(entry).catch((err: unknown) => {
+      logger.warn({ err, entryId: entry.id }, 'Failed to dispatch new-entry notifications');
+    });
+    return entry;
+  }
+
+  if (bookmarkId !== undefined) {
+    await requireConsumableSavedLocation(tripId, bookmarkId);
+    const doc = await EntryModel.create(entryPayload);
+    await finalizeConsumedSavedLocation(tripId, bookmarkId);
+    return saveAndNotify(doc);
+  }
+
+  const doc = await EntryModel.create(entryPayload);
+  return saveAndNotify(doc);
 }
 
 export async function listEntries(
