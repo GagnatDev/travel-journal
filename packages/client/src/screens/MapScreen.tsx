@@ -23,7 +23,12 @@ import { useMapMarkers } from './map/hooks/useMapMarkers.js';
 import { usePinsForMap } from './map/hooks/usePinsForMap.js';
 import { useSettingsMenuDismiss } from './map/hooks/useSettingsMenuDismiss.js';
 
-export function MapScreen() {
+type MapScreenProps = {
+  /** When true, the map is kept mounted but not the active tab (timeline ↔ map cache). */
+  mapLayerPaused?: boolean;
+};
+
+export function MapScreen({ mapLayerPaused = false }: MapScreenProps = {}) {
   const { id: tripId } = useParams<{ id: string }>();
   const { accessToken, user } = useAuth();
   const { t } = useTranslation();
@@ -129,6 +134,16 @@ export function MapScreen() {
     t,
     canManageSaved,
   });
+
+  useEffect(() => {
+    if (mapLayerPaused || !mapReady) return;
+    const map = mapRef.current;
+    if (!map) return;
+    const id = requestAnimationFrame(() => {
+      if (typeof map.resize === 'function') map.resize();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [mapLayerPaused, mapReady, mapRef]);
 
   useSettingsMenuDismiss(settingsMenuOpen, settingsMenuRef, settingsButtonRef, setSettingsMenuOpen);
 

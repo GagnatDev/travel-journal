@@ -39,6 +39,7 @@ vi.mock('mapbox-gl', () => {
       if (event === 'load') cb();
     }),
     fitBounds: vi.fn(),
+    resize: vi.fn(),
     remove: vi.fn(),
   }));
 

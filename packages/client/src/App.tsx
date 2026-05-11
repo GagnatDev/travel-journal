@@ -1,7 +1,6 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
 
 import { useAuth } from './context/AuthContext.js';
 import { ThemeProvider } from './context/ThemeContext.js';
@@ -17,19 +16,15 @@ import { LoginScreen } from './screens/LoginScreen.js';
 import { TimelineScreen } from './screens/TimelineScreen.js';
 import { TripDashboardScreen } from './screens/TripDashboardScreen.js';
 import { TripSettingsScreen } from './screens/TripSettingsScreen.js';
+import { TripShell } from './components/TripShell.js';
 import { syncPendingEntries } from './offline/entrySync.js';
 import { syncPendingSavedLocations } from './offline/savedLocationSync.js';
 import { syncPushSubscriptionIfPermitted } from './notifications/push.js';
 import { useNotificationClickListener } from './notifications/useNotificationClickListener.js';
 
-const MapScreen = lazy(() =>
-  import('./screens/MapScreen.js').then((m) => ({ default: m.MapScreen })),
-);
-
 export function App() {
   const { accessToken, status } = useAuth();
   const queryClient = useQueryClient();
-  const { t } = useTranslation();
 
   // Trigger sync on first auth and on every network restore
   useEffect(() => {
@@ -66,28 +61,14 @@ export function App() {
         <Route path="/invite/accept" element={<InviteAcceptScreen />} />
         <Route element={<ProtectedLayout />}>
           <Route path="/trips" element={<TripDashboardScreen />} />
-          <Route path="/trips/:id/timeline" element={<TimelineScreen />} />
-          <Route path="/trips/:id/entries/new" element={<CreateEntryScreen />} />
-          <Route
-            path="/trips/:id/entries/pending/:localId/edit"
-            element={<CreateEntryScreen />}
-          />
-          <Route path="/trips/:id/entries/:entryId/edit" element={<CreateEntryScreen />} />
-          <Route
-            path="/trips/:id/map"
-            element={
-              <Suspense
-                fallback={
-                  <div className="flex items-center justify-center min-h-screen bg-bg-primary">
-                    <p className="font-ui text-body">{t('common.loading')}</p>
-                  </div>
-                }
-              >
-                <MapScreen />
-              </Suspense>
-            }
-          />
-          <Route path="/trips/:id/settings" element={<TripSettingsScreen />} />
+          <Route path="/trips/:id" element={<TripShell />}>
+            <Route path="timeline" element={<TimelineScreen />} />
+            <Route path="map" element={null} />
+            <Route path="entries/new" element={<CreateEntryScreen />} />
+            <Route path="entries/pending/:localId/edit" element={<CreateEntryScreen />} />
+            <Route path="entries/:entryId/edit" element={<CreateEntryScreen />} />
+            <Route path="settings" element={<TripSettingsScreen />} />
+          </Route>
           <Route path="/admin" element={<AdminPanelScreen />} />
           <Route path="/profile" element={<ProfileScreen />} />
         </Route>
