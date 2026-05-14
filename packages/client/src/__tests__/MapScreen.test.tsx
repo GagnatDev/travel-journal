@@ -41,6 +41,9 @@ vi.mock('mapbox-gl', () => {
     fitBounds: vi.fn(),
     resize: vi.fn(),
     remove: vi.fn(),
+    stop: vi.fn(),
+    easeTo: vi.fn(),
+    flyTo: vi.fn(),
   }));
 
   return {
@@ -189,6 +192,69 @@ describe('MapScreen', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /Åpne kartmeny/i }));
     expect(screen.getByRole('menuitem', { name: /Lagre nåværende sted/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Gå til min posisjon/i })).toBeInTheDocument();
+  });
+
+  it('eases the map to current location when go to my location is chosen', async () => {
+    const getCurrentPosition = vi.fn((success: PositionCallback) => {
+      queueMicrotask(() =>
+        success({
+          coords: {
+            latitude: 60.12,
+            longitude: 10.25,
+            accuracy: 10,
+            altitude: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: null,
+          },
+          timestamp: Date.now(),
+        } as GeolocationPosition),
+      );
+    });
+    const origGeo = globalThis.navigator.geolocation;
+    Object.defineProperty(globalThis.navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition,
+        watchPosition: vi.fn(() => 1),
+        clearWatch: vi.fn(),
+      },
+    });
+
+    server.use(http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json(mockPins)));
+
+    renderMap();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Åpne kartmeny/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /Åpne kartmeny/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /Gå til min posisjon/i }));
+
+    await waitFor(() => {
+      expect(getCurrentPosition).toHaveBeenCalled();
+    });
+
+    const mapInstance = vi.mocked(mapboxgl.Map).mock.results[0]?.value as {
+      easeTo: ReturnType<typeof vi.fn>;
+      stop: ReturnType<typeof vi.fn>;
+    };
+    await waitFor(() => {
+      expect(mapInstance.easeTo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          center: [10.25, 60.12],
+          duration: 900,
+        }),
+      );
+    });
+    expect(mapInstance.stop).toHaveBeenCalled();
+
+    Object.defineProperty(globalThis.navigator, 'geolocation', {
+      configurable: true,
+      value: origGeo,
+    });
   });
 
   it('does not show empty overlay when entries have pins', async () => {

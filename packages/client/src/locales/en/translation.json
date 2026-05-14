@@ -273,6 +273,8 @@
     "noPins": "No pins yet. Save your current spot from here, or add a location to a journal entry.",
     "openMenu": "Open map menu",
     "saveCurrentLocation": "Save current location",
+    "goToMyLocation": "Go to my location",
+    "centerOnLocationDenied": "We couldn't read your location. Allow location access and try again.",
     "saveLocationTitle": "Save this spot",
     "saveLocationHint": "We use your device location once. You can add an optional label to remind you later.",
     "saveLocationOfflineNote": "You're offline — the spot is stored on this device and syncs when you're back online.",

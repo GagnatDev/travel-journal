@@ -11,6 +11,7 @@ type MapSettingsMenuProps = {
   buttonRef: RefObject<HTMLButtonElement>;
   offlineQueuedFlash: boolean;
   onSaveCurrentLocation: () => void;
+  onGoToMyLocation: () => void;
 };
 
 export function MapSettingsMenu({
@@ -21,6 +22,7 @@ export function MapSettingsMenu({
   buttonRef,
   offlineQueuedFlash,
   onSaveCurrentLocation,
+  onGoToMyLocation,
 }: MapSettingsMenuProps) {
   const { t } = useTranslation();
 
@@ -61,6 +63,14 @@ export function MapSettingsMenu({
               onClick={onSaveCurrentLocation}
             >
               {t('map.saveCurrentLocation')}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="font-ui flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-body hover:bg-bg-secondary"
+              onClick={onGoToMyLocation}
+            >
+              {t('map.goToMyLocation')}
             </button>
           </div>
         )}

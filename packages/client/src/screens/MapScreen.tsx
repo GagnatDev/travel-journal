@@ -159,6 +159,30 @@ export function MapScreen({ mapLayerPaused = false }: MapScreenProps = {}) {
 
   useSettingsMenuDismiss(settingsMenuOpen, settingsMenuRef, settingsButtonRef, setSettingsMenuOpen);
 
+  const centerOnMyLocation = useCallback((): void => {
+    setSettingsMenuOpen(false);
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    const geo = navigator.geolocation;
+    if (typeof geo?.getCurrentPosition !== 'function') return;
+
+    geo.getCurrentPosition(
+      (pos) => {
+        const mapInstance = mapRef.current;
+        if (!mapInstance) return;
+        mapInstance.stop();
+        mapInstance.easeTo({
+          center: [pos.coords.longitude, pos.coords.latitude],
+          duration: 900,
+        });
+      },
+      () => {
+        window.alert(t('map.centerOnLocationDenied'));
+      },
+      { maximumAge: 60_000, timeout: 20_000, enableHighAccuracy: true },
+    );
+  }, [mapRef, mapReady, t]);
+
   function openSaveModal(): void {
     setSaveModalName('');
     setSaveModalErrorKey(null);
@@ -245,6 +269,7 @@ export function MapScreen({ mapLayerPaused = false }: MapScreenProps = {}) {
             setSettingsMenuOpen(false);
             openSaveModal();
           }}
+          onGoToMyLocation={centerOnMyLocation}
         />
 
         <MapScreenOverlays
