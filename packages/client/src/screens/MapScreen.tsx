@@ -20,6 +20,7 @@ import {
   useMapboxMap,
 } from './map/hooks/useMapboxMap.js';
 import { useMapMarkers } from './map/hooks/useMapMarkers.js';
+import { useUserLocationMarker } from './map/hooks/useUserLocationMarker.js';
 import { usePinsForMap } from './map/hooks/usePinsForMap.js';
 import { useSettingsMenuDismiss } from './map/hooks/useSettingsMenuDismiss.js';
 
@@ -135,6 +136,17 @@ export function MapScreen({ mapLayerPaused = false }: MapScreenProps = {}) {
     canManageSaved,
   });
 
+  useUserLocationMarker({
+    mapRef,
+    mapReady,
+    hasMapboxToken,
+    isLoading,
+    isError,
+    tripStatus: trip?.status,
+    mapLayerPaused,
+    pinCount: pinsForMap.length,
+  });
+
   useEffect(() => {
     if (mapLayerPaused || !mapReady) return;
     const map = mapRef.current;
@@ -146,6 +158,30 @@ export function MapScreen({ mapLayerPaused = false }: MapScreenProps = {}) {
   }, [mapLayerPaused, mapReady, mapRef]);
 
   useSettingsMenuDismiss(settingsMenuOpen, settingsMenuRef, settingsButtonRef, setSettingsMenuOpen);
+
+  const centerOnMyLocation = useCallback((): void => {
+    setSettingsMenuOpen(false);
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    const geo = navigator.geolocation;
+    if (typeof geo?.getCurrentPosition !== 'function') return;
+
+    geo.getCurrentPosition(
+      (pos) => {
+        const mapInstance = mapRef.current;
+        if (!mapInstance) return;
+        mapInstance.stop();
+        mapInstance.easeTo({
+          center: [pos.coords.longitude, pos.coords.latitude],
+          duration: 900,
+        });
+      },
+      () => {
+        window.alert(t('map.centerOnLocationDenied'));
+      },
+      { maximumAge: 60_000, timeout: 20_000, enableHighAccuracy: true },
+    );
+  }, [mapRef, mapReady, t]);
 
   function openSaveModal(): void {
     setSaveModalName('');
@@ -233,6 +269,7 @@ export function MapScreen({ mapLayerPaused = false }: MapScreenProps = {}) {
             setSettingsMenuOpen(false);
             openSaveModal();
           }}
+          onGoToMyLocation={centerOnMyLocation}
         />
 
         <MapScreenOverlays

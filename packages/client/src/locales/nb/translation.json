@@ -273,6 +273,8 @@
     "noPins": "Ingen kartmerker ennå. Lagre stedet her, eller legg plassering til et innlegg.",
     "openMenu": "Åpne kartmeny",
     "saveCurrentLocation": "Lagre nåværende sted",
+    "goToMyLocation": "Gå til min posisjon",
+    "centerOnLocationDenied": "Kunne ikke lese posisjonen din. Tillat tilgang til posisjon og prøv igjen.",
     "saveLocationTitle": "Lagre dette stedet",
     "saveLocationHint": "Vi henter posisjonen din én gang. Du kan legge til et valgfritt navn som hjelp til å huske hvorfor.",
     "saveLocationOfflineNote": "Du er frakoblet — stedet lagres på enheten og synkes når du er på nett igjen.",
