@@ -9,11 +9,18 @@ module.exports = {
   ],
   rules: {
     'no-console': 'warn',
-    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      },
+    ],
     'import/order': [
       'warn',
       {
-        groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
+        groups: ['builtin', 'external', 'internal', ['parent', 'sibling'], 'index'],
         'newlines-between': 'always',
       },
     ],

@@ -13,6 +13,7 @@ export const tripHandlers = [
         name: body.name,
         status: 'planned',
         createdBy: 'user-1',
+        allowContributorInvites: false,
         members: [
           {
             userId: 'user-1',
@@ -32,13 +33,58 @@ export const tripHandlers = [
     return HttpResponse.json({ ...mockTrip, id: params['id'] });
   }),
 
+  http.post('/api/v1/trips/:id/photobook/generate', async ({ params, request }) => {
+    const body = (await request.json().catch(() => ({}))) as { locale?: string; timeZone?: string };
+    return HttpResponse.json(
+      {
+        ...mockTrip,
+        id: params['id'],
+        status: 'active',
+        photobookPdfJob: {
+          status: 'pending',
+          localeKey: body.locale,
+          timeZone: body.timeZone,
+        },
+      },
+      { status: 202 },
+    );
+  }),
+
+  /** Minimal PDF bytes for photobook download tests */
+  http.get('/api/v1/trips/:id/photobook.pdf', () => {
+    const pdf = new Uint8Array([
+      0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34, 0x0a, 0x25, 0xe2, 0xe3, 0xcf, 0xd3, 0x0a, 0x31,
+      0x20, 0x30, 0x20, 0x6f, 0x62, 0x6a, 0x0a, 0x3c, 0x3c, 0x3e, 0x3e, 0x0a, 0x65, 0x6e, 0x64, 0x6f,
+      0x62, 0x6a, 0x0a, 0x74, 0x72, 0x61, 0x69, 0x6c, 0x65, 0x72, 0x0a, 0x3c, 0x3c, 0x3e, 0x3e, 0x0a,
+      0x25, 0x25, 0x45, 0x4f, 0x46,
+    ]);
+    return new HttpResponse(pdf, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'attachment; filename="mock-photobook.pdf"',
+      },
+    });
+  }),
+
   http.patch('/api/v1/trips/:id', async ({ params, request }) => {
-    const body = (await request.json()) as Record<string, string>;
-    return HttpResponse.json({
+    const body = (await request.json()) as Record<string, unknown>;
+    const next: Record<string, unknown> = {
       ...mockTrip,
       id: params['id'],
-      name: body['name'] ?? 'Mock Trip',
-    });
+      name: typeof body['name'] === 'string' ? body['name'] : 'Mock Trip',
+      ...(typeof body['description'] === 'string' ? { description: body['description'] } : {}),
+      ...(typeof body['allowContributorInvites'] === 'boolean'
+        ? { allowContributorInvites: body['allowContributorInvites'] }
+        : {}),
+    };
+    if ('photobookCoverImageKey' in body) {
+      if (body['photobookCoverImageKey'] === null || body['photobookCoverImageKey'] === '') {
+        delete next['photobookCoverImageKey'];
+      } else if (typeof body['photobookCoverImageKey'] === 'string') {
+        next['photobookCoverImageKey'] = body['photobookCoverImageKey'];
+      }
+    }
+    return HttpResponse.json(next);
   }),
 
   http.patch('/api/v1/trips/:id/status', async ({ params, request }) => {
@@ -49,6 +95,8 @@ export const tripHandlers = [
   http.delete('/api/v1/trips/:id', () => new HttpResponse(null, { status: 204 })),
 
   http.get('/api/v1/trips/:id/members/invites', () => HttpResponse.json([])),
+
+  http.get('/api/v1/trips/:id/members/invites/suggestions', () => HttpResponse.json([])),
 
   http.post('/api/v1/trips/:id/members', async ({ request }) => {
     const body = (await request.json()) as { emailOrNickname: string };

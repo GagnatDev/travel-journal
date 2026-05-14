@@ -1,27 +1,33 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import type {
-  CreateTripRequest,
-  UpdateTripRequest,
-  TripStatus,
-  AccessTokenPayload,
-  Trip,
-  UpdateTripMemberNotificationPreferencesRequest,
+import {
+  resolvePhotobookPdfLocaleKey,
+  type AccessTokenPayload,
+  type CreateTripRequest,
+  type Trip,
+  type TripStatus,
+  type UpdateTripMemberNotificationPreferencesRequest,
+  type UpdateTripRequest,
 } from '@travel-journal/shared';
 import mongoose from 'mongoose';
 
 import { requireAppRole, requireAuth } from '../middleware/auth.middleware.js';
 import { Trip as TripModel } from '../models/Trip.model.js';
 import {
+  assertTripCreator,
   createTrip,
   deleteTrip,
   getTripById,
   listTripsForUser,
+  redactPhotobookPdfJobForNonCreator,
   updateTrip,
   updateTripStatus,
 } from '../services/trip.service.js';
-
+import { streamMediaObject } from '../services/media.service.js';
+import { schedulePhotobookPdfJob } from '../services/trip-photobook-job.service.js';
 import { entryRouter } from './entry.router.js';
 import { memberRouter } from './member.router.js';
+import { savedLocationRouter } from './saved-location.router.js';
+import { listMapPins } from '../services/map-pins.service.js';
 
 export const tripRouter: Router = Router();
 
@@ -47,7 +53,7 @@ async function membershipGuard(req: Request, res: Response, next: NextFunction):
       return;
     }
 
-    res.locals['trip'] = trip;
+    res.locals['trip'] = redactPhotobookPdfJobForNonCreator(trip, auth.userId);
     res.locals['tripRole'] = member.tripRole;
     next();
   } catch (err) {
@@ -110,6 +116,149 @@ tripRouter.patch(
     }
   },
 );
+
+// POST /:id/photobook/generate — enqueue async PDF (trip creator only)
+tripRouter.post(
+  '/:id/photobook/generate',
+  membershipGuard,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const auth = res.locals['auth'] as AccessTokenPayload;
+      const trip = res.locals['trip'] as Trip;
+      const tripId = req.params['id']!;
+
+      try {
+        assertTripCreator(trip, auth.userId);
+      } catch (err) {
+        const status = (err as { status?: number }).status ?? 403;
+        res.status(status).json({ error: { message: 'Forbidden', code: 'FORBIDDEN' } });
+        return;
+      }
+
+      if (trip.status !== 'completed' && trip.status !== 'active') {
+        res.status(400).json({
+          error: {
+            message: 'Photobook PDF is only available for active or completed trips',
+            code: 'VALIDATION_ERROR',
+          },
+        });
+        return;
+      }
+
+      const body = req.body as { locale?: string; timeZone?: string };
+      const localeKey = resolvePhotobookPdfLocaleKey(
+        typeof body.locale === 'string' && body.locale.trim()
+          ? body.locale.trim()
+          : process.env['TRIP_PDF_LOCALE'] ?? 'nb',
+      );
+      const timeZone =
+        typeof body.timeZone === 'string' && body.timeZone.trim() ? body.timeZone.trim() : undefined;
+
+      const filter: mongoose.FilterQuery<typeof TripModel> = {
+        _id: new mongoose.Types.ObjectId(tripId),
+        $or: [{ 'photobookPdfJob.status': { $ne: 'pending' } }, { photobookPdfJob: { $exists: false } }],
+      };
+
+      const updated = await TripModel.findOneAndUpdate(
+        filter,
+        {
+          $set: {
+            photobookPdfJob: {
+              status: 'pending',
+              localeKey,
+              ...(timeZone !== undefined ? { timeZone } : {}),
+            },
+          },
+        },
+        { new: true },
+      );
+
+      if (!updated) {
+        res.status(409).json({
+          error: { message: 'Photobook PDF generation is already in progress', code: 'CONFLICT' },
+        });
+        return;
+      }
+
+      schedulePhotobookPdfJob(tripId);
+
+      const nextTrip = await getTripById(tripId);
+      if (!nextTrip) {
+        res.status(404).json({ error: { message: 'Trip not found', code: 'NOT_FOUND' } });
+        return;
+      }
+      res.status(202).json(nextTrip);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// GET /:id/photobook.pdf — Download generated PDF from storage (trip creator only)
+tripRouter.get(
+  '/:id/photobook.pdf',
+  membershipGuard,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const auth = res.locals['auth'] as AccessTokenPayload;
+      const trip = res.locals['trip'] as Trip;
+
+      try {
+        assertTripCreator(trip, auth.userId);
+      } catch (err) {
+        const status = (err as { status?: number }).status ?? 403;
+        res.status(status).json({ error: { message: 'Forbidden', code: 'FORBIDDEN' } });
+        return;
+      }
+
+      if (trip.status !== 'completed' && trip.status !== 'active') {
+        res.status(400).json({
+          error: {
+            message: 'Photobook PDF is only available for active or completed trips',
+            code: 'VALIDATION_ERROR',
+          },
+        });
+        return;
+      }
+
+      const job = trip.photobookPdfJob;
+      if (!job || job.status !== 'ready' || !job.pdfStorageKey) {
+        res.status(409).json({
+          error: {
+            message: 'Photobook PDF is not ready yet. Generate it from trip settings first.',
+            code: 'CONFLICT',
+          },
+        });
+        return;
+      }
+
+      const safeName = trip.name.replace(/[^\w\s-]/g, '').trim().slice(0, 80) || 'trip';
+      await streamMediaObject(job.pdfStorageKey, res, req.headers['if-none-match'], {
+        attachmentFilename: `${safeName}-photobook.pdf`,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// GET /:id/map-pins — Entry + saved-location pins for map (member only)
+tripRouter.get(
+  '/:id/map-pins',
+  membershipGuard,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tripId = req.params['id']!;
+      const pins = await listMapPins(tripId);
+      res.json(pins);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Mount saved-location sub-router (paths like /:id/saved-locations)
+tripRouter.use('/:id/saved-locations', savedLocationRouter);
 
 // GET /:id — Trip detail (member only)
 tripRouter.get('/:id', membershipGuard, (_req: Request, res: Response): void => {

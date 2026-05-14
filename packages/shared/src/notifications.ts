@@ -1,6 +1,7 @@
 export type NotificationType =
   | 'trip.new_entry'
   | 'trip.new_entry_digest'
+  | 'trip.photobook_pdf_ready'
   | 'system.release_announcement'
   | 'user.private_message';
 
@@ -47,6 +48,13 @@ export interface TripNewEntryDigestNotificationData {
   windowEnd: string;
 }
 
+/** Photobook PDF finished generating; deep-link opens trip settings to download. */
+export interface TripPhotobookPdfReadyNotificationData {
+  type: 'trip.photobook_pdf_ready';
+  tripId: string;
+  tripName: string;
+}
+
 export interface ReleaseAnnouncementNotificationData {
   type: 'system.release_announcement';
   version: string;
@@ -64,6 +72,7 @@ export interface PrivateMessageNotificationData {
 export type NotificationData =
   | TripNewEntryNotificationData
   | TripNewEntryDigestNotificationData
+  | TripPhotobookPdfReadyNotificationData
   | ReleaseAnnouncementNotificationData
   | PrivateMessageNotificationData;
 
@@ -93,6 +102,8 @@ export function notificationLinkFor(data: NotificationData): string {
       return `/trips/${data.tripId}/timeline?entryId=${data.entryId}`;
     case 'trip.new_entry_digest':
       return `/trips/${data.tripId}/timeline`;
+    case 'trip.photobook_pdf_ready':
+      return `/trips/${data.tripId}/settings`;
     case 'system.release_announcement':
       return '/trips';
     case 'user.private_message':

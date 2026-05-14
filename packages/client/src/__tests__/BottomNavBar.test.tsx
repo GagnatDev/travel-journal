@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { BottomNavBar } from '../components/BottomNavBar.js';
-
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 
 const mockNavigate = vi.fn();

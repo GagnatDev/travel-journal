@@ -11,6 +11,7 @@ import { StoryModeToggle } from '../components/timeline/StoryModeToggle.js';
 import { TimelineEntrySkeletonList } from '../components/timeline/TimelineEntrySkeletonList.js';
 import { StoryModeTimelineList } from '../components/timeline/StoryModeTimelineList.js';
 import { TimelineEntryCardList } from '../components/timeline/TimelineEntryCardList.js';
+import { TripTimelineIntro } from '../components/timeline/TripTimelineIntro.js';
 import { TripNotificationModeControl } from '../components/timeline/TripNotificationModeControl.js';
 import { BottomNavBar } from '../components/BottomNavBar.js';
 import { useAuth } from '../context/AuthContext.js';
@@ -86,6 +87,7 @@ export function TimelineScreen() {
     mutationFn: (entryId: string) => deleteEntry(tripId!, entryId, accessToken!),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['entries', tripId] });
+      void queryClient.invalidateQueries({ queryKey: ['mapPins', tripId] });
     },
   });
 
@@ -138,13 +140,25 @@ export function TimelineScreen() {
     () => ({
       tripId: tripId!,
       currentUserId: user?.id ?? '',
+      canManageEntries: tripRole === 'creator' || tripRole === 'contributor',
+      isTripCreator: tripRole === 'creator',
       onDelete: requestDeleteEntry,
+      ...(trip?.photobookCoverImageKey != null && trip.photobookCoverImageKey !== ''
+        ? { photobookCoverImageKey: trip.photobookCoverImageKey }
+        : {}),
     }),
-    [tripId, user?.id, requestDeleteEntry],
+    [tripId, user?.id, tripRole, trip?.photobookCoverImageKey, requestDeleteEntry],
   );
 
   const entriesErrorMessage =
     entriesError instanceof Error ? entriesError.message : t('common.error');
+
+  const tripIntroText = !isTripPending ? trip?.description?.trim() ?? '' : '';
+  const showTripIntro =
+    tripIntroText.length > 0 &&
+    !isTripPending &&
+    !isEntriesLoading &&
+    !(isEntriesError && allEntries.length === 0);
 
   return (
     <div className="min-h-screen bg-bg-primary pb-28 pt-14">
@@ -200,6 +214,10 @@ export function TimelineScreen() {
         ) : (
           <TimelineEntryCardList entries={allEntries} {...listProps} />
         )}
+
+        {showTripIntro ? (
+          <TripTimelineIntro title={t('entries.tripIntroTitle')} text={tripIntroText} />
+        ) : null}
 
         <div ref={sentinelRef} className="h-1" aria-hidden="true" data-testid="scroll-sentinel" />
 

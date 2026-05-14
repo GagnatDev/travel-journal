@@ -6,7 +6,6 @@ import { http, HttpResponse } from 'msw';
 import type { Comment } from '@travel-journal/shared';
 
 import { CommentSection } from '../components/CommentSection.js';
-
 import { AuthSessionProvider } from './AuthSessionProvider.js';
 import { mockUser } from './mocks/handlers.js';
 import { server } from './mocks/server.js';

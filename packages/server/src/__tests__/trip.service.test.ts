@@ -3,11 +3,13 @@ import mongoose from 'mongoose';
 
 import { User } from '../models/User.model.js';
 import { Trip } from '../models/Trip.model.js';
+import { Entry } from '../models/Entry.model.js';
 import { hashPassword } from '../services/auth.service.js';
 import {
   createTrip,
   getTripById,
   listTripsForUser,
+  updateTrip,
   updateTripStatus,
   assertTripCreator,
   isValidStatusTransition,
@@ -78,6 +80,83 @@ describe('createTrip', () => {
     expect(trip.members[0]!.userId).toBe(userId);
     expect(trip.members[0]!.tripRole).toBe('creator');
     expect(trip.status).toBe('planned');
+  });
+
+  it('stores trimmed description and omits when blank', async () => {
+    const user = await makeUser('creator@test.com');
+    const userId = String(user._id);
+
+    const withDesc = await createTrip({ name: 'T', description: '  Alps  ' }, userId);
+    expect(withDesc.description).toBe('Alps');
+
+    const noDesc = await createTrip({ name: 'T2', description: '   ' }, userId);
+    expect(noDesc.description).toBeUndefined();
+  });
+});
+
+describe('updateTrip', () => {
+  it('updates and clears description', async () => {
+    const user = await makeUser('creator@test.com');
+    const userId = String(user._id);
+    const trip = await createTrip({ name: 'T', description: 'Original' }, userId);
+
+    const updated = await updateTrip(trip.id, { description: '  Next  ' }, userId);
+    expect(updated.description).toBe('Next');
+
+    const cleared = await updateTrip(trip.id, { description: '  ' }, userId);
+    expect(cleared.description).toBeUndefined();
+
+    const raw = await Trip.findById(trip.id).lean();
+    expect(raw?.description).toBeUndefined();
+  });
+
+  it('updates allowContributorInvites', async () => {
+    const user = await makeUser('creator@test.com');
+    const userId = String(user._id);
+    const trip = await createTrip({ name: 'T' }, userId);
+
+    const off = await updateTrip(trip.id, { allowContributorInvites: false }, userId);
+    expect(off.allowContributorInvites).toBe(false);
+
+    const on = await updateTrip(trip.id, { allowContributorInvites: true }, userId);
+    expect(on.allowContributorInvites).toBe(true);
+
+    const raw = await Trip.findById(trip.id).lean();
+    expect(raw?.allowContributorInvites).toBe(true);
+  });
+
+  it('sets and clears photobookCoverImageKey when image exists on trip entry', async () => {
+    const user = await makeUser('creator@test.com');
+    const userId = String(user._id);
+    const trip = await createTrip({ name: 'T' }, userId);
+    const imageKey = `media/${trip.id}/cover.jpg`;
+
+    await Entry.create({
+      tripId: new mongoose.Types.ObjectId(trip.id),
+      authorId: user._id,
+      title: 'Post',
+      content: 'Hi',
+      images: [
+        {
+          key: imageKey,
+          width: 10,
+          height: 10,
+          order: 0,
+          uploadedAt: new Date(),
+        },
+      ],
+      deletedAt: null,
+    });
+
+    const set = await updateTrip(trip.id, { photobookCoverImageKey: imageKey }, userId);
+    expect(set.photobookCoverImageKey).toBe(imageKey);
+
+    const cleared = await updateTrip(trip.id, { photobookCoverImageKey: null }, userId);
+    expect(cleared.photobookCoverImageKey).toBeUndefined();
+
+    await expect(
+      updateTrip(trip.id, { photobookCoverImageKey: `media/${trip.id}/missing.jpg` }, userId),
+    ).rejects.toMatchObject({ status: 400, code: 'VALIDATION_ERROR' });
   });
 });
 

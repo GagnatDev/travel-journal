@@ -9,7 +9,6 @@ import { fetchPushServerAvailability } from '../api/notifications.js';
 import { AuthProvider } from '../context/AuthContext.js';
 import { ThemeProvider } from '../context/ThemeContext.js';
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
-
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { server } from './mocks/server.js';
 import { mockUser } from './mocks/handlers.js';

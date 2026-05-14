@@ -8,9 +8,10 @@ import type { Entry } from '@travel-journal/shared';
 
 import { AuthProvider } from '../context/AuthContext.js';
 import { CreateEntryScreen } from '../screens/CreateEntryScreen.js';
+import { formatComposerEntryDate } from '../screens/createEntry/formatComposerEntryDate.js';
 import { getPendingEntry } from '../offline/db.js';
 import { saveOfflineEntry } from '../offline/entrySync.js';
-
+import { compressImage } from '../utils/compressImage.js';
 import { server } from './mocks/server.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
@@ -30,6 +31,16 @@ vi.mock('../offline/entrySync.js', async (importOriginal) => {
     saveOfflineEntry: vi.fn(() => Promise.resolve()),
   };
 });
+
+vi.mock('../utils/compressImage.js', () => ({
+  compressImage: vi.fn(() =>
+    Promise.resolve({
+      blob: new Blob(['x'], { type: 'image/jpeg' }),
+      width: 10,
+      height: 10,
+    }),
+  ),
+}));
 
 const TRIP_ID = 'trip-1';
 const FIXED_CREATED_AT = 1_700_000_000_000;
@@ -73,6 +84,13 @@ function renderCreate(initialPath = `/trips/${TRIP_ID}/entries/new`) {
 describe('CreateEntryScreen', () => {
   beforeEach(() => {
     vi.mocked(getPendingEntry).mockReset();
+    vi.mocked(compressImage).mockImplementation(() =>
+      Promise.resolve({
+        blob: new Blob(['x'], { type: 'image/jpeg' }),
+        width: 10,
+        height: 10,
+      }),
+    );
     // Mock geolocation
     const mockGetCurrentPosition = vi.fn((success: PositionCallback) => {
       success({
@@ -235,6 +253,32 @@ describe('CreateEntryScreen', () => {
     });
   });
 
+  it('server edit shows persisted createdAt in the metadata row', async () => {
+    const historicalCreated = '2020-06-15T14:30:00.000Z';
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries/:entryId`, () =>
+        HttpResponse.json({ ...mockEntry, createdAt: historicalCreated }),
+      ),
+    );
+
+    renderCreate(`/trips/${TRIP_ID}/entries/entry-1/edit`);
+
+    const expected = formatComposerEntryDate(historicalCreated, 'nb');
+    await waitFor(() => {
+      expect(screen.getByTestId('entry-composer-entry-date')).toHaveTextContent(expected);
+    });
+  });
+
+  it('new entry metadata shows the composer-open day formatted for the locale', async () => {
+    const expected = formatComposerEntryDate(Date.now(), 'nb');
+    renderCreate();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/tittel|title/i)).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('entry-composer-entry-date')).toHaveTextContent(expected);
+  });
+
   it('pending edit loads from IDB and save keeps localId and createdAt', async () => {
     vi.mocked(getPendingEntry).mockResolvedValue({
       localId: 'local-pending-1',
@@ -256,6 +300,10 @@ describe('CreateEntryScreen', () => {
       expect(screen.getByDisplayValue('Offline title')).toBeInTheDocument();
     });
 
+    expect(screen.getByTestId('entry-composer-entry-date')).toHaveTextContent(
+      formatComposerEntryDate(FIXED_CREATED_AT, 'nb'),
+    );
+
     await userEvent.clear(screen.getByLabelText(/tittel|title/i));
     await userEvent.type(screen.getByLabelText(/tittel|title/i), 'Fixed title');
     await userEvent.click(screen.getByRole('button', { name: /lagre|save/i }));
@@ -272,6 +320,45 @@ describe('CreateEntryScreen', () => {
           }),
         }),
       );
+    });
+  });
+
+  it('shows upload progress banner when adding photos from the empty state', async () => {
+    let resolveUpload: (() => void) | undefined;
+    const uploadGate = new Promise<void>((r) => {
+      resolveUpload = r;
+    });
+    server.use(
+      http.post('/api/v1/media/upload', async () => {
+        await uploadGate;
+        return HttpResponse.json(
+          {
+            key: 'media/trip-1/deferred.jpg',
+            thumbnailKey: 'media/trip-1/deferred.thumb.webp',
+            url: '/api/v1/media/media/trip-1/deferred.jpg',
+          },
+          { status: 201 },
+        );
+      }),
+    );
+
+    renderCreate();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/tittel|title/i)).toBeInTheDocument();
+    });
+
+    const file = new File(['fake'], 'shot.jpg', { type: 'image/jpeg' });
+    await userEvent.upload(screen.getByTestId('entry-media-file-input'), file);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('entry-photo-upload-progress')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
+
+    resolveUpload?.();
+    await waitFor(() => {
+      expect(screen.queryByTestId('entry-photo-upload-progress')).not.toBeInTheDocument();
     });
   });
 });

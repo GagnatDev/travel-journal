@@ -1,30 +1,51 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-import { fetchEntryLocations } from '../api/entries.js';
-import { useAuth } from '../context/AuthContext.js';
+import { fetchMapPins } from '../api/mapPins.js';
+import { createSavedLocation } from '../api/savedLocations.js';
 import { BottomNavBar } from '../components/BottomNavBar.js';
+import { useAuth } from '../context/AuthContext.js';
+import { usePendingSavedLocationsForTrip } from '../hooks/usePendingSavedLocationsForTrip.js';
+import { saveOfflineSavedLocation } from '../offline/savedLocationSync.js';
 import { fetchTrip } from '../api/trips.js';
 import { QUERY_STALE_MS } from '../lib/appQueryClient.js';
+import { MapScreenOverlays } from './map/components/MapScreenOverlays.js';
+import { MapSettingsMenu } from './map/components/MapSettingsMenu.js';
+import { SaveLocationModal } from './map/components/SaveLocationModal.js';
+import {
+  type MapScreenMapActions,
+  useMapboxMap,
+} from './map/hooks/useMapboxMap.js';
+import { useMapMarkers } from './map/hooks/useMapMarkers.js';
+import { useUserLocationMarker } from './map/hooks/useUserLocationMarker.js';
+import { usePinsForMap } from './map/hooks/usePinsForMap.js';
+import { useSettingsMenuDismiss } from './map/hooks/useSettingsMenuDismiss.js';
 
-function mapboxTokenMissingBodyKey(): 'map.mapboxTokenMissingDev' | 'map.mapboxTokenMissingStaging' | 'map.mapboxTokenMissingProd' {
-  const mode = import.meta.env.MODE;
-  if (mode === 'production') return 'map.mapboxTokenMissingProd';
-  if (mode === 'staging') return 'map.mapboxTokenMissingStaging';
-  return 'map.mapboxTokenMissingDev';
-}
+type MapScreenProps = {
+  /** When true, the map is kept mounted but not the active tab (timeline ↔ map cache). */
+  mapLayerPaused?: boolean;
+};
 
-export function MapScreen() {
+export function MapScreen({ mapLayerPaused = false }: MapScreenProps = {}) {
   const { id: tripId } = useParams<{ id: string }>();
   const { accessToken, user } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const queryClient = useQueryClient();
+
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [saveModalName, setSaveModalName] = useState('');
+  const [saveModalErrorKey, setSaveModalErrorKey] = useState<string | null>(null);
+  const [geoWorking, setGeoWorking] = useState(false);
+  const [offlineQueuedFlash, setOfflineQueuedFlash] = useState(false);
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  const settingsMenuRef = useRef<HTMLDivElement>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
+
+  const pendingOfflineSaved = usePendingSavedLocationsForTrip(tripId);
 
   const { data: trip } = useQuery({
     queryKey: ['trip', tripId],
@@ -40,159 +61,238 @@ export function MapScreen() {
     isFetching,
     refetch,
   } = useQuery({
-    queryKey: ['entryLocations', tripId],
-    queryFn: () => fetchEntryLocations(tripId!, accessToken!),
+    queryKey: ['mapPins', tripId],
+    queryFn: () => fetchMapPins(tripId!, accessToken!),
     enabled: !!tripId && !!accessToken,
-    staleTime: QUERY_STALE_MS.entryLocations,
+    staleTime: QUERY_STALE_MS.mapPins,
   });
 
-  const hasMapboxToken = Boolean(import.meta.env.VITE_MAPBOX_TOKEN?.trim());
+  const pinsForMap = usePinsForMap(pins, pendingOfflineSaved);
 
   useEffect(() => {
-    if (!mapContainerRef.current || isLoading || isError || !hasMapboxToken) return;
-
-    const token = import.meta.env.VITE_MAPBOX_TOKEN!.trim();
-    mapboxgl.accessToken = token;
-
-    const map = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/outdoors-v12',
-      center: [20, 0],
-      zoom: 1,
-    });
-
-    mapRef.current = map;
-
-    map.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-    map.on('load', () => {
-      if (!pins || pins.length === 0) return;
-
-      const bounds = new mapboxgl.LngLatBounds();
-
-      for (const pin of pins) {
-        const el = document.createElement('div');
-        el.className = 'map-marker';
-        el.style.cssText = [
-          'width: 28px',
-          'height: 28px',
-          'background-color: #9b3f2b',
-          'border: 2px solid #fff',
-          'border-radius: 50% 50% 50% 0',
-          'transform: rotate(-45deg)',
-          'cursor: pointer',
-          'box-shadow: 0 2px 6px rgba(0,0,0,0.35)',
-        ].join(';');
-
-        const dateFormatted = new Date(pin.createdAt).toLocaleDateString(undefined, {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        });
-
-        const popup = new mapboxgl.Popup({ offset: 25, closeButton: true }).setHTML(
-          `<div style="font-family:sans-serif;min-width:160px;padding:4px 0">
-            <div style="font-weight:600;font-size:14px;margin-bottom:4px">${escapeHtml(pin.title)}</div>
-            <div style="font-size:12px;color:#666;margin-bottom:8px">${dateFormatted}</div>
-            <a
-              href="/trips/${tripId}/timeline"
-              data-entry-id="${pin.entryId}"
-              style="font-size:12px;color:#9b3f2b;text-decoration:underline;cursor:pointer"
-            >${t('map.viewEntry')}</a>
-          </div>`,
-        );
-
-        new mapboxgl.Marker(el).setLngLat([pin.lng, pin.lat]).setPopup(popup).addTo(map);
-
-        bounds.extend([pin.lng, pin.lat]);
-      }
-
-      if (pins.length > 0) {
-        map.fitBounds(bounds, { padding: 60, maxZoom: 12 });
-      }
-    });
-
-    // Handle "View Entry" clicks inside popups via delegation
-    function handlePopupClick(e: MouseEvent) {
-      const target = e.target as HTMLElement;
-      const anchor = target.closest('a[data-entry-id]') as HTMLAnchorElement | null;
-      if (!anchor) return;
-      e.preventDefault();
-      const entryId = anchor.dataset['entryId'];
-      navigate(`/trips/${tripId}/timeline`, { state: { highlightEntryId: entryId } });
-    }
-    document.addEventListener('click', handlePopupClick);
-
-    return () => {
-      document.removeEventListener('click', handlePopupClick);
-      map.remove();
-      mapRef.current = null;
-    };
-  }, [pins, isLoading, isError, hasMapboxToken, tripId, navigate, t]);
+    if (!offlineQueuedFlash) return;
+    const id = window.setTimeout(() => setOfflineQueuedFlash(false), 4000);
+    return () => window.clearTimeout(id);
+  }, [offlineQueuedFlash]);
 
   const tripRole = trip?.members.find((m) => m.userId === user?.id)?.tripRole;
+  const canManageSaved = tripRole === 'creator' || tripRole === 'contributor';
+
+  const invalidateMapPins = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['mapPins', tripId] });
+  }, [queryClient, tripId]);
+
+  const mapActionsRef = useRef<MapScreenMapActions>({
+    navigate,
+    t,
+    tripId: tripId ?? '',
+    accessToken: accessToken ?? '',
+    invalidateMapPins,
+  });
+  mapActionsRef.current = {
+    navigate,
+    t,
+    tripId: tripId ?? '',
+    accessToken: accessToken ?? '',
+    invalidateMapPins,
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: (body: { lat: number; lng: number; name?: string }) =>
+      createSavedLocation(tripId!, body, accessToken!),
+    onSuccess: async () => {
+      setSaveModalOpen(false);
+      setSaveModalName('');
+      setSaveModalErrorKey(null);
+      await invalidateMapPins();
+    },
+    onError: () => {
+      setSaveModalErrorKey('map.saveLocationFailed');
+    },
+  });
+
+  const {
+    mapContainerRef,
+    mapRef,
+    markersRef,
+    lastRenderedPinKeyRef,
+    didInitialFitRef,
+    mapReady,
+    hasMapboxToken,
+  } = useMapboxMap(mapActionsRef);
+
+  useMapMarkers({
+    mapRef,
+    markersRef,
+    lastRenderedPinKeyRef,
+    didInitialFitRef,
+    mapReady,
+    pinsForMap,
+    isLoading,
+    isError,
+    hasMapboxToken,
+    tripId,
+    t,
+    canManageSaved,
+  });
+
+  useUserLocationMarker({
+    mapRef,
+    mapReady,
+    hasMapboxToken,
+    isLoading,
+    isError,
+    tripStatus: trip?.status,
+    mapLayerPaused,
+    pinCount: pinsForMap.length,
+  });
+
+  useEffect(() => {
+    if (mapLayerPaused || !mapReady) return;
+    const map = mapRef.current;
+    if (!map) return;
+    const id = requestAnimationFrame(() => {
+      if (typeof map.resize === 'function') map.resize();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [mapLayerPaused, mapReady, mapRef]);
+
+  useSettingsMenuDismiss(settingsMenuOpen, settingsMenuRef, settingsButtonRef, setSettingsMenuOpen);
+
+  const centerOnMyLocation = useCallback((): void => {
+    setSettingsMenuOpen(false);
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    const geo = navigator.geolocation;
+    if (typeof geo?.getCurrentPosition !== 'function') return;
+
+    geo.getCurrentPosition(
+      (pos) => {
+        const mapInstance = mapRef.current;
+        if (!mapInstance) return;
+        mapInstance.stop();
+        mapInstance.easeTo({
+          center: [pos.coords.longitude, pos.coords.latitude],
+          duration: 900,
+        });
+      },
+      () => {
+        window.alert(t('map.centerOnLocationDenied'));
+      },
+      { maximumAge: 60_000, timeout: 20_000, enableHighAccuracy: true },
+    );
+  }, [mapRef, mapReady, t]);
+
+  function openSaveModal(): void {
+    setSaveModalName('');
+    setSaveModalErrorKey(null);
+    setSaveModalOpen(true);
+  }
+
+  function closeSaveModal(): void {
+    if (saveMutation.isPending || geoWorking) return;
+    setSaveModalOpen(false);
+    setSaveModalName('');
+    setSaveModalErrorKey(null);
+  }
+
+  function confirmSaveCurrentLocation(): void {
+    setSaveModalErrorKey(null);
+    setGeoWorking(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        void (async (): Promise<void> => {
+          try {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const nameTrimmed = saveModalName.trim();
+
+            const body = {
+              lat,
+              lng,
+              ...(nameTrimmed !== '' && { name: nameTrimmed }),
+            };
+
+            if (!navigator.onLine && tripId !== undefined) {
+              try {
+                await saveOfflineSavedLocation({
+                  localId: crypto.randomUUID(),
+                  tripId,
+                  status: 'pending',
+                  payload: body,
+                  capturedAt: Date.now(),
+                });
+                setSaveModalOpen(false);
+                setSaveModalName('');
+                setSaveModalErrorKey(null);
+                setOfflineQueuedFlash(true);
+              } catch {
+                setSaveModalErrorKey('map.saveLocationFailed');
+              }
+              return;
+            }
+
+            saveMutation.mutate(body);
+          } finally {
+            setGeoWorking(false);
+          }
+        })();
+      },
+      () => {
+        setGeoWorking(false);
+        setSaveModalErrorKey('map.saveLocationGeolocationDenied');
+      },
+      { maximumAge: 60_000, timeout: 20_000, enableHighAccuracy: true },
+    );
+  }
+
+  const showEmptyOverlay = !isLoading && !isError && hasMapboxToken && pinsForMap.length === 0;
+  const saveBusy = saveMutation.isPending || geoWorking;
 
   return (
     <div className="flex flex-col min-h-screen bg-bg-primary pt-14 pb-28">
-      {/* Map area — title lives in AppHeader; reserve space for fixed bottom nav */}
       <div className="flex-1 min-h-0 relative overflow-hidden">
         <div
           ref={mapContainerRef}
           className="!absolute inset-0 [&_.mapboxgl-ctrl-bottom-left]:bottom-[4.5rem] [&_.mapboxgl-ctrl-bottom-right]:bottom-[4.5rem]"
         />
 
-        {!hasMapboxToken && (
-          <div
-            role="alert"
-            className="absolute top-3 left-3 right-3 z-20 rounded-xl border border-yellow-300 bg-yellow-100 px-4 py-3 font-ui text-sm text-yellow-950 shadow-md dark:border-yellow-700 dark:bg-yellow-950/90 dark:text-yellow-50"
-          >
-            <p className="font-semibold text-heading">{t('map.mapboxTokenMissingTitle')}</p>
-            <p className="mt-1 text-caption leading-snug">{t(mapboxTokenMissingBodyKey())}</p>
-          </div>
-        )}
+        <MapSettingsMenu
+          visible={Boolean(canManageSaved && hasMapboxToken && !isLoading && !isError)}
+          menuOpen={settingsMenuOpen}
+          onToggleMenu={() => setSettingsMenuOpen((prev) => !prev)}
+          menuRef={settingsMenuRef}
+          buttonRef={settingsButtonRef}
+          offlineQueuedFlash={offlineQueuedFlash}
+          onSaveCurrentLocation={() => {
+            setSettingsMenuOpen(false);
+            openSaveModal();
+          }}
+          onGoToMyLocation={centerOnMyLocation}
+        />
 
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-bg-primary/80">
-            <span className="font-ui text-caption text-sm">{t('common.loading')}</span>
-          </div>
-        )}
+        <MapScreenOverlays
+          hasMapboxToken={hasMapboxToken}
+          isLoading={isLoading}
+          isError={isError}
+          isFetching={isFetching}
+          showEmptyPins={showEmptyOverlay}
+          onRetry={() => void refetch()}
+        />
 
-        {isError && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg-primary/80 px-6">
-            <span className="font-ui text-caption text-sm text-center">{t('common.error')}</span>
-            <button
-              type="button"
-              disabled={isFetching}
-              onClick={() => void refetch()}
-              className="font-ui text-sm rounded-lg border border-caption/30 bg-bg-secondary px-4 py-2 text-body hover:border-accent/40 disabled:opacity-50"
-            >
-              {t('common.retry')}
-            </button>
-          </div>
-        )}
-
-        {!isLoading &&
-          !isError &&
-          hasMapboxToken &&
-          pins !== undefined &&
-          pins.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="bg-bg-primary/90 rounded-xl px-6 py-4 shadow-md text-center">
-              <p className="font-ui text-caption text-sm">{t('map.noLocations')}</p>
-            </div>
-          </div>
-        )}
+        <SaveLocationModal
+          open={saveModalOpen}
+          name={saveModalName}
+          onNameChange={setSaveModalName}
+          errorKey={saveModalErrorKey}
+          busy={saveBusy}
+          onClose={closeSaveModal}
+          onConfirm={confirmSaveCurrentLocation}
+        />
       </div>
 
       <BottomNavBar {...(tripId !== undefined && { tripId })} {...(tripRole !== undefined && { tripRole })} />
     </div>
   );
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }

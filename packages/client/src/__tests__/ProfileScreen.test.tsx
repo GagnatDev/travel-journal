@@ -11,7 +11,6 @@ import type { AuthContextValue } from '../context/AuthContext.js';
 import { ThemeProvider } from '../context/ThemeContext.js';
 import { ProtectedRoute } from '../components/ProtectedRoute.js';
 import { ProfileScreen } from '../screens/ProfileScreen.js';
-
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { server } from './mocks/server.js';
 import { mockUser } from './mocks/handlers.js';

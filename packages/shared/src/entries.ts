@@ -58,6 +58,47 @@ export interface CreateEntryRequest {
   location?: EntryLocation;
   /** ISO 8601 — set when syncing an entry first saved offline so server createdAt matches. */
   clientCreatedAt?: string;
+  /** When creating from a saved map pin — server validates and removes that bookmark atomically with the entry. */
+  consumedSavedLocationId?: string;
+}
+
+/** Entry-backed pin on trip map */
+export interface MapPinEntry {
+  kind: 'entry';
+  entryId: string;
+  title: string;
+  lat: number;
+  lng: number;
+  name?: string;
+  createdAt: string;
+}
+
+/** Quick-saved bookmark on trip map */
+export interface MapPinSavedLocation {
+  kind: 'savedLocation';
+  id: string;
+  lat: number;
+  lng: number;
+  createdAt: string;
+  savedByUserId: string;
+  savedByDisplayName: string;
+  name?: string;
+}
+
+export type MapPin = MapPinEntry | MapPinSavedLocation;
+
+export interface CreateSavedLocationRequest {
+  lat: number;
+  lng: number;
+  name?: string;
+}
+
+/** Router state passed when opening the composer from a saved map bookmark. */
+export interface ComposeFromSavedLocationPayload {
+  savedLocationId: string;
+  lat: number;
+  lng: number;
+  name?: string;
 }
 
 export interface UpdateEntryRequest {

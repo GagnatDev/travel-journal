@@ -5,12 +5,11 @@ import { Route, Routes } from 'react-router-dom';
 import mapboxgl from 'mapbox-gl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
-import type { Trip } from '@travel-journal/shared';
+import type { MapPin, Trip } from '@travel-journal/shared';
 
+import i18n from '../i18n.js';
 import { AuthProvider } from '../context/AuthContext.js';
 import { MapScreen } from '../screens/MapScreen.js';
-import type { EntryLocationPin } from '../api/entries.js';
-
 import { server } from './mocks/server.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
@@ -40,7 +39,11 @@ vi.mock('mapbox-gl', () => {
       if (event === 'load') cb();
     }),
     fitBounds: vi.fn(),
+    resize: vi.fn(),
     remove: vi.fn(),
+    stop: vi.fn(),
+    easeTo: vi.fn(),
+    flyTo: vi.fn(),
   }));
 
   return {
@@ -70,6 +73,7 @@ const mockTrip: Trip = {
   name: 'Map Trip',
   status: 'active',
   createdBy: 'user-1',
+  allowContributorInvites: false,
   members: [
     {
       userId: 'user-1',
@@ -82,8 +86,9 @@ const mockTrip: Trip = {
   updatedAt: new Date().toISOString(),
 };
 
-const mockPins: EntryLocationPin[] = [
+const mockPins: MapPin[] = [
   {
+    kind: 'entry',
     entryId: 'entry-1',
     title: 'Paris Stop',
     lat: 48.8566,
@@ -92,6 +97,7 @@ const mockPins: EntryLocationPin[] = [
     createdAt: new Date().toISOString(),
   },
   {
+    kind: 'entry',
     entryId: 'entry-2',
     title: 'Rome Stop',
     lat: 41.9028,
@@ -124,6 +130,7 @@ function renderMap(user = mockUser) {
 
 describe('MapScreen', () => {
   beforeEach(() => {
+    void i18n.changeLanguage('nb');
     // Provide a dummy VITE_MAPBOX_TOKEN so the map initialises
     vi.stubEnv('VITE_MAPBOX_TOKEN', 'pk.test-token');
     vi.mocked(mapboxgl.Map).mockClear();
@@ -135,9 +142,7 @@ describe('MapScreen', () => {
 
   it('renders the map view with bottom navigation', async () => {
     server.use(
-      http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, () =>
-        HttpResponse.json(mockPins),
-      ),
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json(mockPins)),
     );
 
     renderMap();
@@ -148,10 +153,12 @@ describe('MapScreen', () => {
     expect(screen.getByRole('button', { name: /kart|map/i })).toBeInTheDocument();
   });
 
-  it('shows loading state while fetching locations', async () => {
+  it('shows loading state while fetching map pins', async () => {
     server.use(
-      http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, async () => {
-        await new Promise(() => { /* never resolves */ });
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, async () => {
+        await new Promise(() => {
+          /* never resolves */
+        });
         return HttpResponse.json([]);
       }),
     );
@@ -164,39 +171,189 @@ describe('MapScreen', () => {
     });
   });
 
-  it('shows empty state when no entries have locations', async () => {
-    server.use(
-      http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, () =>
-        HttpResponse.json([]),
-      ),
-    );
+  it('shows empty state when there are no map pins', async () => {
+    server.use(http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json([])));
 
     renderMap();
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Ingen innlegg med plassering ennå/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Ingen kartmerker ennå/i)).toBeInTheDocument();
     });
   });
 
-  it('does not show empty overlay when entries have locations', async () => {
+  it('shows save-location control when user can contribute', async () => {
+    server.use(http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json([])));
+
+    renderMap();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Åpne kartmeny/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /Åpne kartmeny/i }));
+    expect(screen.getByRole('menuitem', { name: /Lagre nåværende sted/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Gå til min posisjon/i })).toBeInTheDocument();
+  });
+
+  it('eases the map to current location when go to my location is chosen', async () => {
+    const getCurrentPosition = vi.fn((success: PositionCallback) => {
+      queueMicrotask(() =>
+        success({
+          coords: {
+            latitude: 60.12,
+            longitude: 10.25,
+            accuracy: 10,
+            altitude: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: null,
+          },
+          timestamp: Date.now(),
+        } as GeolocationPosition),
+      );
+    });
+    const origGeo = globalThis.navigator.geolocation;
+    Object.defineProperty(globalThis.navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition,
+        watchPosition: vi.fn(() => 1),
+        clearWatch: vi.fn(),
+      },
+    });
+
+    server.use(http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json(mockPins)));
+
+    renderMap();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Åpne kartmeny/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /Åpne kartmeny/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /Gå til min posisjon/i }));
+
+    await waitFor(() => {
+      expect(getCurrentPosition).toHaveBeenCalled();
+    });
+
+    const mapInstance = vi.mocked(mapboxgl.Map).mock.results[0]?.value as {
+      easeTo: ReturnType<typeof vi.fn>;
+      stop: ReturnType<typeof vi.fn>;
+    };
+    await waitFor(() => {
+      expect(mapInstance.easeTo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          center: [10.25, 60.12],
+          duration: 900,
+        }),
+      );
+    });
+    expect(mapInstance.stop).toHaveBeenCalled();
+
+    Object.defineProperty(globalThis.navigator, 'geolocation', {
+      configurable: true,
+      value: origGeo,
+    });
+  });
+
+  it('does not show empty overlay when entries have pins', async () => {
     server.use(
-      http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, () =>
-        HttpResponse.json(mockPins),
-      ),
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json(mockPins)),
     );
 
     renderMap();
 
     await waitFor(() => {
-      expect(screen.queryByText(/Ingen innlegg med plassering ennå/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Ingen kartmerker ennå/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it('subscribes to geolocation on an active trip when the map is ready', async () => {
+    const watchPosition = vi.fn((success: PositionCallback) => {
+      queueMicrotask(() =>
+        success({
+          coords: {
+            latitude: 59.9139,
+            longitude: 10.7522,
+            accuracy: 12,
+            altitude: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: null,
+          },
+          timestamp: Date.now(),
+        } as GeolocationPosition),
+      );
+      return 7;
+    });
+    const clearWatch = vi.fn();
+    const origGeo = globalThis.navigator.geolocation;
+    Object.defineProperty(globalThis.navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        watchPosition,
+        clearWatch,
+        getCurrentPosition: vi.fn(),
+      },
+    });
+
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json(mockPins)),
+    );
+
+    renderMap();
+
+    await waitFor(() => {
+      expect(watchPosition).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(mapboxgl.Marker).mock.calls.length).toBeGreaterThanOrEqual(3);
+    });
+
+    Object.defineProperty(globalThis.navigator, 'geolocation', {
+      configurable: true,
+      value: origGeo,
+    });
+  });
+
+  it('does not subscribe to geolocation when the trip is not active', async () => {
+    const watchPosition = vi.fn(() => 1);
+    const origGeo = globalThis.navigator.geolocation;
+    Object.defineProperty(globalThis.navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        watchPosition,
+        clearWatch: vi.fn(),
+        getCurrentPosition: vi.fn(),
+      },
+    });
+
+    server.use(
+      http.get('/api/v1/trips/:id', () =>
+        HttpResponse.json({ ...mockTrip, status: 'planned' satisfies Trip['status'] }),
+      ),
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json(mockPins)),
+    );
+
+    renderMap();
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Ingen kartmerker ennå/i)).not.toBeInTheDocument();
+    });
+
+    expect(watchPosition).not.toHaveBeenCalled();
+
+    Object.defineProperty(globalThis.navigator, 'geolocation', {
+      configurable: true,
+      value: origGeo,
     });
   });
 
   it('shows error state when the query fails', async () => {
     server.use(
-      http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, () =>
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () =>
         HttpResponse.json({ error: { message: 'Server error' } }, { status: 500 }),
       ),
     );
@@ -210,11 +367,11 @@ describe('MapScreen', () => {
   });
 
   it('shows token-missing banner and does not initialise Mapbox when token is unset', async () => {
-    vi.unstubAllEnvs();
+    // Stub empty explicitly: vi.unstubAllEnvs() restores the worker's real env, so a
+    // host/CI VITE_MAPBOX_TOKEN would make this test fail intermittently.
+    vi.stubEnv('VITE_MAPBOX_TOKEN', '');
     server.use(
-      http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, () =>
-        HttpResponse.json(mockPins),
-      ),
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json(mockPins)),
     );
 
     renderMap();
@@ -226,10 +383,10 @@ describe('MapScreen', () => {
     expect(mapboxgl.Map).not.toHaveBeenCalled();
   });
 
-  it('refetches locations when retry is clicked after an error', async () => {
+  it('refetches pins when retry is clicked after an error', async () => {
     let requestCount = 0;
     server.use(
-      http.get(`/api/v1/trips/${TRIP_ID}/entries/locations`, () => {
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => {
         requestCount += 1;
         if (requestCount === 1) {
           return HttpResponse.json({ error: { message: 'Server error' } }, { status: 500 });

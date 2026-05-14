@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Entry } from '@travel-journal/shared';
 
 import { formatEntryContent } from '../utils/formatEntryContent.js';
@@ -10,7 +11,7 @@ import {
   createMediaCacheKey,
   releaseAuthenticatedMediaObjectUrl,
 } from '../lib/authenticatedMedia.js';
-
+import { patchTrip } from '../api/trips.js';
 import { AuthenticatedImage } from './AuthenticatedImage.js';
 import { EntryImageCarouselModal } from './EntryImageCarouselModal.js';
 import { Avatar } from './ui/Avatar.js';
@@ -24,6 +25,12 @@ interface EntryCardProps {
   entry: Entry;
   tripId: string;
   currentUserId: string;
+  /** When true (trip creator or contributor), edit/delete any entry on the trip. */
+  canManageEntries?: boolean;
+  /** Trip creator: show photobook cover controls in the image carousel. */
+  isTripCreator?: boolean;
+  /** Current photobook PDF cover image key (from trip), if any. */
+  photobookCoverImageKey?: string;
   onDelete?: (entryId: string) => void;
 }
 
@@ -45,9 +52,18 @@ function getRelativeTime(dateStr: string, language: string): string {
   return date.toLocaleDateString(language, { month: 'short', day: 'numeric' });
 }
 
-export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId, onDelete }: EntryCardProps) {
+export const EntryCard = memo(function EntryCard({
+  entry,
+  tripId,
+  currentUserId,
+  canManageEntries = false,
+  isTripCreator = false,
+  photobookCoverImageKey,
+  onDelete,
+}: EntryCardProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { accessToken } = useAuth();
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [isCarouselOpen, setIsCarouselOpen] = useState(false);
@@ -56,6 +72,7 @@ export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId,
   const carouselOwnsHistoryRef = useRef(false);
 
   const isAuthor = entry.authorId === currentUserId;
+  const showEntryActions = canManageEntries || isAuthor;
 
   const relativeTime = useMemo(
     () => getRelativeTime(entry.createdAt, i18n.language),
@@ -108,6 +125,14 @@ export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId,
     setIsCarouselOpen(false);
   }, []);
 
+  const coverMutation = useMutation({
+    mutationFn: (body: { photobookCoverImageKey: string | null }) =>
+      patchTrip(tripId, body, accessToken!),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['trip', tripId], updated);
+    },
+  });
+
   useEffect(() => {
     if (!accessToken || sortedImages.length === 0) return;
 
@@ -131,6 +156,31 @@ export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId,
       }
     };
   }, [accessToken, sortedImages]);
+
+  const activeCarouselKey = carouselImages[activeImageIndex]?.key ?? '';
+
+  const photobookCoverAction = useMemo(() => {
+    if (!isTripCreator || !accessToken || sortedImages.length === 0) return undefined;
+    return {
+      activeImageKey: activeCarouselKey,
+      isCurrentCover: Boolean(photobookCoverImageKey && photobookCoverImageKey === activeCarouselKey),
+      onSetCover: (imageKey: string) => {
+        coverMutation.mutate({ photobookCoverImageKey: imageKey });
+      },
+      onClearCover: () => {
+        coverMutation.mutate({ photobookCoverImageKey: null });
+      },
+      busy: coverMutation.isPending,
+    };
+  }, [
+    isTripCreator,
+    accessToken,
+    sortedImages.length,
+    activeCarouselKey,
+    photobookCoverImageKey,
+    coverMutation.isPending,
+    coverMutation.mutate,
+  ]);
 
   return (
     <article className="bg-bg-secondary rounded-card border border-caption/10 overflow-hidden">
@@ -159,7 +209,7 @@ export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId,
         </span>
         <span className="font-ui text-xs text-caption shrink-0">{relativeTime}</span>
 
-        {isAuthor && (
+        {showEntryActions && (
           <div className="relative shrink-0">
             <button
               type="button"
@@ -249,6 +299,7 @@ export const EntryCard = memo(function EntryCard({ entry, tripId, currentUserId,
         initialIndex={activeImageIndex}
         isOpen={isCarouselOpen}
         onClose={closeCarousel}
+        {...(photobookCoverAction ? { photobookCoverAction } : {})}
       />
     </article>
   );

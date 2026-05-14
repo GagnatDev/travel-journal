@@ -27,8 +27,18 @@ export interface ITrip extends Document {
   returnDate?: Date;
   status: 'planned' | 'active' | 'completed';
   createdBy: Types.ObjectId;
+  /** When true, contributors may add members / create trip invites. */
+  allowContributorInvites: boolean;
   members: ITripMember[];
   coverImageKey?: string;
+  photobookPdfJob?: {
+    status: 'idle' | 'pending' | 'ready' | 'failed';
+    pdfStorageKey?: string;
+    finishedAt?: Date;
+    errorMessage?: string;
+    localeKey?: string;
+    timeZone?: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -60,8 +70,17 @@ const tripSchema = new Schema<ITrip>(
     returnDate: { type: Date },
     status: { type: String, enum: ['planned', 'active', 'completed'], default: 'planned' },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    allowContributorInvites: { type: Boolean, default: false },
     members: [tripMemberSchema],
     coverImageKey: { type: String },
+    photobookPdfJob: {
+      status: { type: String, enum: ['idle', 'pending', 'ready', 'failed'] },
+      pdfStorageKey: { type: String },
+      finishedAt: { type: Date },
+      errorMessage: { type: String },
+      localeKey: { type: String },
+      timeZone: { type: String },
+    },
   },
   { timestamps: true },
 );

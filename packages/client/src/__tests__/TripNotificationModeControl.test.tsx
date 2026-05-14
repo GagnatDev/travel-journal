@@ -6,7 +6,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { AuthProvider } from '../context/AuthContext.js';
 import { TripNotificationModeControl } from '../components/timeline/TripNotificationModeControl.js';
-
 import { server } from './mocks/server.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';

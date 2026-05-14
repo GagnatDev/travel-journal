@@ -3,6 +3,7 @@ import type { Comment, Entry, Reaction } from '@travel-journal/shared';
 
 export const entryHandlers = [
   http.get('/api/v1/trips/:id/entries/locations', () => HttpResponse.json([])),
+  http.get('/api/v1/trips/:id/map-pins', () => HttpResponse.json([])),
 
   http.get('/api/v1/trips/:id/entries', () =>
     HttpResponse.json({ entries: [], total: 0 }),

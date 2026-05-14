@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import type { TripRole } from '@travel-journal/shared';
 
 import { canAccessTripSettingsScreen } from '../screens/tripSettings/tripSettingsPermissions.js';
-
 import { HomeIcon, MapPinIcon, PeopleIcon, PlusIcon, TimelineIcon } from './icons/index.js';
 import { SyncStatus } from './SyncStatus.js';
 

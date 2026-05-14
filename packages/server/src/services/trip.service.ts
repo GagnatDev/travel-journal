@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
-import type { CreateTripRequest, Trip, TripStatus, UpdateTripRequest } from '@travel-journal/shared';
+import type { CreateTripRequest, Trip, TripStatus, UpdateTripRequest, TripPhotobookPdfJob } from '@travel-journal/shared';
 
 import { Trip as TripModel, ITrip, readTripMemberEntryMode } from '../models/Trip.model.js';
+import { Entry as EntryModel } from '../models/Entry.model.js';
 import { User } from '../models/User.model.js';
 
 function createHttpError(message: string, status: number, code: string): Error {
@@ -9,6 +10,32 @@ function createHttpError(message: string, status: number, code: string): Error {
   err.status = status;
   err.code = code;
   return err;
+}
+
+function normalizeTripDescription(input: string | undefined): string | undefined {
+  if (input === undefined) return undefined;
+  const trimmed = input.trim();
+  return trimmed === '' ? undefined : trimmed;
+}
+
+function toPhotobookPdfJob(doc: ITrip): TripPhotobookPdfJob | undefined {
+  const job = doc.photobookPdfJob;
+  if (!job || typeof job !== 'object') return undefined;
+  const status = job.status;
+  if (status !== 'idle' && status !== 'pending' && status !== 'ready' && status !== 'failed') {
+    return undefined;
+  }
+  const out: TripPhotobookPdfJob = { status };
+  if (typeof job.pdfStorageKey === 'string' && job.pdfStorageKey.trim()) {
+    out.pdfStorageKey = job.pdfStorageKey.trim();
+  }
+  if (job.finishedAt instanceof Date) {
+    out.finishedAt = job.finishedAt.toISOString();
+  }
+  if (typeof job.errorMessage === 'string' && job.errorMessage.trim()) {
+    out.errorMessage = job.errorMessage.trim();
+  }
+  return out;
 }
 
 async function toTrip(doc: ITrip): Promise<Trip> {
@@ -21,6 +48,7 @@ async function toTrip(doc: ITrip): Promise<Trip> {
     name: doc.name,
     status: doc.status,
     createdBy: String(doc.createdBy),
+    allowContributorInvites: doc.allowContributorInvites === true,
     members: doc.members.map((m) => ({
       userId: String(m.userId),
       displayName: userMap.get(String(m.userId)) ?? '',
@@ -34,9 +62,20 @@ async function toTrip(doc: ITrip): Promise<Trip> {
     updatedAt: doc.updatedAt.toISOString(),
   };
 
-  if (doc.description !== undefined) trip.description = doc.description;
+  if (typeof doc.description === 'string' && doc.description.trim() !== '') {
+    trip.description = doc.description.trim();
+  }
   if (doc.departureDate !== undefined) trip.departureDate = doc.departureDate.toISOString();
   if (doc.returnDate !== undefined) trip.returnDate = doc.returnDate.toISOString();
+
+  if (typeof doc.coverImageKey === 'string' && doc.coverImageKey.trim() !== '') {
+    trip.photobookCoverImageKey = doc.coverImageKey.trim();
+  }
+
+  const photobookJob = toPhotobookPdfJob(doc);
+  if (photobookJob) {
+    trip.photobookPdfJob = photobookJob;
+  }
 
   return trip;
 }
@@ -55,13 +94,29 @@ export function assertTripCreator(trip: Trip, userId: string): void {
   }
 }
 
+export function isTripCreator(trip: Trip, userId: string): boolean {
+  return trip.members.some((m) => m.userId === userId && m.tripRole === 'creator');
+}
+
+/**
+ * Photobook job metadata (incl. storage key) is for the trip creator only.
+ */
+export function redactPhotobookPdfJobForNonCreator(trip: Trip, viewerId: string): Trip {
+  if (isTripCreator(trip, viewerId) || !trip.photobookPdfJob) {
+    return trip;
+  }
+  const next = { ...trip };
+  delete next.photobookPdfJob;
+  return next;
+}
+
 export async function createTrip(data: CreateTripRequest, creatorId: string): Promise<Trip> {
   const user = await User.findById(creatorId).lean();
   if (!user) throw createHttpError('User not found', 404, 'NOT_FOUND');
 
   const doc = await TripModel.create({
     name: data.name.trim(),
-    description: data.description,
+    description: normalizeTripDescription(data.description),
     departureDate: data.departureDate ? new Date(data.departureDate) : undefined,
     returnDate: data.returnDate ? new Date(data.returnDate) : undefined,
     createdBy: new mongoose.Types.ObjectId(creatorId),
@@ -91,7 +146,8 @@ export async function listTripsForUser(userId: string): Promise<Trip[]> {
   const docs = await TripModel.find({
     'members.userId': new mongoose.Types.ObjectId(userId),
   });
-  return Promise.all(docs.map(toTrip));
+  const trips = await Promise.all(docs.map(toTrip));
+  return trips.map((t) => redactPhotobookPdfJobForNonCreator(t, userId));
 }
 
 export async function updateTrip(
@@ -109,7 +165,14 @@ export async function updateTrip(
   assertTripCreator(trip, requesterId);
 
   if (data.name !== undefined) doc.name = data.name.trim();
-  if (data.description !== undefined) doc.description = data.description;
+  if (data.description !== undefined) {
+    const next = normalizeTripDescription(data.description);
+    if (next === undefined) {
+      doc.set('description', undefined);
+    } else {
+      doc.description = next;
+    }
+  }
   if (data.departureDate !== undefined) {
     if (data.departureDate) {
       doc.departureDate = new Date(data.departureDate);
@@ -122,6 +185,35 @@ export async function updateTrip(
       doc.returnDate = new Date(data.returnDate);
     } else {
       doc.returnDate = undefined as unknown as Date;
+    }
+  }
+  if (data.allowContributorInvites !== undefined) {
+    doc.allowContributorInvites = data.allowContributorInvites;
+  }
+
+  if (data.photobookCoverImageKey !== undefined) {
+    if (data.photobookCoverImageKey === null || data.photobookCoverImageKey === '') {
+      doc.set('coverImageKey', undefined);
+    } else {
+      const key = data.photobookCoverImageKey.trim();
+      const parts = key.split('/');
+      const keyTripId = parts[1];
+      if (keyTripId !== tripId) {
+        throw createHttpError('Image does not belong to this trip', 400, 'VALIDATION_ERROR');
+      }
+      const exists = await EntryModel.exists({
+        tripId: new mongoose.Types.ObjectId(tripId),
+        deletedAt: null,
+        'images.key': key,
+      });
+      if (!exists) {
+        throw createHttpError(
+          'photobookCoverImageKey must reference an image on a trip entry',
+          400,
+          'VALIDATION_ERROR',
+        );
+      }
+      doc.set('coverImageKey', key);
     }
   }
 

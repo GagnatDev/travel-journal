@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { apiJson } from '../../api/client.js';
 import { CopyableLinkField } from '../../components/CopyableLinkField.js';
 import { SettingsListRow } from '../../components/SettingsListRow.js';
-
 import type { AdminUser } from './types.js';
 
 interface AdminUsersTabProps {

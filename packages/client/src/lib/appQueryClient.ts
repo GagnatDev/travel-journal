@@ -14,12 +14,14 @@ import { QueryClient } from '@tanstack/react-query';
  *   cover saves from settings.
  * - **entries feed**: Shorter window balances multi-user freshness (new posts) with avoiding
  *   refetch spam when flipping between timeline and map on the same trip.
+ * - **mapPins**: Matches entries feed rationale (timeline/map flip).
  */
 export const QUERY_STALE_MS = {
   trips: 5 * 60 * 1000,
   tripDetail: 2 * 60 * 1000,
   entriesFeed: 45 * 1000,
   entryLocations: 45 * 1000,
+  mapPins: 45 * 1000,
   entryEditor: 2 * 60 * 1000,
 } as const;
 

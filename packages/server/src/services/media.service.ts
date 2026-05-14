@@ -41,7 +41,21 @@ function createS3Client(): S3Client {
 
 const BUCKET = process.env['S3_BUCKET'] ?? 'travel-journal';
 
-/** Compare client `If-None-Match` (possibly list) to a single strong ETag from storage. */
+/** Upload a generated PDF to object storage (trip-scoped key). */
+export async function uploadTripPdf(tripId: string, buffer: Buffer): Promise<string> {
+  const client = createS3Client();
+  const id = randomUUID();
+  const key = `pdf/${tripId}/${id}.pdf`;
+  await client.send(
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: 'application/pdf',
+    }),
+  );
+  return key;
+}
 function ifNoneMatchIncludesServerEtag(ifNoneMatchHeader: string, serverEtag: string | undefined): boolean {
   if (!serverEtag) return false;
   const normalize = (t: string) => t.trim().replace(/^W\//i, '').replaceAll('"', '');
@@ -128,6 +142,7 @@ export async function streamMediaObject(
   key: string,
   res: Response,
   ifNoneMatch?: string | null,
+  options?: { attachmentFilename?: string },
 ): Promise<void> {
   const client = createS3Client();
 
@@ -177,6 +192,10 @@ export async function streamMediaObject(
 
   const contentType = out.ContentType ?? 'application/octet-stream';
   res.setHeader('Content-Type', contentType);
+  if (options?.attachmentFilename) {
+    const safe = options.attachmentFilename.replace(/[^\w\s.-]/g, '').trim().slice(0, 120) || 'download.pdf';
+    res.setHeader('Content-Disposition', `attachment; filename="${safe}"`);
+  }
   if (typeof out.ContentLength === 'number') {
     res.setHeader('Content-Length', String(out.ContentLength));
   }
@@ -187,6 +206,33 @@ export async function streamMediaObject(
 
   const readable = body as Readable;
   await pipeline(readable, res);
+}
+
+/** Read full object bytes from S3 (e.g. for server-side PDF assembly). */
+export async function getObjectBuffer(key: string): Promise<Buffer> {
+  const client = createS3Client();
+  let out;
+  try {
+    out = await client.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+  } catch (err: unknown) {
+    const name = s3ErrorName(err);
+    if (name === 'NoSuchKey' || name === 'NotFound') {
+      throw createHttpError('Media not found', 404, 'NOT_FOUND');
+    }
+    throw err;
+  }
+
+  const body = out.Body;
+  if (!body) {
+    throw createHttpError('Media not found', 404, 'NOT_FOUND');
+  }
+
+  const readable = body as Readable;
+  const chunks: Buffer[] = [];
+  for await (const chunk of readable) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
 }
 
 export async function assertMediaAccess(key: string, userId: string): Promise<void> {

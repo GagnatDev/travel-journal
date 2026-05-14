@@ -276,7 +276,7 @@ describe('GET /api/v1/trips/:id/entries/:entryId', () => {
 });
 
 describe('PATCH /api/v1/trips/:id/entries/:entryId', () => {
-  it('non-author → 403', async () => {
+  it('contributor editing another member entry → 200', async () => {
     const { creator, trip } = await setupTripWithMember('creator');
     const other = await makeUser('other@test.com', 'creator');
 
@@ -302,7 +302,38 @@ describe('PATCH /api/v1/trips/:id/entries/:entryId', () => {
     const res = await request(app)
       .patch(`/api/v1/trips/${trip.id}/entries/${entry.id}`)
       .set('Authorization', authHeader(String(other._id), other.email, 'creator'))
-      .send({ title: 'Hijacked' });
+      .send({ title: 'Updated by contributor' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.title).toBe('Updated by contributor');
+  });
+
+  it('follower → 403', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+    const follower = await makeUser('follower-patch@test.com', 'follower');
+
+    await Trip.updateOne(
+      { _id: trip.id },
+      {
+        $push: {
+          members: {
+            userId: follower._id,
+            tripRole: 'follower',
+            addedAt: new Date(),
+          },
+        },
+      },
+    );
+
+    const entry = await createEntry(trip.id, String(creator._id), {
+      title: 'Original',
+      content: 'content',
+    });
+
+    const res = await request(app)
+      .patch(`/api/v1/trips/${trip.id}/entries/${entry.id}`)
+      .set('Authorization', authHeader(String(follower._id), follower.email, 'follower'))
+      .send({ title: 'No' });
 
     expect(res.status).toBe(403);
   });
@@ -437,7 +468,7 @@ describe('DELETE /api/v1/trips/:id/entries/:entryId', () => {
     expect(getRes.status).toBe(404);
   });
 
-  it('non-author → 403', async () => {
+  it('contributor deleting another member entry → 204', async () => {
     const { creator, trip } = await setupTripWithMember('creator');
     const other = await makeUser('other@test.com', 'creator');
 
@@ -463,6 +494,35 @@ describe('DELETE /api/v1/trips/:id/entries/:entryId', () => {
     const res = await request(app)
       .delete(`/api/v1/trips/${trip.id}/entries/${entry.id}`)
       .set('Authorization', authHeader(String(other._id), other.email, 'creator'));
+
+    expect(res.status).toBe(204);
+  });
+
+  it('follower → 403', async () => {
+    const { creator, trip } = await setupTripWithMember('creator');
+    const follower = await makeUser('follower-del@test.com', 'follower');
+
+    await Trip.updateOne(
+      { _id: trip.id },
+      {
+        $push: {
+          members: {
+            userId: follower._id,
+            tripRole: 'follower',
+            addedAt: new Date(),
+          },
+        },
+      },
+    );
+
+    const entry = await createEntry(trip.id, String(creator._id), {
+      title: 'Mine',
+      content: 'content',
+    });
+
+    const res = await request(app)
+      .delete(`/api/v1/trips/${trip.id}/entries/${entry.id}`)
+      .set('Authorization', authHeader(String(follower._id), follower.email, 'follower'));
 
     expect(res.status).toBe(403);
   });

@@ -21,6 +21,7 @@ export const mockTrip: Trip = {
   name: 'Mock Trip',
   status: 'planned',
   createdBy: 'user-1',
+  allowContributorInvites: false,
   members: [
     {
       userId: 'user-1',

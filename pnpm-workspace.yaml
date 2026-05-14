@@ -1,2 +1,12 @@
 packages:
   - 'packages/*'
+# pnpm v11: allow dependency install/build scripts (see root package.json pnpm.onlyBuiltDependencies)
+allowBuilds:
+  '@playwright/test': true
+  cpu-features: true
+  esbuild: true
+  mongodb-memory-server: true
+  msw: true
+  protobufjs: true
+  sharp: true
+  ssh2: true

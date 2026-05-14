@@ -6,7 +6,6 @@ import {
   acquireAuthenticatedMediaObjectUrl,
   releaseAuthenticatedMediaObjectUrl,
 } from '../lib/authenticatedMedia.js';
-
 import {
   AuthenticatedImageLoadingPulse,
   AuthenticatedImageNeutralUnderlay,

@@ -6,8 +6,8 @@ import { IconBadge } from '../../components/ui/IconBadge.js';
 import { PillButton } from '../../components/ui/PillButton.js';
 import { ImageReorder } from '../../components/ImageReorder.js';
 import { entryTextControlClass } from '../../components/ui/fieldStyles.js';
-
 import type { EntryFormState } from './entryFormState.js';
+import { EntryPhotoUploadProgress, type EntryUploadProgress } from './EntryPhotoUploadProgress.js';
 
 export interface CreateEntryFormProps {
   form: EntryFormState;
@@ -18,16 +18,18 @@ export interface CreateEntryFormProps {
   setImages: React.Dispatch<React.SetStateAction<EntryImage[]>>;
   localPreviews: string[];
   handleFileSelect: (files: FileList) => void | Promise<void>;
-  uploadingCount: number;
+  uploadProgress: EntryUploadProgress | null;
   uploadError: string;
   handleRemoveLocalFile: (index: number) => void;
   handleLocationToggle: () => void;
-  handleSubmit: (e: React.FormEvent) => void;
+  handleSubmit: (e: React.FormEvent) => void | Promise<void>;
   handleDiscard: () => void;
   isPending: boolean;
   savedOffline: boolean;
   createMutationError: boolean;
   updateMutationError: boolean;
+  /** Formatted registration date, or null while server/pending metadata is still loading. */
+  entryDateLabel: string | null;
 }
 
 export function CreateEntryForm({
@@ -39,7 +41,7 @@ export function CreateEntryForm({
   setImages,
   localPreviews,
   handleFileSelect,
-  uploadingCount,
+  uploadProgress,
   uploadError,
   handleRemoveLocalFile,
   handleLocationToggle,
@@ -49,6 +51,7 @@ export function CreateEntryForm({
   savedOffline,
   createMutationError,
   updateMutationError,
+  entryDateLabel,
 }: CreateEntryFormProps) {
   const { t } = useTranslation();
   const hasImages = images.length > 0 || localPreviews.length > 0;
@@ -59,11 +62,15 @@ export function CreateEntryForm({
       <div className="relative bg-bg-secondary min-h-[220px] flex flex-col items-center justify-center gap-3 overflow-hidden">
         {hasImages ? (
           <div className="w-full p-4">
+            {uploadProgress && (
+              <div className="mb-3">
+                <EntryPhotoUploadProgress progress={uploadProgress} />
+              </div>
+            )}
             <ImageReorder
               images={images}
               onImagesChange={setImages}
               onFileSelect={handleFileSelect}
-              isUploading={uploadingCount > 0}
             />
             {localPreviews.length > 0 && (
               <div className="mt-2">
@@ -88,6 +95,11 @@ export function CreateEntryForm({
           </div>
         ) : (
           <>
+            {uploadProgress && (
+              <div className="relative z-20 w-full max-w-md px-4 shrink-0">
+                <EntryPhotoUploadProgress progress={uploadProgress} />
+              </div>
+            )}
             {/* Decorative tilted ghost card placeholders */}
             <div
               aria-hidden="true"
@@ -173,8 +185,13 @@ export function CreateEntryForm({
           <CalendarIcon width={16} height={16} className="text-body" />
         </IconBadge>
         <div>
-          <p className="font-ui text-xs text-caption uppercase tracking-wide">{t('entries.entryDate', 'Entry Date')}</p>
-          <p className="font-ui text-sm text-body mt-0.5">{new Date().toLocaleDateString()}</p>
+          <p className="font-ui text-xs text-caption uppercase tracking-wide">{t('entries.entryDate')}</p>
+          <p
+            data-testid="entry-composer-entry-date"
+            className="font-ui text-sm text-body mt-0.5"
+          >
+            {entryDateLabel ?? '…'}
+          </p>
         </div>
       </div>
 

@@ -142,6 +142,11 @@
         "body_one": "Ta deg tid til dagens nye innlegg.",
         "body_other": "Ta deg tid til dagens {{count}} nye innlegg."
       },
+      "tripPhotobookPdfReady": {
+        "title": "Fotobok (PDF) klar: {{tripName}}",
+        "body": "Du kan laste ned PDF-en fra turens innstillinger.",
+        "openAction": "Åpne innstillinger"
+      },
       "releaseAnnouncement": {
         "title": "Travel Journal er oppdatert til {{version}}",
         "body": "En ny versjon er klar. Last siden på nytt for å få de siste forbedringene.",
@@ -209,6 +214,7 @@
       "membersTitle": "Medlemmer",
       "addMemberTitle": "Legg til medlem",
       "addMemberPlaceholder": "E-post eller kallenavn",
+      "inviteSuggestionsHint": "Fra andre turer du har, og turer du følger",
       "addMemberButton": "Legg til",
       "addMemberRoleLabel": "Turrolle",
       "memberAdded": "Medlem lagt til!",
@@ -222,12 +228,22 @@
       "circleTitle": "Utforskernes krets",
       "inviteButton": "INVITER NYTT MEDLEM",
       "membersCountSuffix": "TOTALT",
-      "privacyTitle": "PERSONVERNINNSTILLINGER",
-      "privacyPublic": "Hele kretsen",
-      "privacyPrivate": "Privat dagbok",
       "allowContributorInvites": "La bidragsytere invitere andre",
       "collaborativeChaptersTitle": "Samarbeidskapitler",
-      "collaborativeChaptersInfo": "Medlemmer kan skrive innlegg sammen og dele minner."
+      "collaborativeChaptersInfo": "Medlemmer kan skrive innlegg sammen og dele minner.",
+      "photobookPdfTitle": "Fotobok (PDF)",
+      "photobookPdfDescription": "Generer en kvadratisk PDF med innlegg gruppert per dag — egnet som minnebok. Språket i PDF-en følger appens språk (norsk eller engelsk). Når genereringen er ferdig, laster du ned her.",
+      "photobookPdfGenerateButton": "Generer PDF",
+      "photobookPdfRegenerateButton": "Generer PDF på nytt",
+      "photobookPdfDownloadLink": "Last ned PDF",
+      "photobookPdfGenerating": "Genererer PDF — dette kan ta et øyeblikk. Du får varsel når den er klar.",
+      "photobookPdfReadyMessage": "PDF-en er klar. Bruk knappen under for å laste ned.",
+      "photobookPdfError": "Kunne ikke generere PDF. Prøv igjen.",
+      "photobookCoverNotChosenWarning": "Du har ikke valgt omslagsbilde ennå. PDF-en bruker et tilfeldig turbilde på omslaget. Velg et fra tidslinjens bildekarusell (innstillinger på et bilde).",
+      "photobookCoverPreviewOpen": "Forhåndsvis valgt omslagsbilde",
+      "photobookCoverPreviewHint": "Se forhåndsvisning av omslagsbildet du valgte.",
+      "photobookCoverPreviewDialogLabel": "Forhåndsvisning av omslag",
+      "photobookCoverPreviewImageAlt": "Valgt omslagsbilde for fotobok"
     },
     "notificationMode": {
       "triggerLabel": "Varsler om nye innlegg ({{current}})",
@@ -254,6 +270,7 @@
   },
   "offline": {
     "banner": "Du er frakoblet — innlegg synkroniseres når du er tilkoblet igjen",
+    "savedSpotQueued": "Stedet er lagret på enheten — det synkes til kartet når du er på nett igjen.",
     "saved": "Lagret frakoblet — synkroniseres når du er tilkoblet igjen",
     "editPending": "Rediger frakoblet utkast",
     "syncFailedShort": "Synk feilet",
@@ -265,6 +282,26 @@
   "map": {
     "title": "Kart",
     "noLocations": "Ingen innlegg med plassering ennå. Legg til plassering når du oppretter et innlegg.",
+    "noPins": "Ingen kartmerker ennå. Lagre stedet her, eller legg plassering til et innlegg.",
+    "openMenu": "Åpne kartmeny",
+    "saveCurrentLocation": "Lagre nåværende sted",
+    "goToMyLocation": "Gå til min posisjon",
+    "centerOnLocationDenied": "Kunne ikke lese posisjonen din. Tillat tilgang til posisjon og prøv igjen.",
+    "saveLocationTitle": "Lagre dette stedet",
+    "saveLocationHint": "Vi henter posisjonen din én gang. Du kan legge til et valgfritt navn som hjelp til å huske hvorfor.",
+    "saveLocationOfflineNote": "Du er frakoblet — stedet lagres på enheten og synkes når du er på nett igjen.",
+    "saveLocationNameLabel": "Navn (valgfritt)",
+    "saveLocationNamePlaceholder": "f.eks. utsikt eller parkering",
+    "saveLocationConfirm": "Lagre sted",
+    "saveLocationGeolocationDenied": "Kunne ikke lese posisjonen din. Tillat tilgang til posisjon og prøv igjen.",
+    "saveLocationFailed": "Kunne ikke lagre stedet. Sjekk tilkoblingen og prøv igjen.",
+    "savedLocationUntitled": "Lagret sted",
+    "savedBy": "Lagret av",
+    "createEntryFromSaved": "Skriv innlegg…",
+    "deleteSavedLocation": "Slett stedemerke",
+    "confirmDeleteSavedLocation": "Fjerne dette lagrede stedet fra kartet?",
+    "pendingSpotOffline": "Ikke lastet opp ennå — blir synlig for alle når enheten er på nett igjen.",
+    "discardPendingSpot": "Fjern fra enheten",
     "viewEntry": "Se innlegg",
     "mapboxTokenMissingTitle": "Kartet kan ikke vises",
     "mapboxTokenMissingDev": "Legg til VITE_MAPBOX_TOKEN (Mapbox public token) i miljøfilen for klienten, for eksempel packages/client/.env, og start Vite på nytt.",
@@ -276,10 +313,12 @@
     "newTitle": "Nytt innlegg",
     "editTitle": "Rediger innlegg",
     "draft": "Kladd",
+    "entryDate": "Innleggsdato",
     "sectionLabel": "Siste nytt fra reisen",
     "loadError": "Kunne ikke laste innlegg.",
     "retryLoad": "Prøv igjen",
     "tripNameFallback": "Reise",
+    "tripIntroTitle": "Om turen",
     "moreOptions": "Flere valg",
     "saveEntry": "LAGRE INNLEGG",
     "titleLabel": "Tittel",
@@ -297,14 +336,25 @@
     "photosSection": "Bilder",
     "addPhotos": "Legg til bilder",
     "uploadingImage": "Laster opp...",
+    "uploadingPhotosTitle": "Laster opp bilder",
+    "uploadFinishingTitle": "Fullfører opplasting av bilder",
+    "uploadProgressCount": "{{completed}} av {{total}} bilder",
     "uploadFailed": "Kunne ikke laste opp ett eller flere bilder. Prøv igjen.",
+    "uploadQueuedOffline": "Opplasting feilet; bildene er lagret på enheten og lastes opp når du er på nett igjen.",
     "imageLimit": "Maks 10 bilder",
     "removeImage": "Fjern bilde",
     "carousel": {
       "dialogLabel": "Bildekarusell",
       "previousImage": "Forrige bilde",
       "nextImage": "Neste bilde",
-      "closeImageCarousel": "Lukk bildekarusell"
+      "closeImageCarousel": "Lukk bildekarusell",
+      "photobookCoverMenuLabel": "Valg for fotobokens omslag",
+      "photobookCoverToggleLabel": "Omslagsbilde i fotobok",
+      "photobookCoverMenuHintOn": "Dette bildet brukes på PDF-omslaget.",
+      "photobookCoverMenuHintOff": "Slå på for å bruke dette bildet på omslaget i stedet for et tilfeldig.",
+      "setAsPhotobookCover": "Bruk som omslagsbilde i fotobok",
+      "clearPhotobookCover": "Tilfeldig bilde på fotobokomslag",
+      "currentPhotobookCover": "Dette bildet er fotobokens omslag"
     }
   },
   "reactions": {
@@ -315,9 +365,8 @@
     "placeholder": "Skriv en kommentar…",
     "delete": "Slett",
     "hide": "Skjul kommentarer",
+    "showCollapsed": "Vis kommentarer",
     "empty": "Ingen kommentarer ennå.",
-    "count_one": "{{count}} kommentar",
-    "count_other": "{{count}} kommentarer",
-    "count_zero": "Legg til kommentar"
+    "count": "Vis kommentarer ({{count}})"
   }
 }

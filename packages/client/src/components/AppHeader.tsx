@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useMatch, useNavigate } from 'react-router-dom';
 
 import { useNotifications } from '../notifications/useNotifications.js';
-
 import { BellIcon, ChevronLeftIcon, HamburgerIcon } from './icons/index.js';
 import { MenuDrawer } from './MenuDrawer.js';
 import { NotificationsPanel } from './NotificationsPanel.js';

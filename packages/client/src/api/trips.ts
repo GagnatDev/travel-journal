@@ -1,16 +1,38 @@
 import type {
   Invite,
   Trip,
+  TripMemberInviteSuggestion,
   TripStatus,
   UpdateTripMemberNotificationPreferencesRequest,
+  UpdateTripRequest,
 } from '@travel-journal/shared';
 
-import { apiJson, apiJsonIfOk } from './client.js';
+import { apiBlob, apiJson, apiJsonIfOk } from './client.js';
 
 export type AddTripMemberResult = { type: 'added' | 'invite_created'; inviteLink?: string };
 
 export function fetchTrip(tripId: string, token: string): Promise<Trip> {
   return apiJson<Trip>(`/api/v1/trips/${tripId}`, { token });
+}
+
+/** Trip photobook PDF download (streams from storage after async generation). */
+export function fetchTripPhotobookPdf(tripId: string, token: string): Promise<Blob> {
+  return apiBlob(`/api/v1/trips/${tripId}/photobook.pdf`, { token });
+}
+
+export function startTripPhotobookPdfGeneration(
+  tripId: string,
+  token: string,
+  options?: { locale?: string; timeZone?: string },
+): Promise<Trip> {
+  return apiJson<Trip>(`/api/v1/trips/${tripId}/photobook/generate`, {
+    method: 'POST',
+    token,
+    body: {
+      ...(options?.locale ? { locale: options.locale } : {}),
+      ...(options?.timeZone ? { timeZone: options.timeZone } : {}),
+    },
+  });
 }
 
 export function fetchTrips(token: string): Promise<Trip[]> {
@@ -23,9 +45,22 @@ export async function fetchTripInvites(tripId: string, token: string): Promise<I
   return data ?? [];
 }
 
+export function fetchTripMemberInviteSuggestions(
+  tripId: string,
+  token: string,
+): Promise<TripMemberInviteSuggestion[]> {
+  return apiJson<TripMemberInviteSuggestion[]>(
+    `/api/v1/trips/${tripId}/members/invites/suggestions`,
+    { token },
+  );
+}
+
 export function patchTrip(
   tripId: string,
-  body: { name?: string },
+  body: Pick<
+    UpdateTripRequest,
+    'name' | 'description' | 'allowContributorInvites' | 'photobookCoverImageKey'
+  >,
   token: string,
 ): Promise<Trip> {
   return apiJson<Trip>(`/api/v1/trips/${tripId}`, { method: 'PATCH', token, body });

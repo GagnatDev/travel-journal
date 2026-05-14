@@ -11,7 +11,6 @@ import { ThemeProvider } from '../context/ThemeContext.js';
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
 import { AppHeader } from '../components/AppHeader.js';
 import { NOTIFICATIONS_QUERY_KEY } from '../notifications/useNotifications.js';
-
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { server } from './mocks/server.js';
 import { mockUser } from './mocks/handlers.js';

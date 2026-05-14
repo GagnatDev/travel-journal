@@ -1,5 +1,12 @@
 import { NextFunction, Request, Response, Router } from 'express';
-import type { AccessTokenPayload, AddCommentRequest, CreateEntryRequest, ReactionEmoji, UpdateEntryRequest } from '@travel-journal/shared';
+import type {
+  AccessTokenPayload,
+  AddCommentRequest,
+  CreateEntryRequest,
+  ReactionEmoji,
+  TripRole,
+  UpdateEntryRequest,
+} from '@travel-journal/shared';
 
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { getTripById } from '../services/trip.service.js';
@@ -126,29 +133,29 @@ entryRouter.get('/:entryId', async (req: Request, res: Response, next: NextFunct
   }
 });
 
-// PATCH /:entryId — Update entry (author only)
+// PATCH /:entryId — Update entry (trip creator or contributor)
 entryRouter.patch('/:entryId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const auth = res.locals['auth'] as AccessTokenPayload;
+    const tripRole = res.locals['tripRole'] as TripRole;
     const tripId = req.params['id']!;
     const entryId = req.params['entryId']!;
     const body = req.body as UpdateEntryRequest;
 
-    const entry = await updateEntry(tripId, entryId, auth.userId, body);
+    const entry = await updateEntry(tripId, entryId, tripRole, body);
     res.json(entry);
   } catch (err) {
     next(err);
   }
 });
 
-// DELETE /:entryId — Soft-delete (author only)
+// DELETE /:entryId — Soft-delete (trip creator or contributor)
 entryRouter.delete('/:entryId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const auth = res.locals['auth'] as AccessTokenPayload;
+    const tripRole = res.locals['tripRole'] as TripRole;
     const tripId = req.params['id']!;
     const entryId = req.params['entryId']!;
 
-    await softDeleteEntry(tripId, entryId, auth.userId);
+    await softDeleteEntry(tripId, entryId, tripRole);
     res.status(204).send();
   } catch (err) {
     next(err);

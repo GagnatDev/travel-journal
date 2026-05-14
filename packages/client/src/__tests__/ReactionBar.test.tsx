@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Reaction } from '@travel-journal/shared';
 
 import { ReactionBar } from '../components/ReactionBar.js';
-
 import { AuthSessionProvider } from './AuthSessionProvider.js';
 import { mockUser } from './mocks/handlers.js';
 

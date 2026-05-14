@@ -1,11 +1,20 @@
 import mongoose from 'mongoose';
-import type { CreateEntryRequest, Entry, EntryImage, UpdateEntryRequest } from '@travel-journal/shared';
+import type {
+  CreateEntryRequest,
+  Entry,
+  EntryImage,
+  TripRole,
+  UpdateEntryRequest,
+} from '@travel-journal/shared';
 
 import { Entry as EntryModel, IEntry } from '../models/Entry.model.js';
 import { logger } from '../logger.js';
 import { User } from '../models/User.model.js';
-
 import { dispatchNewEntryNotification } from './notification.service.js';
+import {
+  finalizeConsumedSavedLocation,
+  requireConsumableSavedLocation,
+} from './saved-location.service.js';
 
 export interface EntryLocationPin {
   entryId: string;
@@ -74,6 +83,13 @@ export function assertEntryAuthor(entry: Entry, userId: string): void {
   }
 }
 
+/** Trip creator and contributors may edit or delete any entry on the trip; followers may not. */
+export function assertCanManageTripEntry(tripRole: TripRole): void {
+  if (tripRole === 'follower') {
+    throw createHttpError('Forbidden', 403, 'FORBIDDEN');
+  }
+}
+
 /** Parses client-supplied creation time for offline sync; returns null if invalid or out of range. */
 export function tryParseClientCreatedAt(input: string): Date | null {
   const d = new Date(input);
@@ -90,8 +106,21 @@ export async function createEntry(
   authorId: string,
   data: CreateEntryRequest,
 ): Promise<Entry> {
-  const { clientCreatedAt: clientCreatedAtRaw, ...rest } = data;
+  const {
+    clientCreatedAt: clientCreatedAtRaw,
+    consumedSavedLocationId: consumedRaw,
+    ...rest
+  } = data;
   const normalizedImages = rest.images ? normalizeImageOrder(rest.images) : [];
+
+  const bookmarkId =
+    consumedRaw !== undefined && consumedRaw !== null && String(consumedRaw).trim() !== ''
+      ? String(consumedRaw).trim()
+      : undefined;
+
+  if (bookmarkId !== undefined && !mongoose.Types.ObjectId.isValid(bookmarkId)) {
+    throw createHttpError('Invalid consumedSavedLocationId', 400, 'VALIDATION_ERROR');
+  }
 
   const now = new Date();
   let createdAt: Date | undefined;
@@ -103,7 +132,7 @@ export async function createEntry(
     createdAt = parsed;
   }
 
-  const doc = await EntryModel.create({
+  const entryPayload = {
     tripId: new mongoose.Types.ObjectId(tripId),
     authorId: new mongoose.Types.ObjectId(authorId),
     title: rest.title.trim(),
@@ -115,13 +144,25 @@ export async function createEntry(
     location: rest.location,
     deletedAt: null,
     ...(createdAt !== undefined && { createdAt, updatedAt: now }),
-  });
+  };
 
-  const entry = await toEntry(doc);
-  void dispatchNewEntryNotification(entry).catch((err: unknown) => {
-    logger.warn({ err, entryId: entry.id }, 'Failed to dispatch new-entry notifications');
-  });
-  return entry;
+  async function saveAndNotify(doc: IEntry): Promise<Entry> {
+    const entry = await toEntry(doc);
+    void dispatchNewEntryNotification(entry).catch((err: unknown) => {
+      logger.warn({ err, entryId: entry.id }, 'Failed to dispatch new-entry notifications');
+    });
+    return entry;
+  }
+
+  if (bookmarkId !== undefined) {
+    await requireConsumableSavedLocation(tripId, bookmarkId);
+    const doc = await EntryModel.create(entryPayload);
+    await finalizeConsumedSavedLocation(tripId, bookmarkId);
+    return saveAndNotify(doc);
+  }
+
+  const doc = await EntryModel.create(entryPayload);
+  return saveAndNotify(doc);
 }
 
 export async function listEntries(
@@ -143,6 +184,13 @@ export async function listEntries(
   return { entries, total };
 }
 
+/** All non-deleted entries for a trip, oldest first (for photobook / export). */
+export async function listAllEntriesChronological(tripId: string): Promise<Entry[]> {
+  const filter = { tripId: new mongoose.Types.ObjectId(tripId), deletedAt: null };
+  const docs = await EntryModel.find(filter).sort({ createdAt: 1 });
+  return Promise.all(docs.map(toEntry));
+}
+
 export async function getEntryById(tripId: string, entryId: string): Promise<Entry> {
   if (!mongoose.Types.ObjectId.isValid(entryId)) {
     throw createHttpError('Entry not found', 404, 'NOT_FOUND');
@@ -162,7 +210,7 @@ export async function getEntryById(tripId: string, entryId: string): Promise<Ent
 export async function updateEntry(
   tripId: string,
   entryId: string,
-  requesterId: string,
+  tripRole: TripRole,
   data: UpdateEntryRequest,
 ): Promise<Entry> {
   if (!mongoose.Types.ObjectId.isValid(entryId)) {
@@ -177,8 +225,7 @@ export async function updateEntry(
 
   if (!doc) throw createHttpError('Entry not found', 404, 'NOT_FOUND');
 
-  const entry = await toEntry(doc);
-  assertEntryAuthor(entry, requesterId);
+  assertCanManageTripEntry(tripRole);
 
   if (data.title !== undefined) doc.title = data.title.trim();
   if (data.content !== undefined) doc.content = data.content;
@@ -228,7 +275,7 @@ export async function listEntryLocations(tripId: string): Promise<EntryLocationP
 export async function softDeleteEntry(
   tripId: string,
   entryId: string,
-  requesterId: string,
+  tripRole: TripRole,
 ): Promise<void> {
   if (!mongoose.Types.ObjectId.isValid(entryId)) {
     throw createHttpError('Entry not found', 404, 'NOT_FOUND');
@@ -242,8 +289,7 @@ export async function softDeleteEntry(
 
   if (!doc) throw createHttpError('Entry not found', 404, 'NOT_FOUND');
 
-  const entry = await toEntry(doc);
-  assertEntryAuthor(entry, requesterId);
+  assertCanManageTripEntry(tripRole);
 
   doc.deletedAt = new Date();
   await doc.save();

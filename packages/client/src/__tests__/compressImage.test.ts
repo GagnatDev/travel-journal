@@ -46,7 +46,7 @@ describe('compressImage', () => {
     const promise = compressImage(file);
     triggerLoad(100, 100);
     const result = await promise;
-    expect(mockToBlob).toHaveBeenCalledWith(expect.any(Function), 'image/jpeg', 0.82);
+    expect(mockToBlob).toHaveBeenCalledWith(expect.any(Function), 'image/jpeg', 0.9);
     expect(result.blob).toBe(mockBlob);
   });
 
@@ -61,7 +61,7 @@ describe('compressImage', () => {
 
   it('does not up-scale images smaller than maxDimension', async () => {
     const file = new File(['data'], 'small.jpg', { type: 'image/jpeg' });
-    const promise = compressImage(file, 1920);
+    const promise = compressImage(file, 2560);
     triggerLoad(400, 300);
     await promise;
     expect(mockCanvas.width).toBe(400);

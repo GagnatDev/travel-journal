@@ -36,6 +36,7 @@ RUN pnpm install --frozen-lockfile --prod
 
 COPY --from=builder /app/packages/shared/dist packages/shared/dist
 COPY --from=builder /app/packages/server/dist packages/server/dist
+COPY --from=builder /app/packages/server/assets packages/server/assets
 COPY --from=builder /app/packages/client/dist packages/server/dist/public
 
 EXPOSE 3100

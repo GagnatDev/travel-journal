@@ -4,7 +4,6 @@ import type { TripEntryNotificationMode } from '@travel-journal/shared';
 
 import { patchMyTripNotificationPreferences } from '../api/trips.js';
 import { useAuth } from '../context/AuthContext.js';
-
 import { ensurePushSubscription } from './push.js';
 
 const TRIP_QUERY_KEY_PREFIX = ['trip'] as const;

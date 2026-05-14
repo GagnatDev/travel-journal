@@ -142,6 +142,11 @@
         "body_one": "Catch up on today's 1 new entry.",
         "body_other": "Catch up on today's {{count}} new entries."
       },
+      "tripPhotobookPdfReady": {
+        "title": "Photobook (PDF) ready: {{tripName}}",
+        "body": "You can download the PDF from this trip’s settings.",
+        "openAction": "Open settings"
+      },
       "releaseAnnouncement": {
         "title": "Travel Journal updated to {{version}}",
         "body": "A newer version is ready. Reload to get the latest improvements.",
@@ -209,6 +214,7 @@
       "membersTitle": "Members",
       "addMemberTitle": "Add Member",
       "addMemberPlaceholder": "Email or nickname",
+      "inviteSuggestionsHint": "From your other trips and trips you follow",
       "addMemberButton": "Add",
       "addMemberRoleLabel": "Trip Role",
       "memberAdded": "Member added!",
@@ -222,12 +228,22 @@
       "circleTitle": "Circle of Explorers",
       "inviteButton": "INVITE NEW MEMBER",
       "membersCountSuffix": "TOTAL",
-      "privacyTitle": "PRIVACY CONTROLS",
-      "privacyPublic": "Entire Circle",
-      "privacyPrivate": "Private Journal",
       "allowContributorInvites": "Allow contributors to invite others",
       "collaborativeChaptersTitle": "Collaborative Chapters",
-      "collaborativeChaptersInfo": "Members can co-author entries and share memories together."
+      "collaborativeChaptersInfo": "Members can co-author entries and share memories together.",
+      "photobookPdfTitle": "Photobook (PDF)",
+      "photobookPdfDescription": "Generate a square PDF with entries grouped by day — great as a keepsake. PDF language follows the app language (Norwegian or English). When it’s ready, download it here.",
+      "photobookPdfGenerateButton": "Generate PDF",
+      "photobookPdfRegenerateButton": "Regenerate PDF",
+      "photobookPdfDownloadLink": "Download PDF",
+      "photobookPdfGenerating": "Generating PDF — this may take a moment. We’ll notify you when it’s ready.",
+      "photobookPdfReadyMessage": "Your PDF is ready. Use the button below to download.",
+      "photobookPdfError": "Could not generate the PDF. Please try again.",
+      "photobookCoverNotChosenWarning": "No cover photo is chosen yet. The PDF will use a random trip photo for the cover. Pick one from the timeline image carousel (settings on a photo).",
+      "photobookCoverPreviewOpen": "Preview chosen photobook cover",
+      "photobookCoverPreviewHint": "Preview the cover image you chose.",
+      "photobookCoverPreviewDialogLabel": "Photobook cover preview",
+      "photobookCoverPreviewImageAlt": "Chosen photobook cover"
     },
     "notificationMode": {
       "triggerLabel": "New-entry notifications ({{current}})",
@@ -254,6 +270,7 @@
   },
   "offline": {
     "banner": "You're offline — entries will sync when reconnected",
+    "savedSpotQueued": "Spot saved on this device — it will sync to the map when you're back online.",
     "saved": "Saved offline — will sync when reconnected",
     "editPending": "Edit offline draft",
     "syncFailedShort": "Sync failed",
@@ -265,6 +282,26 @@
   "map": {
     "title": "Map",
     "noLocations": "No entries with locations yet. Add a location when creating an entry.",
+    "noPins": "No pins yet. Save your current spot from here, or add a location to a journal entry.",
+    "openMenu": "Open map menu",
+    "saveCurrentLocation": "Save current location",
+    "goToMyLocation": "Go to my location",
+    "centerOnLocationDenied": "We couldn't read your location. Allow location access and try again.",
+    "saveLocationTitle": "Save this spot",
+    "saveLocationHint": "We use your device location once. You can add an optional label to remind you later.",
+    "saveLocationOfflineNote": "You're offline — the spot is stored on this device and syncs when you're back online.",
+    "saveLocationNameLabel": "Name (optional)",
+    "saveLocationNamePlaceholder": "e.g. viewpoint parking",
+    "saveLocationConfirm": "Save spot",
+    "saveLocationGeolocationDenied": "We couldn't read your location. Allow location access and try again.",
+    "saveLocationFailed": "Could not save the spot. Check your connection and try again.",
+    "savedLocationUntitled": "Saved spot",
+    "savedBy": "Saved by",
+    "createEntryFromSaved": "Write journal entry…",
+    "deleteSavedLocation": "Delete bookmark",
+    "confirmDeleteSavedLocation": "Remove this saved spot from the map?",
+    "pendingSpotOffline": "Not uploaded yet — will appear for everyone once your device reconnects.",
+    "discardPendingSpot": "Remove from device",
     "viewEntry": "View Entry",
     "mapboxTokenMissingTitle": "Map unavailable",
     "mapboxTokenMissingDev": "Add VITE_MAPBOX_TOKEN (your Mapbox public token) to the client env file, for example packages/client/.env, then restart the Vite dev server.",
@@ -276,10 +313,12 @@
     "newTitle": "New Entry",
     "editTitle": "Edit Entry",
     "draft": "Draft",
+    "entryDate": "Entry date",
     "sectionLabel": "Latest from the Road",
     "loadError": "Could not load entries.",
     "retryLoad": "Try again",
     "tripNameFallback": "Trip",
+    "tripIntroTitle": "About this trip",
     "moreOptions": "More options",
     "saveEntry": "SAVE ENTRY",
     "titleLabel": "Title",
@@ -297,14 +336,25 @@
     "photosSection": "Photos",
     "addPhotos": "Add Photos",
     "uploadingImage": "Uploading...",
+    "uploadingPhotosTitle": "Uploading photos",
+    "uploadFinishingTitle": "Finishing photo uploads",
+    "uploadProgressCount": "{{completed}} of {{total}} photos",
     "uploadFailed": "Could not upload one or more photos. Try again.",
+    "uploadQueuedOffline": "Upload failed; photos are saved on this device and will upload when you are back online.",
     "imageLimit": "Maximum 10 images",
     "removeImage": "Remove image",
     "carousel": {
       "dialogLabel": "Image carousel",
       "previousImage": "Previous image",
       "nextImage": "Next image",
-      "closeImageCarousel": "Close image carousel"
+      "closeImageCarousel": "Close image carousel",
+      "photobookCoverMenuLabel": "Photobook cover options",
+      "photobookCoverToggleLabel": "Photobook cover",
+      "photobookCoverMenuHintOn": "This photo will appear on the PDF cover.",
+      "photobookCoverMenuHintOff": "Turn on to use this photo on the photobook cover instead of a random one.",
+      "setAsPhotobookCover": "Use as photobook cover",
+      "clearPhotobookCover": "Use random photo for photobook cover",
+      "currentPhotobookCover": "This image is the photobook cover"
     }
   },
   "reactions": {
@@ -315,9 +365,8 @@
     "placeholder": "Write a comment…",
     "delete": "Delete",
     "hide": "Hide comments",
+    "showCollapsed": "Show comments",
     "empty": "No comments yet.",
-    "count_one": "{{count}} comment",
-    "count_other": "{{count}} comments",
-    "count_zero": "Add a comment"
+    "count": "Show comments ({{count}})"
   }
 }

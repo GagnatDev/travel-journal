@@ -1,11 +1,40 @@
 import request from 'supertest';
-import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
 import mongoose from 'mongoose';
 
 import { createApp } from '../app.js';
+import { Entry } from '../models/Entry.model.js';
 import { User } from '../models/User.model.js';
 import { Trip } from '../models/Trip.model.js';
 import { hashPassword, generateAccessToken } from '../services/auth.service.js';
+
+const { onePxPng } = vi.hoisted(() => ({
+  onePxPng: Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  ),
+}));
+
+vi.mock('../services/trip-photobook-job.service.js', () => ({
+  schedulePhotobookPdfJob: vi.fn(),
+}));
+
+vi.mock('../services/media.service.js', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('../services/media.service.js')>();
+  return {
+    ...mod,
+    getObjectBuffer: vi.fn().mockResolvedValue(onePxPng),
+    streamMediaObject: vi.fn(async (_key: string, res: import('express').Response) => {
+      const header = Buffer.from('%PDF-1.4 test photobook\n');
+      const buf = Buffer.alloc(600, 0x0a);
+      header.copy(buf, 0);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="trip-photobook.pdf"');
+      res.setHeader('Content-Length', String(buf.length));
+      res.send(buf);
+    }),
+  };
+});
 
 const MONGO_URI =
   process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-test-trip-router';
@@ -18,6 +47,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await User.deleteMany({});
   await Trip.deleteMany({});
+  await Entry.deleteMany({});
 });
 
 afterAll(async () => {
@@ -109,6 +139,125 @@ describe('GET /api/v1/trips', () => {
   });
 });
 
+describe('GET /api/v1/trips/:id/photobook.pdf', () => {
+  it('returns 400 for planned trip', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'Planned Trip' });
+    const tripId = createRes.body.id as string;
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${tripId}/photobook.pdf`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 409 when PDF has not been generated yet', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'Active No Pdf' });
+    const tripId = createRes.body.id as string;
+    await Trip.updateOne({ _id: tripId }, { $set: { status: 'active' } });
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${tripId}/photobook.pdf`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(res.status).toBe(409);
+  });
+
+  it('returns 403 for member who is not trip creator', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const contributor = await makeUser('contrib@test.com', 'creator');
+
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'Shared' });
+    const tripId = createRes.body.id as string;
+
+    await Trip.updateOne(
+      { _id: tripId },
+      {
+        $set: { status: 'active' },
+        $push: {
+          members: {
+            userId: contributor._id,
+            tripRole: 'contributor',
+            addedAt: new Date(),
+            notificationPreferences: { newEntriesMode: 'per_entry' },
+          },
+        },
+      },
+    );
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${tripId}/photobook.pdf`)
+      .set('Authorization', authHeader(String(contributor._id), contributor.email, 'creator'));
+
+    expect(res.status).toBe(403);
+  });
+
+  it('returns PDF for active trip with entries', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'Active Trip' });
+    const tripId = createRes.body.id as string;
+
+    await Trip.updateOne(
+      { _id: tripId },
+      {
+        $set: {
+          status: 'active',
+          photobookPdfJob: {
+            status: 'ready',
+            pdfStorageKey: `pdf/${tripId}/stub.pdf`,
+            finishedAt: new Date(),
+          },
+        },
+      },
+    );
+
+    await Entry.create({
+      tripId: new mongoose.Types.ObjectId(tripId),
+      authorId: creator._id,
+      title: 'Morning walk',
+      content: 'We strolled along the pier.',
+      images: [
+        {
+          key: `media/${tripId}/a.jpg`,
+          width: 100,
+          height: 100,
+          order: 0,
+          uploadedAt: new Date(),
+        },
+      ],
+      reactions: [],
+      deletedAt: null,
+      createdAt: new Date('2026-06-01T10:00:00Z'),
+    });
+
+    const res = await request(app)
+      .get(`/api/v1/trips/${tripId}/photobook.pdf`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/application\/pdf/);
+    const body = res.body as Buffer;
+    expect(Buffer.isBuffer(body)).toBe(true);
+    expect(body.subarray(0, 4).toString('ascii')).toBe('%PDF');
+    expect(body.length).toBeGreaterThan(500);
+    expect(String(res.headers['content-disposition'])).toContain('photobook.pdf');
+  });
+});
+
 describe('GET /api/v1/trips/:id', () => {
   it('returns 404 for non-member (do not leak existence)', async () => {
     const creator = await makeUser('creator@test.com', 'creator');
@@ -195,6 +344,114 @@ describe('PATCH /api/v1/trips/:id', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.name).toBe('Updated Name');
+  });
+
+  it('returns 200 and persists description for creator', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'My Trip' });
+
+    const tripId = createRes.body.id as string;
+
+    const res = await request(app)
+      .patch(`/api/v1/trips/${tripId}`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ description: '  Weekend in Bergen  ' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.description).toBe('Weekend in Bergen');
+  });
+
+  it('returns 200 and persists allowContributorInvites for creator', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'My Trip' });
+
+    const tripId = createRes.body.id as string;
+
+    const res = await request(app)
+      .patch(`/api/v1/trips/${tripId}`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ allowContributorInvites: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body.allowContributorInvites).toBe(true);
+  });
+
+  it('returns 200 and persists photobookCoverImageKey when image is on an entry', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'Cover Trip' });
+
+    const tripId = createRes.body.id as string;
+    const imageKey = `media/${tripId}/hero.jpg`;
+
+    await Entry.create({
+      tripId: new mongoose.Types.ObjectId(tripId),
+      authorId: creator._id,
+      title: 'One',
+      content: 'Text',
+      images: [
+        {
+          key: imageKey,
+          width: 100,
+          height: 100,
+          order: 0,
+          uploadedAt: new Date(),
+        },
+      ],
+      deletedAt: null,
+    });
+
+    const setRes = await request(app)
+      .patch(`/api/v1/trips/${tripId}`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ photobookCoverImageKey: imageKey });
+
+    expect(setRes.status).toBe(200);
+    expect(setRes.body.photobookCoverImageKey).toBe(imageKey);
+
+    const getRes = await request(app)
+      .get(`/api/v1/trips/${tripId}`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.photobookCoverImageKey).toBe(imageKey);
+
+    const clearRes = await request(app)
+      .patch(`/api/v1/trips/${tripId}`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ photobookCoverImageKey: null });
+
+    expect(clearRes.status).toBe(200);
+    expect(clearRes.body.photobookCoverImageKey).toBeUndefined();
+  });
+
+  it('returns 400 when photobookCoverImageKey is not on any entry', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'No Entry Images' });
+
+    const tripId = createRes.body.id as string;
+
+    const res = await request(app)
+      .patch(`/api/v1/trips/${tripId}`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ photobookCoverImageKey: `media/${tripId}/nope.jpg` });
+
+    expect(res.status).toBe(400);
   });
 });
 

@@ -9,7 +9,6 @@ import type { Invite, Trip } from '@travel-journal/shared';
 import { AuthProvider } from '../context/AuthContext.js';
 import { TripSettingsScreen } from '../screens/TripSettingsScreen.js';
 import { TripMembersSection } from '../screens/tripSettings/TripMembersSection.js';
-
 import { server } from './mocks/server.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
@@ -20,6 +19,7 @@ function makeTrip(extraMembers: Trip['members'] = []): Trip {
     name: 'My Trip',
     status: 'planned',
     createdBy: 'user-1',
+    allowContributorInvites: false,
     members: [
       { userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() },
       ...extraMembers,
@@ -59,6 +59,7 @@ function makeMockTrip(extraMembers: Trip['members'] = []): Trip {
     name: 'My Trip',
     status: 'planned',
     createdBy: 'user-1',
+    allowContributorInvites: false,
     members: [
       { userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() },
       ...extraMembers,
@@ -80,6 +81,7 @@ function renderMembersSection(trip: Trip, pendingInvites: Invite[] = []) {
       <TripMembersSection
         t={t as Parameters<typeof TripMembersSection>[0]['t']}
         trip={trip}
+        canUseInvites
         pendingInvites={pendingInvites}
         addMemberInput=""
         setAddMemberInput={noop}
@@ -93,12 +95,44 @@ function renderMembersSection(trip: Trip, pendingInvites: Invite[] = []) {
         changeRoleMutation={noopMutation as unknown as Parameters<typeof TripMembersSection>[0]['changeRoleMutation']}
         removeMemberMutation={noopMutation as unknown as Parameters<typeof TripMembersSection>[0]['removeMemberMutation']}
         revokeInviteMutation={noopMutation as unknown as Parameters<typeof TripMembersSection>[0]['revokeInviteMutation']}
+        updateTripMutation={noopMutation as unknown as Parameters<typeof TripMembersSection>[0]['updateTripMutation']}
       />
     </TestMemoryRouter>,
   );
 }
 
 describe('MemberManagement (inside TripSettingsScreen)', () => {
+  it('focusing the invite field shows suggestion list when API returns matches', async () => {
+    server.use(
+      http.get('/api/v1/trips/:id/members/invites/suggestions', () =>
+        HttpResponse.json([
+          {
+            userId: 'user-sug',
+            displayName: 'Alice Suggest',
+            email: 'alice.suggest@example.com',
+          },
+        ]),
+      ),
+    );
+
+    renderSettings(makeTrip());
+
+    await waitFor(() => screen.getByRole('button', { name: /inviter nytt medlem|invite new member/i }));
+    await userEvent.click(screen.getByRole('button', { name: /inviter nytt medlem|invite new member/i }));
+
+    const input = await waitFor(() =>
+      screen.getByPlaceholderText(/e-post eller kallenavn|email or nickname/i),
+    );
+    await userEvent.click(input);
+
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: /alice suggest/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('option', { name: /alice suggest/i }));
+    expect(input).toHaveValue('alice.suggest@example.com');
+  });
+
   it('adding an existing user by email shows the "Added" confirmation', async () => {
     server.use(
       http.post('/api/v1/trips/:id/members', () => HttpResponse.json({ type: 'added' })),

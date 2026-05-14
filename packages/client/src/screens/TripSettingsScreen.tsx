@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import i18n from 'i18next';
 
 import { useAuth } from '../context/AuthContext.js';
 import { BottomNavBar } from '../components/BottomNavBar.js';
-
 import { TripDeleteSection } from './tripSettings/TripDeleteSection.js';
 import { TripDetailsSection } from './tripSettings/TripDetailsSection.js';
 import { TripMembersSection } from './tripSettings/TripMembersSection.js';
@@ -12,10 +12,13 @@ import { TripStatusSection } from './tripSettings/TripStatusSection.js';
 import {
   canAccessTripSettingsScreen,
   canDeleteTrip,
+  canDownloadTripPhotobookPdf,
   canEditTripDetailsAndLifecycle,
   canManageTripInvitesAndMembers,
+  canUseTripInviteActions,
   viewerTripRoleForUser,
 } from './tripSettings/tripSettingsPermissions.js';
+import { TripPhotobookPdfSection } from './tripSettings/TripPhotobookPdfSection.js';
 import { useTripSettings } from './tripSettings/useTripSettings.js';
 
 export function TripSettingsScreen() {
@@ -26,6 +29,7 @@ export function TripSettingsScreen() {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
 
   const [addMemberInput, setAddMemberInput] = useState('');
   const [addMemberRole, setAddMemberRole] = useState<'contributor' | 'follower'>('follower');
@@ -39,6 +43,7 @@ export function TripSettingsScreen() {
     trip,
     isLoading,
     pendingInvites,
+    inviteSuggestions,
     updateMutation,
     statusMutation,
     deleteMutation,
@@ -46,6 +51,7 @@ export function TripSettingsScreen() {
     changeRoleMutation,
     removeMemberMutation,
     revokeInviteMutation,
+    refetchTrip,
   } = useTripSettings({
     tripId,
     accessToken,
@@ -62,6 +68,7 @@ export function TripSettingsScreen() {
   useEffect(() => {
     if (!trip) return;
     setName(trip.name);
+    setDescription(trip.description ?? '');
   }, [trip?.id]);
 
   const myMember = trip?.members.find((m) => m.userId === user?.id);
@@ -86,6 +93,7 @@ export function TripSettingsScreen() {
   }
 
   const canManageMembers = canManageTripInvitesAndMembers(myRole);
+  const canUseInvites = canUseTripInviteActions(trip, myRole);
 
   return (
     <div className="min-h-screen bg-bg-primary pt-14 pb-28">
@@ -95,16 +103,34 @@ export function TripSettingsScreen() {
 
       <main className="px-4 space-y-8">
         {canEditTripDetailsAndLifecycle(myRole) ? (
-          <TripDetailsSection t={t} name={name} setName={setName} updateMutation={updateMutation} />
+          <TripDetailsSection
+            t={t}
+            name={name}
+            setName={setName}
+            description={description}
+            setDescription={setDescription}
+            updateMutation={updateMutation}
+          />
         ) : null}
         {canEditTripDetailsAndLifecycle(myRole) ? (
           <TripStatusSection t={t} tripStatus={trip.status} statusMutation={statusMutation} />
+        ) : null}
+        {accessToken && canDownloadTripPhotobookPdf(myRole, trip.status) ? (
+          <TripPhotobookPdfSection
+            t={t}
+            trip={trip}
+            accessToken={accessToken}
+            pdfUiLanguage={i18n.resolvedLanguage?.startsWith('en') ? 'en' : 'nb'}
+            refetchTrip={() => void refetchTrip()}
+          />
         ) : null}
         <TripMembersSection
           t={t}
           trip={trip}
           canManageMembers={canManageMembers}
+          canUseInvites={canUseInvites}
           pendingInvites={pendingInvites}
+          inviteSuggestions={inviteSuggestions}
           addMemberInput={addMemberInput}
           setAddMemberInput={setAddMemberInput}
           addMemberRole={addMemberRole}
@@ -117,6 +143,7 @@ export function TripSettingsScreen() {
           changeRoleMutation={changeRoleMutation}
           removeMemberMutation={removeMemberMutation}
           revokeInviteMutation={revokeInviteMutation}
+          updateTripMutation={updateMutation}
         />
         {canDeleteTrip(myRole) ? (
           <TripDeleteSection

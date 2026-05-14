@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { UseMutationResult } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import type { Invite, Trip } from '@travel-journal/shared';
+import type { Invite, Trip, TripMemberInviteSuggestion } from '@travel-journal/shared';
 
 import type { AddTripMemberResult } from '../../api/trips.js';
 import { BookOpenIcon, HourglassIcon, PersonPlusIcon } from '../../components/icons/index.js';
@@ -18,7 +18,10 @@ interface TripMembersSectionProps {
   trip: Trip;
   /** When false, only member-safe UI (e.g. notification preferences) is shown. */
   canManageMembers?: boolean;
+  /** Invite form, pending invites, and add-member API (creator or contributor when allowed). */
+  canUseInvites?: boolean;
   pendingInvites: Invite[];
+  inviteSuggestions?: TripMemberInviteSuggestion[];
   addMemberInput: string;
   setAddMemberInput: (v: string) => void;
   addMemberRole: 'contributor' | 'follower';
@@ -36,13 +39,22 @@ interface TripMembersSectionProps {
   >;
   removeMemberMutation: UseMutationResult<void, Error, string, unknown>;
   revokeInviteMutation: UseMutationResult<void, Error, string, unknown>;
+  /** Same mutation as trip details save (name/description); also used for contributor-invite toggle. */
+  updateTripMutation: UseMutationResult<
+    Trip,
+    Error,
+    { name?: string; description?: string; allowContributorInvites?: boolean },
+    unknown
+  >;
 }
 
 export function TripMembersSection({
   t,
   trip,
   canManageMembers = true,
+  canUseInvites = false,
   pendingInvites,
+  inviteSuggestions = [],
   addMemberInput,
   setAddMemberInput,
   addMemberRole,
@@ -55,9 +67,51 @@ export function TripMembersSection({
   changeRoleMutation,
   removeMemberMutation,
   revokeInviteMutation,
+  updateTripMutation,
 }: TripMembersSectionProps) {
-  const [allowContributorInvites, setAllowContributorInvites] = useState(false);
   const [inviteFormOpen, setInviteFormOpen] = useState(false);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const blurCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const filteredInviteSuggestions = useMemo(() => {
+    const q = addMemberInput.trim().toLowerCase();
+    const list = inviteSuggestions;
+    if (!q) return list.slice(0, 50);
+    return list
+      .filter(
+        (s) =>
+          s.displayName.toLowerCase().includes(q) || s.email.toLowerCase().includes(q),
+      )
+      .slice(0, 50);
+  }, [addMemberInput, inviteSuggestions]);
+
+  const openSuggestions = () => {
+    if (blurCloseTimer.current) {
+      clearTimeout(blurCloseTimer.current);
+      blurCloseTimer.current = null;
+    }
+    setSuggestionsOpen(true);
+  };
+
+  const scheduleCloseSuggestions = () => {
+    blurCloseTimer.current = setTimeout(() => {
+      setSuggestionsOpen(false);
+      blurCloseTimer.current = null;
+    }, 180);
+  };
+
+  const pickSuggestion = (s: TripMemberInviteSuggestion) => {
+    setAddMemberInput(s.email);
+    setSuggestionsOpen(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (blurCloseTimer.current) clearTimeout(blurCloseTimer.current);
+    };
+  }, []);
+
+  const suggestionsListId = `trip-invite-suggestions-list-${trip.id}`;
 
   return (
     <section className="space-y-6">
@@ -65,7 +119,7 @@ export function TripMembersSection({
         {t('trips.settings.circleTitle')}
       </h1>
 
-      {canManageMembers ? (
+      {canUseInvites ? (
         <>
           {/* Invite button */}
           <PillButton
@@ -83,18 +137,55 @@ export function TripMembersSection({
                 onSubmit={(e) => {
                   e.preventDefault();
                   setAddMemberResult(null);
+                  setSuggestionsOpen(false);
                   addMemberMutation.mutate();
                 }}
                 className="flex gap-2"
               >
-                <input
-                  type="text"
-                  value={addMemberInput}
-                  onChange={(e) => setAddMemberInput(e.target.value)}
-                  placeholder={t('trips.settings.addMemberPlaceholder')}
-                  required
-                  className={`flex-1 min-w-0 text-sm ${standardTextControlClass}`}
-                />
+                <div className="relative flex-1 min-w-0">
+                  <input
+                    type="text"
+                    value={addMemberInput}
+                    onChange={(e) => {
+                      setAddMemberInput(e.target.value);
+                      openSuggestions();
+                    }}
+                    onFocus={openSuggestions}
+                    onBlur={scheduleCloseSuggestions}
+                    placeholder={t('trips.settings.addMemberPlaceholder')}
+                    required
+                    autoComplete="off"
+                    aria-autocomplete="list"
+                    aria-expanded={suggestionsOpen && filteredInviteSuggestions.length > 0}
+                    aria-controls={suggestionsListId}
+                    className={`w-full text-sm ${standardTextControlClass}`}
+                  />
+                  {suggestionsOpen && filteredInviteSuggestions.length > 0 ? (
+                    <ul
+                      id={suggestionsListId}
+                      role="listbox"
+                      className="absolute z-20 left-0 right-0 top-full mt-1 max-h-56 overflow-y-auto rounded-round-eight border border-caption/20 bg-bg-primary shadow-lg py-1"
+                    >
+                      <li className="px-3 py-1.5 font-ui text-xs text-caption border-b border-caption/10">
+                        {t('trips.settings.inviteSuggestionsHint')}
+                      </li>
+                      {filteredInviteSuggestions.map((s) => (
+                        <li key={s.userId} role="presentation">
+                          <button
+                            type="button"
+                            role="option"
+                            className="w-full text-left px-3 py-2 font-ui text-sm text-body hover:bg-bg-secondary transition-colors"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => pickSuggestion(s)}
+                          >
+                            <span className="font-medium block truncate">{s.displayName}</span>
+                            <span className="text-xs text-caption truncate block">{s.email}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
                 <select
                   value={addMemberRole}
                   onChange={(e) => setAddMemberRole(e.target.value as 'contributor' | 'follower')}
@@ -198,7 +289,7 @@ export function TripMembersSection({
       </div>
 
       {/* Pending invites */}
-      {canManageMembers && pendingInvites.length > 0 && (
+      {canUseInvites && pendingInvites.length > 0 && (
         <div className="space-y-3">
           <SectionLabel>{t('trips.settings.pendingInvitesTitle')}</SectionLabel>
           <ul className="space-y-2">
@@ -227,29 +318,13 @@ export function TripMembersSection({
         </div>
       )}
 
-      {/* Privacy Controls (UI stub) */}
-      {canManageMembers ? (
-        <div className="space-y-3">
-          <SectionLabel>{t('trips.settings.privacyTitle')}</SectionLabel>
-          <div className="space-y-2">
-            <label className="flex items-center gap-3 cursor-pointer py-1">
-              <input type="radio" name="privacy" value="public" defaultChecked className="accent-accent" />
-              <span className="font-ui text-sm text-body">{t('trips.settings.privacyPublic')}</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer py-1">
-              <input type="radio" name="privacy" value="private" className="accent-accent" />
-              <span className="font-ui text-sm text-body">{t('trips.settings.privacyPrivate')}</span>
-            </label>
-          </div>
-        </div>
-      ) : null}
-
       {/* Contributor invite toggle */}
       {canManageMembers ? (
         <ToggleSwitch
           id="allow-contributor-invites"
-          checked={allowContributorInvites}
-          onChange={setAllowContributorInvites}
+          checked={trip.allowContributorInvites}
+          disabled={updateTripMutation.isPending}
+          onChange={(next) => updateTripMutation.mutate({ allowContributorInvites: next })}
           label={t('trips.settings.allowContributorInvites')}
         />
       ) : null}

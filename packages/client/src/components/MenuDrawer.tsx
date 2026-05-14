@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../context/ThemeContext.js';
 import { useAuth } from '../context/AuthContext.js';
-
 import { ToggleSwitch } from './ui/ToggleSwitch.js';
 
 interface MenuDrawerProps {
@@ -28,6 +27,11 @@ export function MenuDrawer({ isOpen, onClose }: MenuDrawerProps) {
 
   const handleProfileClick = () => {
     navigate('/profile');
+    onClose();
+  };
+
+  const handleAdminClick = () => {
+    navigate('/admin');
     onClose();
   };
 
@@ -114,6 +118,16 @@ export function MenuDrawer({ isOpen, onClose }: MenuDrawerProps) {
           </div>
 
           <hr className="border-caption/10 my-2" />
+
+          {user?.appRole === 'admin' && (
+            <button
+              type="button"
+              onClick={handleAdminClick}
+              className="w-full text-left font-ui text-sm text-body hover:text-heading transition-colors py-2"
+            >
+              {t('nav.admin')}
+            </button>
+          )}
 
           {/* Profile link */}
           <button

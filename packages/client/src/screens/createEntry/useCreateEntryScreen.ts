@@ -2,17 +2,23 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import type { CreateEntryRequest, EntryImage, UpdateEntryRequest } from '@travel-journal/shared';
+import type {
+  ComposeFromSavedLocationPayload,
+  CreateEntryRequest,
+  EntryImage,
+  UpdateEntryRequest,
+} from '@travel-journal/shared';
 
 import { createEntry, fetchEntry, updateEntry } from '../../api/entries.js';
 import { uploadMedia } from '../../api/media.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { compressImage } from '../../utils/compressImage.js';
+import { uploadEntryLocalFiles } from '../../utils/uploadEntryLocalFiles.js';
 import { getPendingEntry } from '../../offline/db.js';
 import { saveOfflineEntry } from '../../offline/entrySync.js';
 import { QUERY_STALE_MS } from '../../lib/appQueryClient.js';
-
 import { EMPTY_ENTRY_FORM, type EntryFormState } from './entryFormState.js';
+import { formatComposerEntryDate } from './formatComposerEntryDate.js';
 import { useEntryForm } from './useEntryForm.js';
 
 export function useCreateEntryScreen() {
@@ -23,7 +29,7 @@ export function useCreateEntryScreen() {
   }>();
   const { accessToken } = useAuth();
   const queryClient = useQueryClient();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const isPendingEdit = Boolean(pendingLocalId);
@@ -41,9 +47,20 @@ export function useCreateEntryScreen() {
     localId: string;
     createdAt: number;
   } | null>(null);
-  const [uploadingCount, setUploadingCount] = useState(0);
+  const [uploadSession, setUploadSession] = useState<{
+    total: number;
+    remaining: number;
+  } | null>(null);
   const [uploadError, setUploadError] = useState('');
   const [savedOffline, setSavedOffline] = useState(false);
+  const [isFlushingLocalUploads, setIsFlushingLocalUploads] = useState(false);
+  const [flushUploadProgress, setFlushUploadProgress] = useState<{
+    completed: number;
+    total: number;
+  } | null>(null);
+  /** Calendar anchor for new drafts — reset when opening the new-entry route. */
+  const [newComposerDate, setNewComposerDate] = useState(() => new Date());
+  const [linkedSavedLocationId, setLinkedSavedLocationId] = useState<string | null>(null);
 
   const localPreviews = useMemo(
     () => localFiles.map((f) => URL.createObjectURL(f)),
@@ -58,15 +75,39 @@ export function useCreateEntryScreen() {
 
   useEffect(() => {
     if (!tripId || !location.pathname.endsWith('/entries/new')) return;
+    const routerState = location.state as { fromSavedLocation?: ComposeFromSavedLocationPayload } | null;
+    const fromSaved = routerState?.fromSavedLocation;
+
     setPendingOfflineMeta(null);
-    setForm(EMPTY_ENTRY_FORM);
-    setInitialForm(EMPTY_ENTRY_FORM);
+
+    let nextInitial: EntryFormState = EMPTY_ENTRY_FORM;
+    if (
+      fromSaved !== undefined &&
+      fromSaved.savedLocationId !== '' &&
+      !Number.isNaN(fromSaved.lat) &&
+      !Number.isNaN(fromSaved.lng)
+    ) {
+      setLinkedSavedLocationId(fromSaved.savedLocationId);
+      nextInitial = {
+        ...EMPTY_ENTRY_FORM,
+        locationEnabled: true,
+        locationLat: fromSaved.lat,
+        locationLng: fromSaved.lng,
+        locationName: fromSaved.name?.trim() ? fromSaved.name.trim() : '',
+      };
+    } else {
+      setLinkedSavedLocationId(null);
+    }
+
+    setForm(nextInitial);
+    setInitialForm(nextInitial);
     setImages([]);
     setInitialImages([]);
     setLocalFiles([]);
     setInitialLocalFiles([]);
     setSavedOffline(false);
-  }, [tripId, location.pathname]);
+    setNewComposerDate(new Date());
+  }, [tripId, location.pathname, location.key]);
 
   const { data: existingEntry } = useQuery({
     queryKey: ['entry', tripId, entryId],
@@ -74,6 +115,25 @@ export function useCreateEntryScreen() {
     enabled: isServerEdit && !!accessToken && !!tripId && !!entryId,
     staleTime: QUERY_STALE_MS.entryEditor,
   });
+
+  const entryDateLabel = useMemo(() => {
+    if (isServerEdit) {
+      if (!existingEntry) return null;
+      return formatComposerEntryDate(existingEntry.createdAt, i18n.language);
+    }
+    if (isPendingEdit) {
+      if (!pendingOfflineMeta) return null;
+      return formatComposerEntryDate(pendingOfflineMeta.createdAt, i18n.language);
+    }
+    return formatComposerEntryDate(newComposerDate.getTime(), i18n.language);
+  }, [
+    isServerEdit,
+    isPendingEdit,
+    existingEntry,
+    pendingOfflineMeta,
+    newComposerDate,
+    i18n.language,
+  ]);
 
   useEffect(() => {
     if (!existingEntry) return;
@@ -133,7 +193,7 @@ export function useCreateEntryScreen() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['entries', tripId] }),
-        queryClient.invalidateQueries({ queryKey: ['entryLocations', tripId] }),
+        queryClient.invalidateQueries({ queryKey: ['mapPins', tripId] }),
       ]);
       navigate(`/trips/${tripId}/timeline`);
     },
@@ -145,7 +205,7 @@ export function useCreateEntryScreen() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['entries', tripId] }),
-        queryClient.invalidateQueries({ queryKey: ['entryLocations', tripId] }),
+        queryClient.invalidateQueries({ queryKey: ['mapPins', tripId] }),
         queryClient.invalidateQueries({ queryKey: ['entry', tripId, entryId] }),
       ]);
       navigate(`/trips/${tripId}/timeline`);
@@ -163,7 +223,13 @@ export function useCreateEntryScreen() {
         return;
       }
 
-      setUploadingCount((prev) => prev + toProcess.length);
+      if (toProcess.length > 0) {
+        setUploadSession((prev) => {
+          const n = toProcess.length;
+          if (!prev) return { total: n, remaining: n };
+          return { total: prev.total + n, remaining: prev.remaining + n };
+        });
+      }
       await Promise.all(
         toProcess.map(async (file) => {
           try {
@@ -181,9 +247,15 @@ export function useCreateEntryScreen() {
               },
             ]);
           } catch {
-            setUploadError(t('entries.uploadFailed'));
+            setLocalFiles((prev) => [...prev, file]);
+            setUploadError(t('entries.uploadQueuedOffline'));
           } finally {
-            setUploadingCount((prev) => prev - 1);
+            setUploadSession((prev) => {
+              if (!prev) return null;
+              const nextRem = prev.remaining - 1;
+              if (nextRem <= 0) return null;
+              return { total: prev.total, remaining: nextRem };
+            });
           }
         }),
       );
@@ -191,11 +263,31 @@ export function useCreateEntryScreen() {
     [images.length, localFiles.length, tripId, accessToken, t],
   );
 
+  const queueOfflineAfterNetworkFailure = useCallback(
+    (payload: CreateEntryRequest, files: File[]) => {
+      void saveOfflineEntry({
+        localId: crypto.randomUUID(),
+        tripId: tripId!,
+        status: 'pending',
+        payload,
+        images: files,
+        createdAt: Date.now(),
+      });
+      setSavedOffline(true);
+      setTimeout(() => navigate(`/trips/${tripId}/timeline`), 1500);
+    },
+    [navigate, tripId],
+  );
+
   const handleRemoveLocalFile = useCallback((index: number) => {
     setLocalFiles((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const { handleLocationToggle, handleDiscard, validateRequiredFields } = useEntryForm(
+  const {
+    handleLocationToggle: toggleLocationInner,
+    handleDiscard,
+    validateRequiredFields,
+  } = useEntryForm(
     form,
     setForm,
     initialForm,
@@ -210,8 +302,15 @@ export function useCreateEntryScreen() {
     tripId,
   );
 
+  const handleLocationToggle = useCallback(() => {
+    if (form.locationEnabled) {
+      setLinkedSavedLocationId(null);
+    }
+    toggleLocationInner();
+  }, [form.locationEnabled, toggleLocationInner]);
+
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
 
       if (!validateRequiredFields()) return;
@@ -225,12 +324,19 @@ export function useCreateEntryScreen() {
             }
           : undefined;
 
-      const createData: CreateEntryRequest = {
+      const consumeBookmark =
+        linkedSavedLocationId !== null &&
+        form.locationEnabled &&
+        form.locationLat !== null &&
+        form.locationLng !== null;
+
+      const buildCreatePayload = (imageList: EntryImage[]): CreateEntryRequest => ({
         title: form.title.trim(),
         content: form.content,
-        images,
+        images: imageList,
         ...(location !== undefined && { location }),
-      };
+        ...(consumeBookmark && { consumedSavedLocationId: linkedSavedLocationId! }),
+      });
 
       if (isServerEdit) {
         updateMutation.mutate({
@@ -248,7 +354,7 @@ export function useCreateEntryScreen() {
           localId: pendingOfflineMeta.localId,
           tripId: tripId!,
           status: 'pending',
-          payload: createData,
+          payload: buildCreatePayload(images),
           images: localFiles,
           createdAt: pendingOfflineMeta.createdAt,
         });
@@ -262,7 +368,7 @@ export function useCreateEntryScreen() {
           localId: crypto.randomUUID(),
           tripId: tripId!,
           status: 'pending',
-          payload: createData,
+          payload: buildCreatePayload(images),
           images: localFiles,
           createdAt: Date.now(),
         });
@@ -271,7 +377,47 @@ export function useCreateEntryScreen() {
         return;
       }
 
-      createMutation.mutate(createData);
+      if (!tripId || !accessToken) return;
+
+      setUploadError('');
+      createMutation.reset();
+
+      let nextImages = images;
+      let nextLocalFiles = localFiles;
+
+      if (nextLocalFiles.length > 0) {
+        setIsFlushingLocalUploads(true);
+        setFlushUploadProgress({ completed: 0, total: nextLocalFiles.length });
+        try {
+          const result = await uploadEntryLocalFiles(
+            tripId,
+            accessToken,
+            nextImages,
+            nextLocalFiles,
+            (completed, total) => setFlushUploadProgress({ completed, total }),
+          );
+          nextImages = result.images;
+          nextLocalFiles = result.failedFiles;
+          setImages(nextImages);
+          setLocalFiles(nextLocalFiles);
+          if (result.failedFiles.length > 0) {
+            setUploadError(t('entries.uploadQueuedOffline'));
+            queueOfflineAfterNetworkFailure(buildCreatePayload(nextImages), nextLocalFiles);
+            return;
+          }
+        } finally {
+          setIsFlushingLocalUploads(false);
+          setFlushUploadProgress(null);
+        }
+      }
+
+      const createData = buildCreatePayload(nextImages);
+
+      try {
+        await createMutation.mutateAsync(createData);
+      } catch {
+        queueOfflineAfterNetworkFailure(createData, nextLocalFiles);
+      }
     },
     [
       form,
@@ -285,18 +431,35 @@ export function useCreateEntryScreen() {
       localFiles,
       images,
       validateRequiredFields,
+      accessToken,
+      queueOfflineAfterNetworkFailure,
+      t,
+      linkedSavedLocationId,
     ],
   );
 
   const isPending =
     createMutation.isPending ||
     updateMutation.isPending ||
-    uploadingCount > 0 ||
+    uploadSession !== null ||
+    isFlushingLocalUploads ||
     (isPendingEdit && !pendingOfflineMeta);
+
+  const uploadProgress =
+    uploadSession !== null
+      ? {
+          completed: uploadSession.total - uploadSession.remaining,
+          total: uploadSession.total,
+          phase: 'adding' as const,
+        }
+      : flushUploadProgress !== null
+        ? { ...flushUploadProgress, phase: 'finishing' as const }
+        : null;
 
   return {
     isServerEdit,
     isPendingEdit,
+    entryDateLabel,
     form,
     setForm,
     titleError,
@@ -305,7 +468,7 @@ export function useCreateEntryScreen() {
     setImages,
     localPreviews,
     handleFileSelect,
-    uploadingCount,
+    uploadProgress,
     uploadError,
     handleRemoveLocalFile,
     handleLocationToggle,

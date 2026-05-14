@@ -8,7 +8,6 @@ import type { Trip } from '@travel-journal/shared';
 
 import { AuthProvider } from '../context/AuthContext.js';
 import { CreateTripModal } from '../components/CreateTripModal.js';
-
 import { server } from './mocks/server.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
@@ -19,6 +18,7 @@ function makeTrip(name: string): Trip {
     name,
     status: 'planned',
     createdBy: 'user-1',
+    allowContributorInvites: false,
     members: [{ userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() }],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
