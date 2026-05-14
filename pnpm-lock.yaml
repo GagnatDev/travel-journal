@@ -153,6 +153,9 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.575.0
         version: 3.1029.0
+      '@fontsource/noto-emoji':
+        specifier: ^5.2.11
+        version: 5.2.11
       '@fontsource/noto-serif':
         specifier: ^5.2.9
         version: 5.2.9
@@ -177,6 +180,9 @@ importers:
       express-rate-limit:
         specifier: ^7.2.0
         version: 7.5.1(express@4.22.1)
+      fontkit:
+        specifier: ^2.0.4
+        version: 2.0.4
       helmet:
         specifier: ^8.1.0
         version: 8.1.0
@@ -1322,6 +1328,9 @@ packages:
     peerDependenciesMeta:
       '@noble/hashes':
         optional: true
+
+  '@fontsource/noto-emoji@5.2.11':
+    resolution: {integrity: sha512-3xG6tmjv1YgtwExUjqXQ3IgUhXT39V/k3UTbKuKUaRsqNaKzBtKweaZuWtOFUoUccjZEjepWAlLkLEQ4aonB7w==}
 
   '@fontsource/noto-serif@5.2.9':
     resolution: {integrity: sha512-A2b7XBo0dSxxTZg95Ap/HLinXq1pEM8PzSvbBFtPMZM5/1BLKEU1dR+PBnLixvOdcC7mup+/NjmyLryQ1E9WeA==}
@@ -7006,6 +7015,8 @@ snapshots:
   '@exodus/bytes@1.15.0(@noble/hashes@1.8.0)':
     optionalDependencies:
       '@noble/hashes': 1.8.0
+
+  '@fontsource/noto-emoji@5.2.11': {}
 
   '@fontsource/noto-serif@5.2.9': {}
 
