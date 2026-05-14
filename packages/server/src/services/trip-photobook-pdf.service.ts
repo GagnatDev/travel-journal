@@ -20,6 +20,12 @@ import {
   type PhotobookPdfFontState,
 } from './trip-photobook-pdf-text.js';
 import { attachPhotobookPdfX4 } from './trip-photobook-pdfx.js';
+import {
+  collectPhotobookEntryLocations,
+  fetchPhotobookMapStaticPng,
+  getPhotobookPdfMapboxToken,
+  photobookMapStaticRequestPixels,
+} from './trip-photobook-map-static.js';
 
 type PDFDoc = InstanceType<typeof PDFDocument>;
 
@@ -37,6 +43,9 @@ const CREAM = '#fbf9f5';
 const ACCENT = '#9b3f2b';
 const BODY = '#58624a';
 const CAPTION = '#70573f';
+
+/** Mapbox / OSM attribution for static map page (image uses attribution=false). */
+const PHOTOBOOK_MAP_ATTRIBUTION = '© Mapbox © OpenStreetMap';
 
 function pdfImageRasterDpr(): number {
   const raw = process.env['TRIP_PDF_IMAGE_DPR'];
@@ -697,6 +706,48 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
             },
           );
         }
+      }
+    }
+  }
+
+  const mapPoints = collectPhotobookEntryLocations(input.entries);
+  const mapToken = getPhotobookPdfMapboxToken();
+  if (mapPoints.length > 0 && mapToken) {
+    const footerBand = 3.2 * MM;
+    const footerGap = 0.8 * MM;
+    const mapTop = MARGIN;
+    const mapLeft = MARGIN;
+    const mapW = PAGE_SIZE_PT - 2 * MARGIN;
+    const mapH = Math.max(48, innerBottom - mapTop - footerBand - footerGap);
+    const { widthPx, heightPx } = photobookMapStaticRequestPixels(mapW, mapH);
+    const mapBuf = await fetchPhotobookMapStaticPng({
+      points: mapPoints,
+      widthPx,
+      heightPx,
+      accessToken: mapToken,
+    });
+    if (mapBuf) {
+      try {
+        const dpr = pdfImageRasterDpr();
+        const rw = Math.max(1, Math.ceil(mapW * dpr));
+        const rh = Math.max(1, Math.ceil(mapH * dpr));
+        const mapRaster = await sharp(mapBuf)
+          .rotate()
+          .resize(rw, rh, { fit: 'cover', position: 'centre' })
+          .png()
+          .toBuffer();
+        addSquarePage(doc);
+        doc.image(mapRaster, mapLeft, mapTop, { width: mapW, height: mapH });
+        setPhotobookFont(doc, fontsOk, 'ui');
+        doc
+          .fontSize(5.2)
+          .fillColor(CAPTION)
+          .text(PHOTOBOOK_MAP_ATTRIBUTION, mapLeft, innerBottom - footerBand + 0.3 * MM, {
+            width: mapW,
+            align: 'center',
+          });
+      } catch (err) {
+        logger.warn({ err }, 'Photobook PDF: map overview page raster failed');
       }
     }
   }
