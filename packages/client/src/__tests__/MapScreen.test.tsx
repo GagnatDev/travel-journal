@@ -203,6 +203,88 @@ describe('MapScreen', () => {
     });
   });
 
+  it('subscribes to geolocation on an active trip when the map is ready', async () => {
+    const watchPosition = vi.fn((success: PositionCallback) => {
+      queueMicrotask(() =>
+        success({
+          coords: {
+            latitude: 59.9139,
+            longitude: 10.7522,
+            accuracy: 12,
+            altitude: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: null,
+          },
+          timestamp: Date.now(),
+        } as GeolocationPosition),
+      );
+      return 7;
+    });
+    const clearWatch = vi.fn();
+    const origGeo = globalThis.navigator.geolocation;
+    Object.defineProperty(globalThis.navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        watchPosition,
+        clearWatch,
+        getCurrentPosition: vi.fn(),
+      },
+    });
+
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json(mockPins)),
+    );
+
+    renderMap();
+
+    await waitFor(() => {
+      expect(watchPosition).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(mapboxgl.Marker).mock.calls.length).toBeGreaterThanOrEqual(3);
+    });
+
+    Object.defineProperty(globalThis.navigator, 'geolocation', {
+      configurable: true,
+      value: origGeo,
+    });
+  });
+
+  it('does not subscribe to geolocation when the trip is not active', async () => {
+    const watchPosition = vi.fn(() => 1);
+    const origGeo = globalThis.navigator.geolocation;
+    Object.defineProperty(globalThis.navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        watchPosition,
+        clearWatch: vi.fn(),
+        getCurrentPosition: vi.fn(),
+      },
+    });
+
+    server.use(
+      http.get('/api/v1/trips/:id', () =>
+        HttpResponse.json({ ...mockTrip, status: 'planned' satisfies Trip['status'] }),
+      ),
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json(mockPins)),
+    );
+
+    renderMap();
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Ingen kartmerker ennå/i)).not.toBeInTheDocument();
+    });
+
+    expect(watchPosition).not.toHaveBeenCalled();
+
+    Object.defineProperty(globalThis.navigator, 'geolocation', {
+      configurable: true,
+      value: origGeo,
+    });
+  });
+
   it('shows error state when the query fails', async () => {
     server.use(
       http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () =>

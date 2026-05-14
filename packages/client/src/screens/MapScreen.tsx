@@ -20,6 +20,7 @@ import {
   useMapboxMap,
 } from './map/hooks/useMapboxMap.js';
 import { useMapMarkers } from './map/hooks/useMapMarkers.js';
+import { useUserLocationMarker } from './map/hooks/useUserLocationMarker.js';
 import { usePinsForMap } from './map/hooks/usePinsForMap.js';
 import { useSettingsMenuDismiss } from './map/hooks/useSettingsMenuDismiss.js';
 
@@ -133,6 +134,17 @@ export function MapScreen({ mapLayerPaused = false }: MapScreenProps = {}) {
     tripId,
     t,
     canManageSaved,
+  });
+
+  useUserLocationMarker({
+    mapRef,
+    mapReady,
+    hasMapboxToken,
+    isLoading,
+    isError,
+    tripStatus: trip?.status,
+    mapLayerPaused,
+    pinCount: pinsForMap.length,
   });
 
   useEffect(() => {
