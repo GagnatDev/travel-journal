@@ -202,7 +202,7 @@ function wrapTokensToLines(
   };
 
   for (const atom of atoms) {
-    let w = measure(atom);
+    const w = measure(atom);
     if (atom.kind === 'text' && w > maxWidth) {
       flush();
       const parts = splitLongTextToWidths(atom.value, maxWidth, (s) =>
