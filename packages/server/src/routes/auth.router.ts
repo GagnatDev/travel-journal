@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { NextFunction, Request, Response, Router } from 'express';
 import type { LoginRequest, LoginResponse, PublicUser, RegisterRequest } from '@travel-journal/shared';
 
 import { createRateLimit } from '../middleware/rateLimit.js';
@@ -12,11 +12,16 @@ import {
   hashToken,
   verifyPassword,
 } from '../services/auth.service.js';
+import {
+  completeAdminPasswordReset,
+  validateAdminPasswordResetToken,
+} from '../services/adminPasswordReset.service.js';
 
 export const authRouter: Router = Router();
 
 const authRateLimit = createRateLimit(10);
 const authSessionRateLimit = createRateLimit(10);
+const passwordResetCompleteRateLimit = createRateLimit(10);
 
 const COOKIE_NAME = 'refreshToken';
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -210,6 +215,56 @@ authRouter.post('/logout', authSessionRateLimit, async (req: Request, res: Respo
   clearRefreshCookie(res);
   res.status(204).send();
 });
+
+// GET /api/v1/auth/password-reset/:token/validate — Public
+authRouter.get(
+  '/password-reset/:token/validate',
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const token = req.params['token']!;
+      const { email } = await validateAdminPasswordResetToken(token);
+      res.json({ email });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// POST /api/v1/auth/password-reset/complete — Public, rate limited
+authRouter.post(
+  '/password-reset/complete',
+  passwordResetCompleteRateLimit,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { token, password } = req.body as { token?: string; password?: string };
+
+      if (!token || !password) {
+        res.status(400).json({
+          error: {
+            message: 'token and password are required',
+            code: 'VALIDATION_ERROR',
+          },
+        });
+        return;
+      }
+
+      if (password.length < 8) {
+        res.status(400).json({
+          error: {
+            message: 'Password must be at least 8 characters',
+            code: 'VALIDATION_ERROR',
+          },
+        });
+        return;
+      }
+
+      await completeAdminPasswordReset(token, password);
+      res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // GET /api/v1/auth/me
 authRouter.get('/me', requireAuth, async (_req: Request, res: Response) => {

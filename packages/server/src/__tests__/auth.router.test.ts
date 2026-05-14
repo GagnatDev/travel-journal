@@ -3,9 +3,10 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import mongoose from 'mongoose';
 
 import { createApp } from '../app.js';
+import { AdminPasswordResetToken } from '../models/AdminPasswordResetToken.model.js';
 import { User } from '../models/User.model.js';
 import { Session } from '../models/Session.model.js';
-import { hashPassword } from '../services/auth.service.js';
+import { generateAccessToken, hashPassword } from '../services/auth.service.js';
 
 const MONGO_URI = process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-test-auth';
 
@@ -18,6 +19,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await User.deleteMany({});
   await Session.deleteMany({});
+  await AdminPasswordResetToken.deleteMany({});
 });
 
 afterAll(async () => {
@@ -169,5 +171,70 @@ describe('POST /api/v1/auth/logout', () => {
 
     const sessionCount = await Session.countDocuments({ userId: user._id });
     expect(sessionCount).toBe(0);
+  });
+});
+
+function adminBearer(adminId: string, email: string) {
+  return `Bearer ${generateAccessToken({ userId: adminId, email, appRole: 'admin' })}`;
+}
+
+describe('admin password reset via /api/v1/auth/password-reset', () => {
+  it('GET validate returns 410 for unknown token', async () => {
+    const res = await request(app).get('/api/v1/auth/password-reset/not-a-real-token/validate');
+    expect(res.status).toBe(410);
+  });
+
+  it('POST complete returns 400 when password is too short', async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/password-reset/complete')
+      .send({ token: 'abc', password: 'short' });
+    expect(res.status).toBe(400);
+  });
+
+  it('completes reset and allows login with the new password', async () => {
+    const admin = await User.create({
+      email: 'admin@test.com',
+      passwordHash: await hashPassword('adminpass'),
+      displayName: 'Admin',
+      appRole: 'admin',
+    });
+    const target = await User.create({
+      email: 'target@test.com',
+      passwordHash: await hashPassword('oldpass'),
+      displayName: 'Target',
+      appRole: 'creator',
+    });
+
+    const mint = await request(app)
+      .post(`/api/v1/users/${String(target._id)}/password-reset-link`)
+      .set('Authorization', adminBearer(String(admin._id), admin.email));
+
+    expect(mint.status).toBe(201);
+    const resetLink = mint.body.resetLink as string;
+    const token = new URL(resetLink, 'http://localhost').searchParams.get('token')!;
+
+    const val = await request(app).get(`/api/v1/auth/password-reset/${encodeURIComponent(token)}/validate`);
+    expect(val.status).toBe(200);
+    expect(val.body.email).toBe('target@test.com');
+
+    const done = await request(app)
+      .post('/api/v1/auth/password-reset/complete')
+      .send({ token, password: 'newpass123' });
+    expect(done.status).toBe(204);
+
+    const reuse = await request(app)
+      .post('/api/v1/auth/password-reset/complete')
+      .send({ token, password: 'anotherpass12' });
+    expect(reuse.status).toBe(410);
+
+    const badOld = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: 'target@test.com', password: 'oldpass' });
+    expect(badOld.status).toBe(401);
+
+    const ok = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: 'target@test.com', password: 'newpass123' });
+    expect(ok.status).toBe(200);
   });
 });
