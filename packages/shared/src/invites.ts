@@ -12,6 +12,8 @@ export interface Invite {
   invitedBy: string;
   expiresAt: string;
   createdAt: string;
+  /** Present when the server can reconstruct the invite URL (pending, not expired). */
+  inviteLink?: string;
 }
 
 export interface PlatformInviteRequest {

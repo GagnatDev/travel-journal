@@ -53,6 +53,7 @@
       "copyButton": "Copy",
       "linkCopied": "Copied!",
       "pendingTitle": "Pending Invites",
+      "pendingCopyHint": "Copy invite link (valid until expiry)",
       "revokeButton": "Revoke",
       "noInvites": "No pending invites.",
       "roles": {
@@ -210,6 +211,7 @@
       "copyLink": "Copy link",
       "linkCopied": "Copied!",
       "pendingInvitesTitle": "Pending Invites",
+      "pendingInviteCopyHint": "Copy invite link (valid until expiry)",
       "revokeInviteButton": "Revoke",
       "removeButton": "Remove",
       "removeConfirmTitle": "Remove member?",

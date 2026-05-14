@@ -46,6 +46,22 @@ function authHeader(userId: string, email: string, appRole: 'admin' | 'creator' 
   return `Bearer ${token}`;
 }
 
+describe('GET /api/v1/invites/platform', () => {
+  it('includes inviteLink for pending invites', async () => {
+    const admin = await makeUser('admin@test.com', 'admin');
+    await createPlatformInvite('listed@test.com', 'creator', String(admin._id));
+
+    const res = await request(app)
+      .get('/api/v1/invites/platform?status=pending')
+      .set('Authorization', authHeader(String(admin._id), admin.email, 'admin'));
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].inviteLink).toContain('/invite/accept?token=');
+  });
+});
+
 describe('POST /api/v1/invites/platform', () => {
   it('returns 403 for non-admin', async () => {
     const user = await makeUser('user@test.com', 'creator');

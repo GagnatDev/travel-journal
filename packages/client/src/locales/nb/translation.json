@@ -53,6 +53,7 @@
       "copyButton": "Kopier",
       "linkCopied": "Kopiert!",
       "pendingTitle": "Ventende invitasjoner",
+      "pendingCopyHint": "Kopier invitasjonslenke (gyldig til utløp)",
       "revokeButton": "Trekk tilbake",
       "noInvites": "Ingen ventende invitasjoner.",
       "roles": {
@@ -210,6 +211,7 @@
       "copyLink": "Kopier lenke",
       "linkCopied": "Kopiert!",
       "pendingInvitesTitle": "Ventende invitasjoner",
+      "pendingInviteCopyHint": "Kopier invitasjonslenke (gyldig til utløp)",
       "revokeInviteButton": "Trekk tilbake",
       "removeButton": "Fjern",
       "removeConfirmTitle": "Fjerne medlemmet?",
