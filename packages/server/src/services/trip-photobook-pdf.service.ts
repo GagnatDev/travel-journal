@@ -11,7 +11,14 @@ import {
 
 import { logger } from '../logger.js';
 import { getObjectBuffer } from './media.service.js';
-import { resolvePhotobookFontPaths } from './trip-photobook-fonts.js';
+import { resolvePhotobookEmojiFontPaths } from './trip-photobook-fonts.js';
+import { registerPhotobookFonts, setPhotobookFont } from './trip-photobook-pdf-fonts.js';
+import {
+  drawPhotobookPdfUserText,
+  openPhotobookEmojiKitFonts,
+  registerPhotobookEmojiFonts,
+  type PhotobookPdfFontState,
+} from './trip-photobook-pdf-text.js';
 import { attachPhotobookPdfX4 } from './trip-photobook-pdfx.js';
 
 type PDFDoc = InstanceType<typeof PDFDocument>;
@@ -30,13 +37,6 @@ const CREAM = '#fbf9f5';
 const ACCENT = '#9b3f2b';
 const BODY = '#58624a';
 const CAPTION = '#70573f';
-
-const FONT = {
-  display: 'PhotobookDisplay',
-  displayItalic: 'PhotobookDisplayItalic',
-  ui: 'PhotobookUI',
-  uiMedium: 'PhotobookUIMedium',
-} as const;
 
 function pdfImageRasterDpr(): number {
   const raw = process.env['TRIP_PDF_IMAGE_DPR'];
@@ -114,40 +114,6 @@ function groupEntriesByDay(entries: Entry[], timeZone: string): Map<string, Entr
     else map.set(key, [e]);
   }
   return map;
-}
-
-function registerPhotobookFonts(doc: PDFDoc): boolean {
-  const paths = resolvePhotobookFontPaths();
-  if (!paths) {
-    logger.warn('Photobook PDF: font files missing; using Helvetica (not embedded app fonts)');
-    return false;
-  }
-  try {
-    doc.registerFont(FONT.display, paths.display);
-    doc.registerFont(FONT.displayItalic, paths.displayItalic);
-    doc.registerFont(FONT.ui, paths.ui);
-    doc.registerFont(FONT.uiMedium, paths.uiMedium);
-    return true;
-  } catch (err) {
-    logger.warn({ err }, 'Photobook PDF: font registration failed; using Helvetica');
-    return false;
-  }
-}
-
-function setPhotobookFont(doc: PDFDoc, fontsOk: boolean, role: 'display' | 'displayItalic' | 'ui' | 'uiMedium'): void {
-  if (!fontsOk) {
-    const fb =
-      role === 'display'
-        ? 'Helvetica'
-        : role === 'displayItalic'
-          ? 'Helvetica-Oblique'
-          : role === 'uiMedium'
-            ? 'Helvetica-Bold'
-            : 'Helvetica';
-    doc.font(fb);
-    return;
-  }
-  doc.font(FONT[role]);
 }
 
 function fillPageBackground(doc: PDFDoc): void {
@@ -496,7 +462,7 @@ async function embedPhotobookImages(
 
 async function drawCoverPage(
   doc: PDFDoc,
-  fontsOk: boolean,
+  fontState: PhotobookPdfFontState,
   trip: Trip,
   entries: Entry[],
   strings: (typeof PHOTOBOOK_PDF_STRINGS)['nb'],
@@ -513,20 +479,19 @@ async function drawCoverPage(
   const w = PAGE_SIZE_PT - 2 * MARGIN;
   let y = MARGIN + 8;
 
-  setPhotobookFont(doc, fontsOk, 'display');
-  doc.fontSize(26).fillColor(ACCENT).text(trip.name, MARGIN, y, { width: w, align: 'center' });
+  setPhotobookFont(doc, fontState.fontsOk, 'display');
+  drawPhotobookPdfUserText(doc, fontState, 'display', 26, ACCENT, trip.name, MARGIN, y, { width: w, align: 'center' });
   y = doc.y + 10;
 
   const range = formatCoverDateRange(trip, intlLocale);
   if (range) {
-    setPhotobookFont(doc, fontsOk, 'uiMedium');
+    setPhotobookFont(doc, fontState.fontsOk, 'uiMedium');
     doc.fontSize(9).fillColor(CAPTION).text(range, MARGIN, y, { width: w, align: 'center', lineGap: 1 });
     y = doc.y + 14;
   }
 
   if (trip.description?.trim()) {
-    setPhotobookFont(doc, fontsOk, 'ui');
-    doc.fontSize(10).fillColor(BODY).text(trip.description.trim(), MARGIN, y, {
+    drawPhotobookPdfUserText(doc, fontState, 'ui', 10, BODY, trip.description.trim(), MARGIN, y, {
       width: w,
       align: 'center',
       lineGap: 2,
@@ -546,9 +511,9 @@ async function drawCoverPage(
       meta: { key: '', width: 1, height: 1, order: 0, uploadedAt: new Date(0).toISOString() },
       buffer: coverBuf,
     };
-    await drawPhotobookImage(doc, fontsOk, fakeSlot, strings.imagePlaceholder, cx, cy, heroW * 0.92, heroH * 0.92);
+    await drawPhotobookImage(doc, fontState.fontsOk, fakeSlot, strings.imagePlaceholder, cx, cy, heroW * 0.92, heroH * 0.92);
   } else {
-    setPhotobookFont(doc, fontsOk, 'ui');
+    setPhotobookFont(doc, fontState.fontsOk, 'ui');
     doc.fontSize(10).fillColor(CAPTION).text(strings.coverNoPhotoHint, MARGIN, cy - 6, { width: w, align: 'center' });
   }
 }
@@ -578,6 +543,24 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
 
   const fontsOk = registerPhotobookFonts(doc);
 
+  const emojiPaths = resolvePhotobookEmojiFontPaths();
+  const emojiKitFonts = openPhotobookEmojiKitFonts(emojiPaths);
+  let emojiFontsRegistered = false;
+  if (emojiPaths?.length) {
+    try {
+      registerPhotobookEmojiFonts(doc, emojiPaths);
+      emojiFontsRegistered = true;
+    } catch (err) {
+      logger.warn({ err }, 'Photobook PDF: emoji font registration failed');
+    }
+  }
+
+  const photobookFontState: PhotobookPdfFontState = {
+    fontsOk,
+    emojiFontsRegistered,
+    emojiKitFonts: emojiKitFonts ?? null,
+  };
+
   const chunks: Buffer[] = [];
   doc.on('data', (c: Buffer) => chunks.push(c));
 
@@ -586,7 +569,7 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
     doc.on('error', reject);
   });
 
-  await drawCoverPage(doc, fontsOk, input.trip, input.entries, strings, intlLocale);
+  await drawCoverPage(doc, photobookFontState, input.trip, input.entries, strings, intlLocale);
 
   const innerBottom = pageContentBottom();
 
@@ -626,10 +609,19 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
         y = doc.y + (p === 0 ? 8 : 10);
 
         if (p === 0) {
-          setPhotobookFont(doc, fontsOk, 'displayItalic');
-          doc.fontSize(17).fillColor(ACCENT).text(entry.title, MARGIN, y, {
-            width: PAGE_SIZE_PT - 2 * MARGIN,
-          });
+          drawPhotobookPdfUserText(
+            doc,
+            photobookFontState,
+            'displayItalic',
+            17,
+            ACCENT,
+            entry.title,
+            MARGIN,
+            y,
+            {
+              width: PAGE_SIZE_PT - 2 * MARGIN,
+            },
+          );
           y = doc.y + 10;
         }
 
@@ -650,7 +642,7 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
           const bandW = PAGE_SIZE_PT - 2 * MARGIN;
           await embedPhotobookImages(
             doc,
-            fontsOk,
+            photobookFontState.fontsOk,
             slice,
             strings.imagePlaceholder,
             bandLeft,
@@ -659,13 +651,22 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
             imageBandH,
           );
         } else if (p === 0) {
-          setPhotobookFont(doc, fontsOk, 'displayItalic');
-          doc.fontSize(10).fillColor(BODY).text(entry.content, MARGIN, y, {
-            width: PAGE_SIZE_PT - 2 * MARGIN,
-            height: innerBottom - y - 4,
-            align: 'center',
-            lineGap: 3,
-          });
+          drawPhotobookPdfUserText(
+            doc,
+            photobookFontState,
+            'displayItalic',
+            10,
+            BODY,
+            entry.content ?? '',
+            MARGIN,
+            y,
+            {
+              width: PAGE_SIZE_PT - 2 * MARGIN,
+              height: innerBottom - y - 4,
+              align: 'center',
+              lineGap: 3,
+            },
+          );
         }
 
         if (slice.length > 0 && p === 0 && hasBodyText) {
@@ -679,13 +680,22 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
           doc.restore();
 
           const bodyY = sepY + 10;
-          setPhotobookFont(doc, fontsOk, 'displayItalic');
-          doc.fontSize(9).fillColor(BODY).text(entry.content, MARGIN, bodyY, {
-            width: PAGE_SIZE_PT - 2 * MARGIN,
-            height: innerBottom - bodyY - 4,
-            align: 'center',
-            lineGap: 3,
-          });
+          drawPhotobookPdfUserText(
+            doc,
+            photobookFontState,
+            'displayItalic',
+            9,
+            BODY,
+            entry.content ?? '',
+            MARGIN,
+            bodyY,
+            {
+              width: PAGE_SIZE_PT - 2 * MARGIN,
+              height: innerBottom - bodyY - 4,
+              align: 'center',
+              lineGap: 3,
+            },
+          );
         }
       }
     }

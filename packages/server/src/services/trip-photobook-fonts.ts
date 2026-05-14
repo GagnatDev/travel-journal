@@ -33,3 +33,19 @@ export function resolvePhotobookFontPaths(): PhotobookFontPaths | null {
   }
   return null;
 }
+
+/** Noto Emoji WOFF shards (weight 400) for PDFKit; contiguous indices 0..n under `files/`. */
+export function resolvePhotobookEmojiFontPaths(): string[] | null {
+  for (const root of serverPackageRoots()) {
+    const dir = join(root, 'node_modules', '@fontsource', 'noto-emoji', 'files');
+    if (!existsSync(dir)) continue;
+    const paths: string[] = [];
+    for (let i = 0; ; i++) {
+      const p = join(dir, `noto-emoji-${i}-400-normal.woff`);
+      if (!existsSync(p)) break;
+      paths.push(p);
+    }
+    if (paths.length > 0) return paths;
+  }
+  return null;
+}

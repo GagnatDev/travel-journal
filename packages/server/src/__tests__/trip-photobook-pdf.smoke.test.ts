@@ -37,7 +37,7 @@ describe('buildTripPhotobookPdf smoke', () => {
       tripId: 'trip1',
       authorId: 'u1',
       authorName: 'A',
-      title: 'Day one',
+      title: 'Day one 😀',
       content: 'We walked.',
       images: [
         {
@@ -67,5 +67,6 @@ describe('buildTripPhotobookPdf smoke', () => {
     expect(latin1).toContain('/OutputIntent');
     expect(latin1).toContain('GTS_PDFX');
     expect(latin1).toContain('pdfxid');
+    expect(latin1).toContain('NotoEmoji-Regular');
   });
 });
