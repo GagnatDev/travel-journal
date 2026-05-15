@@ -11,6 +11,7 @@ const fieldErrorClass = 'mt-1 text-xs text-accent font-ui';
 type LoginLocationState = {
   sessionExpired?: boolean;
   passwordResetComplete?: boolean;
+  inviteAlreadyAccepted?: boolean;
   email?: string;
 } | null;
 
@@ -22,6 +23,7 @@ export function LoginScreen() {
   const locState = location.state as LoginLocationState;
   const sessionExpired = locState?.sessionExpired === true;
   const passwordResetComplete = locState?.passwordResetComplete === true;
+  const inviteAlreadyAccepted = locState?.inviteAlreadyAccepted === true;
 
   const [email, setEmail] = useState(locState?.email ?? '');
   const [password, setPassword] = useState('');
@@ -68,6 +70,11 @@ export function LoginScreen() {
       {passwordResetComplete && (
         <p role="status" className="mb-4 text-sm text-center font-ui text-body">
           {t('auth.login.passwordResetComplete')}
+        </p>
+      )}
+      {inviteAlreadyAccepted && (
+        <p role="status" className="mb-4 text-sm text-center font-ui text-body">
+          {t('auth.login.inviteAlreadyAccepted')}
         </p>
       )}
 

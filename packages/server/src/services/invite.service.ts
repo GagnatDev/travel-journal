@@ -100,15 +100,33 @@ export async function createTripInvite(
   return { invite: toInvite(doc), rawToken };
 }
 
-export async function validateInviteToken(rawToken: string): Promise<Invite> {
+export type InviteTokenLookup =
+  | { kind: 'valid'; invite: Invite }
+  | { kind: 'already_accepted'; email: string };
+
+export async function lookupInviteToken(rawToken: string): Promise<InviteTokenLookup> {
   const tokenHash = hashToken(rawToken);
   const doc = await InviteModel.findOne({ tokenHash });
 
-  if (!doc || doc.status !== 'pending' || doc.expiresAt < new Date()) {
+  if (!doc) {
+    throw createHttpError('Invite has expired or already been used', 410, 'INVITE_GONE');
+  }
+  if (doc.status === 'accepted') {
+    return { kind: 'already_accepted', email: doc.email };
+  }
+  if (doc.status !== 'pending' || doc.expiresAt < new Date()) {
     throw createHttpError('Invite has expired or already been used', 410, 'INVITE_GONE');
   }
 
-  return toInvite(doc);
+  return { kind: 'valid', invite: toInvite(doc) };
+}
+
+export async function validateInviteToken(rawToken: string): Promise<Invite> {
+  const result = await lookupInviteToken(rawToken);
+  if (result.kind === 'already_accepted') {
+    throw createHttpError('Invite has expired or already been used', 410, 'INVITE_GONE');
+  }
+  return result.invite;
 }
 
 export async function acceptInvite(

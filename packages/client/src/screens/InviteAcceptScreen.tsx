@@ -10,8 +10,9 @@ import { useAuth } from '../context/AuthContext.js';
 
 interface ValidateResponse {
   email: string;
-  type: string;
-  assignedAppRole: string;
+  type?: string;
+  assignedAppRole?: string;
+  alreadyAccepted?: boolean;
 }
 
 export function InviteAcceptScreen() {
@@ -43,13 +44,18 @@ export function InviteAcceptScreen() {
       .then((data) => {
         if (!data) {
           setTokenError(true);
+        } else if (data.alreadyAccepted) {
+          navigate('/login', {
+            replace: true,
+            state: { email: data.email, inviteAlreadyAccepted: true },
+          });
         } else {
           setEmail(data.email);
         }
       })
       .catch(() => setTokenError(true))
       .finally(() => setValidating(false));
-  }, [token]);
+  }, [token, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

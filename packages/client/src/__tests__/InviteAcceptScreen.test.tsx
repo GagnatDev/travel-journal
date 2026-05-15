@@ -7,6 +7,7 @@ import { http, HttpResponse } from 'msw';
 
 import { AuthProvider } from '../context/AuthContext.js';
 import { InviteAcceptScreen } from '../screens/InviteAcceptScreen.js';
+import { LoginScreen } from '../screens/LoginScreen.js';
 import { server } from './mocks/server.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
 import { mockUser } from './mocks/handlers.js';
@@ -24,6 +25,7 @@ function renderScreen(token: string) {
         <AuthProvider>
           <Routes>
             <Route path="/invite/accept" element={<InviteAcceptScreen />} />
+            <Route path="/login" element={<LoginScreen />} />
             <Route path="/trips" element={<div>Dashboard</div>} />
           </Routes>
         </AuthProvider>
@@ -49,6 +51,25 @@ describe('InviteAcceptScreen', () => {
     });
 
     expect(screen.queryByRole('form')).not.toBeInTheDocument();
+  });
+
+  it('redirects to login with email and message for an already-accepted token', async () => {
+    server.use(
+      http.get('/api/v1/invites/:token/validate', () =>
+        HttpResponse.json({ alreadyAccepted: true, email: 'invited@example.com' }),
+      ),
+    );
+
+    renderScreen('used-token');
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('invited@example.com')).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText(/already have an account|har allerede en konto/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('pre-fills the email field as read-only for a valid token', async () => {

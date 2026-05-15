@@ -10,6 +10,7 @@ import {
   addTripMember,
   createPlatformInvite,
   createTripInvite,
+  lookupInviteToken,
   validateInviteToken,
 } from '../services/invite.service.js';
 import { createTrip } from '../services/trip.service.js';
@@ -70,7 +71,7 @@ describe('createPlatformInvite', () => {
   });
 });
 
-describe('validateInviteToken', () => {
+describe('lookupInviteToken', () => {
   it('throws 410 for expired invites', async () => {
     const admin = await makeUser('admin@test.com', 'admin');
     const { rawToken, invite } = await createPlatformInvite(
@@ -82,12 +83,42 @@ describe('validateInviteToken', () => {
     // Manually expire it
     await Invite.updateOne({ _id: invite.id }, { expiresAt: new Date(Date.now() - 1000) });
 
-    await expect(validateInviteToken(rawToken)).rejects.toMatchObject({
+    await expect(lookupInviteToken(rawToken)).rejects.toMatchObject({
       status: 410,
       code: 'INVITE_GONE',
     });
   });
 
+  it('returns already_accepted for accepted invites', async () => {
+    const admin = await makeUser('admin@test.com', 'admin');
+    const { rawToken, invite } = await createPlatformInvite(
+      'user@test.com',
+      'creator',
+      String(admin._id),
+    );
+
+    await Invite.updateOne({ _id: invite.id }, { status: 'accepted' });
+
+    await expect(lookupInviteToken(rawToken)).resolves.toEqual({
+      kind: 'already_accepted',
+      email: 'user@test.com',
+    });
+  });
+
+  it('returns invite for a valid pending token', async () => {
+    const admin = await makeUser('admin@test.com', 'admin');
+    const { rawToken } = await createPlatformInvite('user@test.com', 'creator', String(admin._id));
+
+    const result = await lookupInviteToken(rawToken);
+    expect(result.kind).toBe('valid');
+    if (result.kind === 'valid') {
+      expect(result.invite.email).toBe('user@test.com');
+      expect(result.invite.status).toBe('pending');
+    }
+  });
+});
+
+describe('validateInviteToken', () => {
   it('throws 410 for already-accepted invites', async () => {
     const admin = await makeUser('admin@test.com', 'admin');
     const { rawToken, invite } = await createPlatformInvite(
@@ -102,15 +133,6 @@ describe('validateInviteToken', () => {
       status: 410,
       code: 'INVITE_GONE',
     });
-  });
-
-  it('returns invite for a valid pending token', async () => {
-    const admin = await makeUser('admin@test.com', 'admin');
-    const { rawToken } = await createPlatformInvite('user@test.com', 'creator', String(admin._id));
-
-    const invite = await validateInviteToken(rawToken);
-    expect(invite.email).toBe('user@test.com');
-    expect(invite.status).toBe('pending');
   });
 });
 

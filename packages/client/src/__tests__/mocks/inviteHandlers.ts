@@ -7,6 +7,9 @@ export const inviteHandlers = [
     if (params['token'] === 'expired-token') {
       return HttpResponse.json({ error: { message: 'Gone' } }, { status: 410 });
     }
+    if (params['token'] === 'used-token') {
+      return HttpResponse.json({ alreadyAccepted: true, email: 'invited@example.com' });
+    }
     return HttpResponse.json({ email: 'invited@example.com', type: 'platform', assignedAppRole: 'creator' });
   }),
 

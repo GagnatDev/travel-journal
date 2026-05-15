@@ -12,7 +12,8 @@
       "submitButton": "Sign in",
       "invalidCredentials": "Invalid email or password",
       "sessionExpired": "Your session has expired. Please sign in again.",
-      "passwordResetComplete": "Your password was updated. Sign in with your new password."
+      "passwordResetComplete": "Your password was updated. Sign in with your new password.",
+      "inviteAlreadyAccepted": "You already have an account. Sign in to continue."
     },
     "register": {
       "title": "Create admin account",

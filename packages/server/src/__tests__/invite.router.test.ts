@@ -99,6 +99,21 @@ describe('GET /api/v1/invites/:token/validate', () => {
     expect(res.status).toBe(200);
     expect(res.body.email).toBe('valid@test.com');
   });
+
+  it('returns 200 with alreadyAccepted for an accepted token', async () => {
+    const admin = await makeUser('admin@test.com', 'admin');
+    const { rawToken, invite } = await createPlatformInvite(
+      'used@test.com',
+      'creator',
+      String(admin._id),
+    );
+
+    await Invite.updateOne({ _id: invite.id }, { status: 'accepted' });
+
+    const res = await request(app).get(`/api/v1/invites/${rawToken}/validate`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ alreadyAccepted: true, email: 'used@test.com' });
+  });
 });
 
 describe('POST /api/v1/invites/accept', () => {

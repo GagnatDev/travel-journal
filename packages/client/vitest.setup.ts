@@ -60,6 +60,7 @@ const nb = {
       invalidCredentials: 'Ugyldig e-post eller passord',
       sessionExpired: 'Økten din har utløpt. Vennligst logg inn på nytt.',
       passwordResetComplete: 'Passordet ditt er oppdatert. Logg inn med det nye passordet.',
+      inviteAlreadyAccepted: 'Du har allerede en konto. Logg inn for å fortsette.',
     },
     register: {
       title: 'Opprett administratorkonto',

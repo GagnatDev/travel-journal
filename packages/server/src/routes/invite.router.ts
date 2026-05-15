@@ -10,7 +10,7 @@ import {
   createPlatformInvite,
   listPlatformInvites,
   revokeInvite,
-  validateInviteToken,
+  lookupInviteToken,
 } from '../services/invite.service.js';
 
 export const inviteRouter: Router = Router();
@@ -103,7 +103,12 @@ inviteRouter.get(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const token = req.params['token']!;
-      const invite = await validateInviteToken(token);
+      const result = await lookupInviteToken(token);
+      if (result.kind === 'already_accepted') {
+        res.json({ alreadyAccepted: true, email: result.email });
+        return;
+      }
+      const { invite } = result;
       res.json({
         email: invite.email,
         type: invite.type,

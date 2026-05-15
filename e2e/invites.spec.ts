@@ -78,6 +78,15 @@ test.describe('Platform invites', () => {
     // Should land on /trips
     await newPage.waitForURL('**/trips');
     expect(newPage.url()).toContain('/trips');
+
+    // Re-opening the same invite link should go to login with email pre-filled
+    const reusePage = await context.newPage();
+    await reusePage.goto(inviteLink);
+    await reusePage.waitForURL('**/login');
+    await expect(reusePage.getByLabel(/e-post|email/i)).toHaveValue('newuser@test.com');
+    await expect(
+      reusePage.getByText(/already have an account|har allerede en konto/i),
+    ).toBeVisible();
   });
 });
 
