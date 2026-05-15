@@ -66,3 +66,4 @@ jobs:
             S3_BUCKET: ${{ secrets.APP_S3_BUCKET }}
             S3_ACCESS_KEY: ${{ secrets.APP_S3_ACCESS_KEY }}
             S3_SECRET_KEY: ${{ secrets.APP_S3_SECRET_KEY }}
+            TRIP_PDF_MAPBOX_TOKEN: ${{ secrets.APP_VITE_MAPBOX_TOKEN }}

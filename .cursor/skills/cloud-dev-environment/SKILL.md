@@ -29,6 +29,10 @@ MONGODB_URI=mongodb://localhost:27017/travel-journal
 
 Without `ADMIN_EMAIL`, the admin bootstrap registration endpoint returns 403.
 
+## Server photobook PDF trip map (`TRIP_PDF_MAPBOX_TOKEN`)
+
+Photobook PDFs can append a final static map page (entry locations only) via the Mapbox Static Images API. Set **`TRIP_PDF_MAPBOX_TOKEN`** on the **server** runtime to the same Mapbox **public** token value as **`VITE_MAPBOX_TOKEN`** (the client build token). If unset or empty, the map page is omitted and the PDF still generates. The alias **`MAPBOX_ACCESS_TOKEN`** is also read if `TRIP_PDF_MAPBOX_TOKEN` is empty.
+
 ## Client `VITE_MAPBOX_TOKEN`
 
 The trip map uses Mapbox GL. Set **`VITE_MAPBOX_TOKEN`** to a [Mapbox public access token](https://account.mapbox.com/) in the client environment before running or building Vite (values are inlined at build time).
