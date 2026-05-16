@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    'import.meta.env.VITE_APP_BUILD_ID': JSON.stringify('vitest-client-bundle'),
+  },
   test: {
     environment: 'jsdom',
     globals: true,

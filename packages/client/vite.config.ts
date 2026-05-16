@@ -6,6 +6,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+import { appBuildIdPlugin } from './vite.appBuildId.plugin.js';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** Set `ANALYZE=1` for `pnpm build` / `build:analyze` to emit `dist/stats.html` (treemap). */
@@ -26,10 +28,11 @@ function manualChunks(id: string): string | undefined {
   return undefined;
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   envDir: e2eEnvDir,
   plugins: [
     react(),
+    appBuildIdPlugin(command === 'serve'),
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',
@@ -86,4 +89,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
