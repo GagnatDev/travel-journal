@@ -78,6 +78,19 @@ test.describe('Notification inbox', () => {
     });
   }
 
+  /**
+   * Adding a member enqueues a "you were added to this trip" inbox notification.
+   * These tests target new-entry behavior, so open the panel once (marks all read) and close.
+   */
+  async function clearFollowerInboxAfterBeingAdded(followerPage: Page): Promise<void> {
+    const bell = followerPage.getByTestId('notifications-bell');
+    await expect(bell).toBeVisible();
+    await bell.click();
+    await expect(followerPage.getByTestId('notifications-list')).toBeVisible({ timeout: 10_000 });
+    await followerPage.keyboard.press('Escape');
+    await expect(followerPage.getByTestId('notifications-badge')).toHaveCount(0, { timeout: 10_000 });
+  }
+
   async function createEntryOnTrip(page: Page, tripId: string, title: string): Promise<void> {
     await page.goto(`/trips/${tripId}/timeline`);
     await page.getByRole('button', { name: /legg til innlegg|add entry/i }).click();
@@ -104,6 +117,7 @@ test.describe('Notification inbox', () => {
     await acceptInvite(followerPage, inviteLink);
 
     await addFollowerToTrip(adminPage, tripId);
+    await clearFollowerInboxAfterBeingAdded(followerPage);
 
     const bell = followerPage.getByTestId('notifications-bell');
     await expect(bell).toBeVisible();
@@ -162,6 +176,7 @@ test.describe('Notification inbox', () => {
     await acceptInvite(followerPage, inviteLink);
 
     await addFollowerToTrip(adminPage, tripId);
+    await clearFollowerInboxAfterBeingAdded(followerPage);
 
     // Follower lands on the trip timeline and opts out of new-entry notifications
     // for this trip via the control next to the story-mode toggle.

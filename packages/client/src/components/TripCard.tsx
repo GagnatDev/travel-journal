@@ -5,6 +5,8 @@ import type { Trip, TripRole } from '@travel-journal/shared';
 interface TripCardProps {
   trip: Trip;
   currentUserId: string;
+  /** Brief emphasis when user lands from a “you were added” notification. */
+  isHighlighted?: boolean;
 }
 
 const STATUS_COLORS: Record<Trip['status'], string> = {
@@ -13,7 +15,7 @@ const STATUS_COLORS: Record<Trip['status'], string> = {
   completed: 'bg-caption text-white',
 };
 
-export function TripCard({ trip, currentUserId }: TripCardProps) {
+export function TripCard({ trip, currentUserId, isHighlighted }: TripCardProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -32,7 +34,11 @@ export function TripCard({ trip, currentUserId }: TripCardProps) {
   return (
     <button
       onClick={() => navigate(`/trips/${trip.id}/timeline`)}
-      className="w-full text-left p-4 bg-bg-secondary rounded-round-eight border border-caption/20 hover:border-accent/40 active:scale-95 transition-all"
+      className={`w-full text-left p-4 bg-bg-secondary rounded-round-eight border transition-all active:scale-95 ${
+        isHighlighted
+          ? 'border-accent ring-2 ring-accent/40 ring-offset-2 ring-offset-bg-primary'
+          : 'border-caption/20 hover:border-accent/40'
+      }`}
     >
       <div className="flex items-start justify-between gap-2">
         <span className="font-display text-lg text-heading">{trip.name}</span>

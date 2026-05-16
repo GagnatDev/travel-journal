@@ -38,6 +38,18 @@ function useItemRender(notification: AppNotification): ItemRenderProps {
           tripName: data.tripName,
         }),
       };
+    case 'trip.member_added':
+      return {
+        title: t('notifications.item.tripMemberAdded.title', { tripName: data.tripName }),
+        body:
+          data.tripRole === 'contributor'
+            ? t('notifications.item.tripMemberAdded.bodyContributor', {
+                addedByDisplayName: data.addedByDisplayName.trim() || t('notifications.item.tripMemberAdded.unknownInviter'),
+              })
+            : t('notifications.item.tripMemberAdded.bodyFollower', {
+                addedByDisplayName: data.addedByDisplayName.trim() || t('notifications.item.tripMemberAdded.unknownInviter'),
+              }),
+      };
     case 'trip.photobook_pdf_ready':
       return {
         title: t('notifications.item.tripPhotobookPdfReady.title', { tripName: data.tripName }),

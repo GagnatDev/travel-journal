@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import type { Trip } from '@travel-journal/shared';
 
 import { fetchTrips } from '../api/trips.js';
@@ -13,9 +14,10 @@ type TripGroupProps = {
   label: string;
   items: Trip[];
   currentUserId: string;
+  highlightTripId: string | null;
 };
 
-function TripGroup({ label, items, currentUserId }: TripGroupProps) {
+function TripGroup({ label, items, currentUserId, highlightTripId }: TripGroupProps) {
   if (items.length === 0) return null;
   return (
     <section>
@@ -25,7 +27,11 @@ function TripGroup({ label, items, currentUserId }: TripGroupProps) {
       <ul className="space-y-3">
         {items.map((trip) => (
           <li key={trip.id}>
-            <TripCard trip={trip} currentUserId={currentUserId} />
+            <TripCard
+              trip={trip}
+              currentUserId={currentUserId}
+              isHighlighted={highlightTripId === trip.id}
+            />
           </li>
         ))}
       </ul>
@@ -36,8 +42,27 @@ function TripGroup({ label, items, currentUserId }: TripGroupProps) {
 export function TripDashboardScreen() {
   const { t } = useTranslation();
   const { accessToken, user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const highlightTripId = searchParams.get('highlightTripId');
+  const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const dashboardRootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (highlightTripId) {
+      void queryClient.invalidateQueries({ queryKey: ['trips'] });
+    }
+  }, [highlightTripId, queryClient]);
+
+  useEffect(() => {
+    if (!highlightTripId) return;
+    const timer = window.setTimeout(() => {
+      const next = new URLSearchParams(searchParams);
+      next.delete('highlightTripId');
+      setSearchParams(next, { replace: true });
+    }, 3500);
+    return () => window.clearTimeout(timer);
+  }, [highlightTripId, searchParams, setSearchParams]);
 
   useEffect(() => {
     const el = dashboardRootRef.current;
@@ -94,16 +119,19 @@ export function TripDashboardScreen() {
                 label={t('trips.dashboard.statusGroup.active')}
                 items={active}
                 currentUserId={currentUserId}
+                highlightTripId={highlightTripId}
               />
               <TripGroup
                 label={t('trips.dashboard.statusGroup.planned')}
                 items={planned}
                 currentUserId={currentUserId}
+                highlightTripId={highlightTripId}
               />
               <TripGroup
                 label={t('trips.dashboard.statusGroup.completed')}
                 items={completed}
                 currentUserId={currentUserId}
+                highlightTripId={highlightTripId}
               />
             </>
           )}
