@@ -22,6 +22,7 @@ import { syncPendingEntries } from './offline/entrySync.js';
 import { syncPendingSavedLocations } from './offline/savedLocationSync.js';
 import { syncPushSubscriptionIfPermitted } from './notifications/push.js';
 import { useNotificationClickListener } from './notifications/useNotificationClickListener.js';
+import { tripSettingsQueryKeys } from './screens/tripSettings/useTripSettings.js';
 
 export function App() {
   const { accessToken, status } = useAuth();
@@ -34,6 +35,8 @@ export function App() {
     function runSync() {
       void syncPendingEntries(accessToken!, (tripId) => {
         void queryClient.invalidateQueries({ queryKey: ['entries', tripId] });
+        void queryClient.invalidateQueries({ queryKey: tripSettingsQueryKeys.trip(tripId) });
+        void queryClient.invalidateQueries({ queryKey: tripSettingsQueryKeys.trips });
       });
       void syncPendingSavedLocations(accessToken!, (tripId) => {
         void queryClient.invalidateQueries({ queryKey: ['mapPins', tripId] });
