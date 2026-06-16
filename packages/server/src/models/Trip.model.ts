@@ -34,6 +34,10 @@ export interface ITrip extends Document {
   photobookPdfJob?: {
     status: 'idle' | 'pending' | 'ready' | 'failed';
     pdfStorageKey?: string;
+    interiorPdfStorageKey?: string;
+    coverPdfStorageKey?: string;
+    spinePdfStorageKey?: string;
+    pageCount?: number;
     finishedAt?: Date;
     errorMessage?: string;
     localeKey?: string;
@@ -76,6 +80,10 @@ const tripSchema = new Schema<ITrip>(
     photobookPdfJob: {
       status: { type: String, enum: ['idle', 'pending', 'ready', 'failed'] },
       pdfStorageKey: { type: String },
+      interiorPdfStorageKey: { type: String },
+      coverPdfStorageKey: { type: String },
+      spinePdfStorageKey: { type: String },
+      pageCount: { type: Number },
       finishedAt: { type: Date },
       errorMessage: { type: String },
       localeKey: { type: String },

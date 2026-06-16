@@ -2,6 +2,7 @@ export type NotificationType =
   | 'trip.new_entry'
   | 'trip.new_entry_digest'
   | 'trip.photobook_pdf_ready'
+  | 'photobook.order_status'
   | 'system.release_announcement'
   | 'user.private_message';
 
@@ -55,6 +56,19 @@ export interface TripPhotobookPdfReadyNotificationData {
   tripName: string;
 }
 
+/**
+ * Status update for a physical photobook order. Sent to the trip creator when
+ * their order is submitted / fails / is rejected, and to admins when a new
+ * order is awaiting approval. `event` distinguishes the cases for rendering.
+ */
+export interface PhotobookOrderStatusNotificationData {
+  type: 'photobook.order_status';
+  tripId: string;
+  tripName: string;
+  orderId: string;
+  event: 'awaiting_approval' | 'submitted' | 'failed' | 'rejected';
+}
+
 export interface ReleaseAnnouncementNotificationData {
   type: 'system.release_announcement';
   version: string;
@@ -73,6 +87,7 @@ export type NotificationData =
   | TripNewEntryNotificationData
   | TripNewEntryDigestNotificationData
   | TripPhotobookPdfReadyNotificationData
+  | PhotobookOrderStatusNotificationData
   | ReleaseAnnouncementNotificationData
   | PrivateMessageNotificationData;
 
@@ -103,6 +118,8 @@ export function notificationLinkFor(data: NotificationData): string {
     case 'trip.new_entry_digest':
       return `/trips/${data.tripId}/timeline`;
     case 'trip.photobook_pdf_ready':
+      return `/trips/${data.tripId}/settings`;
+    case 'photobook.order_status':
       return `/trips/${data.tripId}/settings`;
     case 'system.release_announcement':
       return '/trips';

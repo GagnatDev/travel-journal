@@ -60,13 +60,23 @@ function clearRefreshCookie(res: Response) {
   });
 }
 
-function toPublicUser(user: { _id: unknown; email: string; displayName: string; appRole: string; preferredLocale: string }): PublicUser {
+function toPublicUser(user: {
+  _id: unknown;
+  email: string;
+  displayName: string;
+  appRole: string;
+  preferredLocale: string;
+  photobookOrderingEnabled?: boolean;
+  shippingAddress?: PublicUser['shippingAddress'];
+}): PublicUser {
   return {
     id: String(user._id),
     email: user.email,
     displayName: user.displayName,
     appRole: user.appRole as PublicUser['appRole'],
     preferredLocale: user.preferredLocale as PublicUser['preferredLocale'],
+    photobookOrderingEnabled: user.photobookOrderingEnabled ?? false,
+    ...(user.shippingAddress && { shippingAddress: user.shippingAddress }),
   };
 }
 

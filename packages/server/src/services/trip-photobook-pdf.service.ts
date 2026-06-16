@@ -30,8 +30,32 @@ import {
 type PDFDoc = InstanceType<typeof PDFDocument>;
 
 const MM = 72 / 25.4;
-const PAGE_SIZE_PT = 210 * MM;
-const MARGIN = 10 * MM;
+/** Hardcover trim: 9 inch square (was 210mm A4-ish square). */
+const TRIM_MM = 228.6;
+// TODO: confirm bleed from Prodigi hardcover file-setup guidelines
+const BLEED_MM = 3;
+const TRIM_PT = TRIM_MM * MM;
+const BLEED_PT = BLEED_MM * MM;
+/** Full-bleed page (trim + bleed on every edge) used for interior, cover and preview. */
+const PAGE_FULL_PT = TRIM_PT + 2 * BLEED_PT;
+// TODO: confirm Prodigi safe-area; content is kept inside bleed + this inset
+const SAFE_INSET_MM = 6;
+/** Content inset measured from the full-bleed edge: cream background bleeds to the edge, content stays inside the safe area. */
+const CONTENT_MARGIN = BLEED_PT + SAFE_INSET_MM * MM;
+// TODO: confirm spine width formula / query Prodigi
+const PAPER_THICKNESS_MM = 0.12;
+/** Interior must be even and at least this many pages. */
+// TODO: confirm Prodigi page-count increment rules
+const MIN_INTERIOR_PAGES = 24;
+
+/** Spine strip width (pt) for a given interior page count. */
+function spineWidth(pageCount: number): number {
+  // TODO: confirm spine width formula / query Prodigi
+  const leaves = pageCount / 2;
+  const widthPt = leaves * PAPER_THICKNESS_MM * MM;
+  return Math.max(1, widthPt);
+}
+
 const GAP = 2 * MM;
 const MAX_IMAGES_PER_PAGE = 4;
 
@@ -55,9 +79,9 @@ function pdfImageRasterDpr(): number {
   return Math.min(6, Math.max(1, n));
 }
 
-/** Bottom Y of the content area (10 mm margin). */
+/** Bottom Y of the content area (inside bleed + safe inset). */
 function pageContentBottom(): number {
-  return PAGE_SIZE_PT - MARGIN;
+  return PAGE_FULL_PT - CONTENT_MARGIN;
 }
 
 function dayKeyInTimeZone(iso: string, timeZone: string): string {
@@ -127,12 +151,16 @@ function groupEntriesByDay(entries: Entry[], timeZone: string): Map<string, Entr
 
 function fillPageBackground(doc: PDFDoc): void {
   doc.save();
-  doc.rect(0, 0, PAGE_SIZE_PT, PAGE_SIZE_PT).fill(CREAM);
+  // Cream bleeds to the full edge of the full-bleed page.
+  doc.rect(0, 0, PAGE_FULL_PT, PAGE_FULL_PT).fill(CREAM);
   doc.restore();
 }
 
 function addSquarePage(doc: PDFDoc): void {
-  doc.addPage({ size: [PAGE_SIZE_PT, PAGE_SIZE_PT], margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN } });
+  doc.addPage({
+    size: [PAGE_FULL_PT, PAGE_FULL_PT],
+    margins: { top: CONTENT_MARGIN, bottom: CONTENT_MARGIN, left: CONTENT_MARGIN, right: CONTENT_MARGIN },
+  });
   fillPageBackground(doc);
 }
 
@@ -473,34 +501,30 @@ async function drawCoverPage(
   doc: PDFDoc,
   fontState: PhotobookPdfFontState,
   trip: Trip,
-  entries: Entry[],
   strings: (typeof PHOTOBOOK_PDF_STRINGS)['nb'],
   intlLocale: string,
+  coverBuf: Buffer | null,
 ): Promise<void> {
+  // TODO: Prodigi 'cover' may expect a full wrap (back + spine + front) — confirm against hardcover file-setup guidelines.
+  // Current implementation renders the front-cover artwork at full bleed.
   addSquarePage(doc);
 
-  const coverKey = resolvePhotobookCoverKey(trip, entries);
-  let coverBuf: Buffer | null = null;
-  if (coverKey) {
-    coverBuf = await loadImageBufferForKey(coverKey);
-  }
-
-  const w = PAGE_SIZE_PT - 2 * MARGIN;
-  let y = MARGIN + 8;
+  const w = PAGE_FULL_PT - 2 * CONTENT_MARGIN;
+  let y = CONTENT_MARGIN + 8;
 
   setPhotobookFont(doc, fontState.fontsOk, 'display');
-  drawPhotobookPdfUserText(doc, fontState, 'display', 26, ACCENT, trip.name, MARGIN, y, { width: w, align: 'center' });
+  drawPhotobookPdfUserText(doc, fontState, 'display', 26, ACCENT, trip.name, CONTENT_MARGIN, y, { width: w, align: 'center' });
   y = doc.y + 10;
 
   const range = formatCoverDateRange(trip, intlLocale);
   if (range) {
     setPhotobookFont(doc, fontState.fontsOk, 'uiMedium');
-    doc.fontSize(9).fillColor(CAPTION).text(range, MARGIN, y, { width: w, align: 'center', lineGap: 1 });
+    doc.fontSize(9).fillColor(CAPTION).text(range, CONTENT_MARGIN, y, { width: w, align: 'center', lineGap: 1 });
     y = doc.y + 14;
   }
 
   if (trip.description?.trim()) {
-    drawPhotobookPdfUserText(doc, fontState, 'ui', 10, BODY, trip.description.trim(), MARGIN, y, {
+    drawPhotobookPdfUserText(doc, fontState, 'ui', 10, BODY, trip.description.trim(), CONTENT_MARGIN, y, {
       width: w,
       align: 'center',
       lineGap: 2,
@@ -512,7 +536,7 @@ async function drawCoverPage(
   const heroBottom = pageContentBottom() - 8;
   const heroH = Math.max(80, heroBottom - heroTop);
   const heroW = Math.min(w * 0.88, heroH * 1.15);
-  const cx = PAGE_SIZE_PT / 2;
+  const cx = PAGE_FULL_PT / 2;
   const cy = heroTop + heroH / 2;
 
   if (coverBuf) {
@@ -523,27 +547,26 @@ async function drawCoverPage(
     await drawPhotobookImage(doc, fontState.fontsOk, fakeSlot, strings.imagePlaceholder, cx, cy, heroW * 0.92, heroH * 0.92);
   } else {
     setPhotobookFont(doc, fontState.fontsOk, 'ui');
-    doc.fontSize(10).fillColor(CAPTION).text(strings.coverNoPhotoHint, MARGIN, cy - 6, { width: w, align: 'center' });
+    doc.fontSize(10).fillColor(CAPTION).text(strings.coverNoPhotoHint, CONTENT_MARGIN, cy - 6, { width: w, align: 'center' });
   }
 }
 
+/** A single PDFKit output document with its end-promise and font state. */
+interface PhotobookDoc {
+  doc: PDFDoc;
+  fontState: PhotobookPdfFontState;
+  /** Resolves with the full buffer once `doc.end()` is called. */
+  done: Promise<Buffer>;
+}
+
 /**
- * Square photobook PDF: cream pages, embedded fonts, images fitted without frame or tilt, day prefix in header (no footer).
+ * Create one full-bleed PDFKit document, attach PDF/X-4, register fonts + emoji and wire up
+ * chunk collection. Each output asset (interior, cover, preview) is its own document.
  */
-export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promise<Buffer> {
-  const timeZone = input.timeZone ?? process.env['TRIP_PDF_TIMEZONE'] ?? 'UTC';
-  const localeKey =
-    input.photobookLocaleKey ??
-    resolvePhotobookPdfLocaleKey(process.env['TRIP_PDF_LOCALE'] ?? 'nb');
-  const strings = PHOTOBOOK_PDF_STRINGS[localeKey];
-  const intlLocale = photobookPdfIntlLocale(localeKey);
-
-  const byDay = groupEntriesByDay(input.entries, timeZone);
-  const dayKeys = [...byDay.keys()].sort();
-
+async function createPhotobookDoc(width: number, height: number): Promise<PhotobookDoc> {
   const doc = new PDFDocument({
-    size: [PAGE_SIZE_PT, PAGE_SIZE_PT],
-    margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
+    size: [width, height],
+    margins: { top: CONTENT_MARGIN, bottom: CONTENT_MARGIN, left: CONTENT_MARGIN, right: CONTENT_MARGIN },
     autoFirstPage: false,
     pdfVersion: '1.6',
   });
@@ -564,7 +587,7 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
     }
   }
 
-  const photobookFontState: PhotobookPdfFontState = {
+  const fontState: PhotobookPdfFontState = {
     fontsOk,
     emojiFontsRegistered,
     emojiKitFonts: emojiKitFonts ?? null,
@@ -572,152 +595,74 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
 
   const chunks: Buffer[] = [];
   doc.on('data', (c: Buffer) => chunks.push(c));
-
   const done = new Promise<Buffer>((resolve, reject) => {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
   });
 
-  await drawCoverPage(doc, photobookFontState, input.trip, input.entries, strings, intlLocale);
+  return { doc, fontState, done };
+}
 
-  const innerBottom = pageContentBottom();
+/** Pre-loaded image slots for one entry, plus its day index and date string. */
+interface PreloadedEntry {
+  entry: Entry;
+  dayNum: number;
+  dayDatePart: string;
+  imageSlots: EntryImageSlot[];
+}
 
-  if (dayKeys.length === 0) {
-    addSquarePage(doc);
-    setPhotobookFont(doc, fontsOk, 'display');
-    doc.fontSize(13).fillColor(BODY).text(strings.emptyTripDisclaimer, MARGIN, MARGIN, {
-      width: PAGE_SIZE_PT - 2 * MARGIN,
-      align: 'center',
-    });
-    doc.end();
-    return done;
-  }
+/** A map overview page rastered once and replayed into interior + preview. */
+interface PreloadedMap {
+  raster: Buffer;
+  mapLeft: number;
+  mapTop: number;
+  mapW: number;
+  mapH: number;
+  footerBand: number;
+}
 
+interface PreloadedContent {
+  entries: PreloadedEntry[];
+  map: PreloadedMap | null;
+  coverBuf: Buffer | null;
+}
+
+/**
+ * Fetch every entry image, the cover image and the map raster exactly once so the same buffers
+ * (including a possibly-random cover) can be replayed into both interior and preview documents.
+ */
+async function preloadPhotobookContent(
+  input: TripPhotobookPdfInput,
+  timeZone: string,
+  intlLocale: string,
+): Promise<PreloadedContent> {
+  const byDay = groupEntriesByDay(input.entries, timeZone);
+  const dayKeys = [...byDay.keys()].sort();
+
+  const entries: PreloadedEntry[] = [];
   for (let d = 0; d < dayKeys.length; d++) {
     const dayNum = d + 1;
-    const entries = byDay.get(dayKeys[d]!)!;
-    const firstCreated = entries[0]!.createdAt;
-    const dayDatePart = formatEntryPageDate(firstCreated, timeZone, intlLocale);
-
-    for (const entry of entries) {
+    const dayEntries = byDay.get(dayKeys[d]!)!;
+    const dayDatePart = formatEntryPageDate(dayEntries[0]!.createdAt, timeZone, intlLocale);
+    for (const entry of dayEntries) {
       const imageSlots = await loadEntryImageSlots(entry);
-      const imagePageCount =
-        imageSlots.length === 0 ? 1 : Math.ceil(imageSlots.length / MAX_IMAGES_PER_PAGE);
-
-      for (let p = 0; p < imagePageCount; p++) {
-        addSquarePage(doc);
-
-        const top = MARGIN + 4;
-        let y = top;
-
-        const headerLine = formatPhotobookFooterDayDate(strings.entryPageHeaderTemplate, dayNum, dayDatePart);
-        setPhotobookFont(doc, fontsOk, 'uiMedium');
-        doc.fontSize(8).fillColor(CAPTION).text(headerLine, MARGIN, y, {
-          width: PAGE_SIZE_PT - 2 * MARGIN,
-        });
-        y = doc.y + (p === 0 ? 8 : 10);
-
-        if (p === 0) {
-          drawPhotobookPdfUserText(
-            doc,
-            photobookFontState,
-            'displayItalic',
-            17,
-            ACCENT,
-            entry.title,
-            MARGIN,
-            y,
-            {
-              width: PAGE_SIZE_PT - 2 * MARGIN,
-            },
-          );
-          y = doc.y + 10;
-        }
-
-        const slice = imageSlots.slice(p * MAX_IMAGES_PER_PAGE, (p + 1) * MAX_IMAGES_PER_PAGE);
-        const hasBodyText = Boolean(p === 0 && entry.content?.trim());
-        const textReservePt =
-          slice.length > 0
-            ? hasBodyText
-              ? BODY_RESERVE_WITH_TEXT_MM * MM
-              : BODY_RESERVE_EMPTY_MM * MM
-            : 0;
-        const bandTop = y + 2;
-        const imageBandH =
-          slice.length > 0 ? Math.max(48, innerBottom - bandTop - textReservePt) : 0;
-
-        if (slice.length > 0) {
-          const bandLeft = MARGIN;
-          const bandW = PAGE_SIZE_PT - 2 * MARGIN;
-          await embedPhotobookImages(
-            doc,
-            photobookFontState.fontsOk,
-            slice,
-            strings.imagePlaceholder,
-            bandLeft,
-            bandTop,
-            bandW,
-            imageBandH,
-          );
-        } else if (p === 0) {
-          drawPhotobookPdfUserText(
-            doc,
-            photobookFontState,
-            'displayItalic',
-            10,
-            BODY,
-            entry.content ?? '',
-            MARGIN,
-            y,
-            {
-              width: PAGE_SIZE_PT - 2 * MARGIN,
-              height: innerBottom - y - 4,
-              align: 'center',
-              lineGap: 3,
-            },
-          );
-        }
-
-        if (slice.length > 0 && p === 0 && hasBodyText) {
-          const sepY = bandTop + imageBandH + 4;
-          doc.save();
-          doc.strokeColor('#e0d8cc')
-            .lineWidth(0.35)
-            .moveTo(MARGIN + 28, sepY)
-            .lineTo(PAGE_SIZE_PT - MARGIN - 28, sepY)
-            .stroke();
-          doc.restore();
-
-          const bodyY = sepY + 10;
-          drawPhotobookPdfUserText(
-            doc,
-            photobookFontState,
-            'displayItalic',
-            9,
-            BODY,
-            entry.content ?? '',
-            MARGIN,
-            bodyY,
-            {
-              width: PAGE_SIZE_PT - 2 * MARGIN,
-              height: innerBottom - bodyY - 4,
-              align: 'center',
-              lineGap: 3,
-            },
-          );
-        }
-      }
+      entries.push({ entry, dayNum, dayDatePart, imageSlots });
     }
   }
 
+  const coverKey = resolvePhotobookCoverKey(input.trip, input.entries);
+  const coverBuf = coverKey ? await loadImageBufferForKey(coverKey) : null;
+
+  let map: PreloadedMap | null = null;
   const mapPoints = collectPhotobookEntryLocations(input.entries);
   const mapToken = getPhotobookPdfMapboxToken();
   if (mapPoints.length > 0 && mapToken) {
+    const innerBottom = pageContentBottom();
     const footerBand = 3.2 * MM;
     const footerGap = 0.8 * MM;
-    const mapTop = MARGIN;
-    const mapLeft = MARGIN;
-    const mapW = PAGE_SIZE_PT - 2 * MARGIN;
+    const mapTop = CONTENT_MARGIN;
+    const mapLeft = CONTENT_MARGIN;
+    const mapW = PAGE_FULL_PT - 2 * CONTENT_MARGIN;
     const mapH = Math.max(48, innerBottom - mapTop - footerBand - footerGap);
     const { widthPx, heightPx } = photobookMapStaticRequestPixels(mapW, mapH);
     const mapBuf = await fetchPhotobookMapStaticPng({
@@ -731,27 +676,209 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
         const dpr = pdfImageRasterDpr();
         const rw = Math.max(1, Math.ceil(mapW * dpr));
         const rh = Math.max(1, Math.ceil(mapH * dpr));
-        const mapRaster = await sharp(mapBuf)
+        const raster = await sharp(mapBuf)
           .rotate()
           .resize(rw, rh, { fit: 'cover', position: 'centre' })
           .png()
           .toBuffer();
-        addSquarePage(doc);
-        doc.image(mapRaster, mapLeft, mapTop, { width: mapW, height: mapH });
-        setPhotobookFont(doc, fontsOk, 'ui');
-        doc
-          .fontSize(5.2)
-          .fillColor(CAPTION)
-          .text(PHOTOBOOK_MAP_ATTRIBUTION, mapLeft, innerBottom - footerBand + 0.3 * MM, {
-            width: mapW,
-            align: 'center',
-          });
+        map = { raster, mapLeft, mapTop, mapW, mapH, footerBand };
       } catch (err) {
         logger.warn({ err }, 'Photobook PDF: map overview page raster failed');
       }
     }
   }
 
-  doc.end();
-  return done;
+  return { entries, map, coverBuf };
+}
+
+/**
+ * Draw all entry pages (+ empty-trip disclaimer + map page) into `doc` from pre-loaded content.
+ * Does NOT draw the cover. Returns the number of pages added.
+ */
+async function drawEntryPages(
+  doc: PDFDoc,
+  fontState: PhotobookPdfFontState,
+  content: PreloadedContent,
+  strings: (typeof PHOTOBOOK_PDF_STRINGS)['nb'],
+): Promise<number> {
+  const fontsOk = fontState.fontsOk;
+  const innerBottom = pageContentBottom();
+  let pages = 0;
+
+  if (content.entries.length === 0) {
+    addSquarePage(doc);
+    pages++;
+    setPhotobookFont(doc, fontsOk, 'display');
+    doc.fontSize(13).fillColor(BODY).text(strings.emptyTripDisclaimer, CONTENT_MARGIN, CONTENT_MARGIN, {
+      width: PAGE_FULL_PT - 2 * CONTENT_MARGIN,
+      align: 'center',
+    });
+    return pages;
+  }
+
+  for (const { entry, dayNum, dayDatePart, imageSlots } of content.entries) {
+    const imagePageCount =
+      imageSlots.length === 0 ? 1 : Math.ceil(imageSlots.length / MAX_IMAGES_PER_PAGE);
+
+    for (let p = 0; p < imagePageCount; p++) {
+      addSquarePage(doc);
+      pages++;
+
+      const top = CONTENT_MARGIN + 4;
+      let y = top;
+
+      const headerLine = formatPhotobookFooterDayDate(strings.entryPageHeaderTemplate, dayNum, dayDatePart);
+      setPhotobookFont(doc, fontsOk, 'uiMedium');
+      doc.fontSize(8).fillColor(CAPTION).text(headerLine, CONTENT_MARGIN, y, {
+        width: PAGE_FULL_PT - 2 * CONTENT_MARGIN,
+      });
+      y = doc.y + (p === 0 ? 8 : 10);
+
+      if (p === 0) {
+        drawPhotobookPdfUserText(doc, fontState, 'displayItalic', 17, ACCENT, entry.title, CONTENT_MARGIN, y, {
+          width: PAGE_FULL_PT - 2 * CONTENT_MARGIN,
+        });
+        y = doc.y + 10;
+      }
+
+      const slice = imageSlots.slice(p * MAX_IMAGES_PER_PAGE, (p + 1) * MAX_IMAGES_PER_PAGE);
+      const hasBodyText = Boolean(p === 0 && entry.content?.trim());
+      const textReservePt =
+        slice.length > 0
+          ? hasBodyText
+            ? BODY_RESERVE_WITH_TEXT_MM * MM
+            : BODY_RESERVE_EMPTY_MM * MM
+          : 0;
+      const bandTop = y + 2;
+      const imageBandH = slice.length > 0 ? Math.max(48, innerBottom - bandTop - textReservePt) : 0;
+
+      if (slice.length > 0) {
+        const bandLeft = CONTENT_MARGIN;
+        const bandW = PAGE_FULL_PT - 2 * CONTENT_MARGIN;
+        await embedPhotobookImages(
+          doc,
+          fontState.fontsOk,
+          slice,
+          strings.imagePlaceholder,
+          bandLeft,
+          bandTop,
+          bandW,
+          imageBandH,
+        );
+      } else if (p === 0) {
+        drawPhotobookPdfUserText(doc, fontState, 'displayItalic', 10, BODY, entry.content ?? '', CONTENT_MARGIN, y, {
+          width: PAGE_FULL_PT - 2 * CONTENT_MARGIN,
+          height: innerBottom - y - 4,
+          align: 'center',
+          lineGap: 3,
+        });
+      }
+
+      if (slice.length > 0 && p === 0 && hasBodyText) {
+        const sepY = bandTop + imageBandH + 4;
+        doc.save();
+        doc.strokeColor('#e0d8cc')
+          .lineWidth(0.35)
+          .moveTo(CONTENT_MARGIN + 28, sepY)
+          .lineTo(PAGE_FULL_PT - CONTENT_MARGIN - 28, sepY)
+          .stroke();
+        doc.restore();
+
+        const bodyY = sepY + 10;
+        drawPhotobookPdfUserText(doc, fontState, 'displayItalic', 9, BODY, entry.content ?? '', CONTENT_MARGIN, bodyY, {
+          width: PAGE_FULL_PT - 2 * CONTENT_MARGIN,
+          height: innerBottom - bodyY - 4,
+          align: 'center',
+          lineGap: 3,
+        });
+      }
+    }
+  }
+
+  if (content.map) {
+    const { raster, mapLeft, mapTop, mapW, mapH, footerBand } = content.map;
+    addSquarePage(doc);
+    pages++;
+    doc.image(raster, mapLeft, mapTop, { width: mapW, height: mapH });
+    setPhotobookFont(doc, fontsOk, 'ui');
+    doc
+      .fontSize(5.2)
+      .fillColor(CAPTION)
+      .text(PHOTOBOOK_MAP_ATTRIBUTION, mapLeft, innerBottom - footerBand + 0.3 * MM, {
+        width: mapW,
+        align: 'center',
+      });
+  }
+
+  return pages;
+}
+
+/** Append blank cream pages until the interior is even and at least the product minimum. */
+function targetInteriorPageCount(pagesDrawn: number): number {
+  // TODO: confirm Prodigi page-count increment rules
+  let target = Math.max(MIN_INTERIOR_PAGES, pagesDrawn);
+  if (target % 2 !== 0) target += 1;
+  return target;
+}
+
+export interface TripPhotobookPdfResult {
+  /** Entry pages (+ map), no cover, padded to an even count >= MIN_INTERIOR_PAGES. */
+  interior: Buffer;
+  /** Front-cover artwork at full bleed. */
+  cover: Buffer;
+  /** Thin cream spine strip sized from `pageCount`. */
+  spine: Buffer;
+  /** Merged cover + interior (unpadded) for the creator download UX. */
+  preview: Buffer;
+  /** Final interior page count (after padding). */
+  pageCount: number;
+}
+
+/**
+ * Build the Prodigi print assets for a trip photobook: a padded full-bleed interior, the cover
+ * artwork, a spine strip, and a merged preview. Each asset is its own PDFKit document; entry images
+ * and the (possibly random) cover image are loaded once and replayed across documents.
+ */
+export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promise<TripPhotobookPdfResult> {
+  const timeZone = input.timeZone ?? process.env['TRIP_PDF_TIMEZONE'] ?? 'UTC';
+  const localeKey =
+    input.photobookLocaleKey ?? resolvePhotobookPdfLocaleKey(process.env['TRIP_PDF_LOCALE'] ?? 'nb');
+  const strings = PHOTOBOOK_PDF_STRINGS[localeKey];
+  const intlLocale = photobookPdfIntlLocale(localeKey);
+
+  const content = await preloadPhotobookContent(input, timeZone, intlLocale);
+
+  // --- interior: entry pages only, padded to an even count >= MIN_INTERIOR_PAGES ---
+  const interiorDoc = await createPhotobookDoc(PAGE_FULL_PT, PAGE_FULL_PT);
+  const pagesDrawn = await drawEntryPages(interiorDoc.doc, interiorDoc.fontState, content, strings);
+  const pageCount = targetInteriorPageCount(pagesDrawn);
+  for (let i = pagesDrawn; i < pageCount; i++) {
+    addSquarePage(interiorDoc.doc);
+  }
+  interiorDoc.doc.end();
+  const interior = await interiorDoc.done;
+
+  // --- cover: front-cover artwork at full bleed ---
+  const coverDoc = await createPhotobookDoc(PAGE_FULL_PT, PAGE_FULL_PT);
+  await drawCoverPage(coverDoc.doc, coverDoc.fontState, input.trip, strings, intlLocale, content.coverBuf);
+  coverDoc.doc.end();
+  const cover = await coverDoc.done;
+
+  // --- spine: thin cream strip sized from the interior page count ---
+  const spineDoc = await createPhotobookDoc(spineWidth(pageCount), PAGE_FULL_PT);
+  spineDoc.doc.addPage({ size: [spineWidth(pageCount), PAGE_FULL_PT], margins: { top: 0, bottom: 0, left: 0, right: 0 } });
+  spineDoc.doc.save();
+  spineDoc.doc.rect(0, 0, spineWidth(pageCount), PAGE_FULL_PT).fill(CREAM);
+  spineDoc.doc.restore();
+  spineDoc.doc.end();
+  const spine = await spineDoc.done;
+
+  // --- preview: cover + interior (unpadded), stored as the creator-facing pdfStorageKey ---
+  const previewDoc = await createPhotobookDoc(PAGE_FULL_PT, PAGE_FULL_PT);
+  await drawCoverPage(previewDoc.doc, previewDoc.fontState, input.trip, strings, intlLocale, content.coverBuf);
+  await drawEntryPages(previewDoc.doc, previewDoc.fontState, content, strings);
+  previewDoc.doc.end();
+  const preview = await previewDoc.done;
+
+  return { interior, cover, spine, preview, pageCount };
 }

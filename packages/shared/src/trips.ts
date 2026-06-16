@@ -6,8 +6,20 @@ export type TripPhotobookPdfJobStatus = 'idle' | 'pending' | 'ready' | 'failed';
 
 export interface TripPhotobookPdfJob {
   status: TripPhotobookPdfJobStatus;
-  /** When status is `ready`, storage key for the generated PDF (creator-only download URL uses this). */
+  /**
+   * When status is `ready`, storage key for the merged viewable preview PDF
+   * (the creator-only download). For Prodigi ordering the print assets are
+   * stored separately below.
+   */
   pdfStorageKey?: string;
+  /** Print-ready interior PDF (228.6mm + bleed, `default` print area). */
+  interiorPdfStorageKey?: string;
+  /** Print-ready hardcover wrap/cover PDF (`cover` print area). */
+  coverPdfStorageKey?: string;
+  /** Print-ready spine PDF (`spine` print area). */
+  spinePdfStorageKey?: string;
+  /** Interior page count sent to Prodigi as `pageCount` (after padding to the product minimum). */
+  pageCount?: number;
   /** ISO time when generation finished successfully or failed. */
   finishedAt?: string;
   /** When status is `failed`, short message suitable for display (locale-neutral English fallback server-side). */

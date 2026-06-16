@@ -54,7 +54,8 @@
     "accessDenied": "Access denied. Admins only.",
     "tabs": {
       "users": "Users",
-      "invites": "Invites"
+      "invites": "Invites",
+      "orders": "Orders"
     },
     "invite": {
       "emailLabel": "Email",
@@ -77,7 +78,33 @@
       "promoteButton": "Promote to Creator",
       "noUsers": "No users found.",
       "resetPasswordButton": "Password reset link",
-      "resetPasswordLinkLabel": "Password reset link"
+      "resetPasswordLinkLabel": "Password reset link",
+      "photobookOrderingToggle": "Photobook ordering"
+    },
+    "orders": {
+      "title": "Photobook Orders",
+      "noOrders": "No orders match this filter.",
+      "filterLabel": "Filter by status",
+      "filterAll": "All",
+      "getQuote": "Get quote",
+      "approve": "Approve",
+      "reject": "Reject",
+      "retry": "Retry",
+      "rejectReasonLabel": "Reason (optional)",
+      "quoteTotal": "Total",
+      "quoteItems": "Items",
+      "quoteShipping": "Shipping",
+      "tripLabel": "Trip",
+      "userLabel": "User",
+      "status": {
+        "requested": "Requested",
+        "awaiting_approval": "Awaiting approval",
+        "submitting": "Submitting",
+        "submitted": "Submitted",
+        "failed": "Failed",
+        "rejected": "Rejected",
+        "cancelled": "Cancelled"
+      }
     }
   },
   "nav": {
@@ -157,6 +184,25 @@
         "title": "New message from {{fromUserName}}",
         "body": "{{preview}}",
         "openAction": "Open conversation"
+      },
+      "photobookOrderStatus": {
+        "awaiting_approval": {
+          "title": "New photobook order awaiting approval",
+          "body": "An order for “{{tripName}}” needs your approval."
+        },
+        "submitted": {
+          "title": "Photobook order submitted: {{tripName}}",
+          "body": "Your physical photobook order has been sent to the printer."
+        },
+        "failed": {
+          "title": "Photobook order failed: {{tripName}}",
+          "body": "Something went wrong submitting your order. We’ll look into it."
+        },
+        "rejected": {
+          "title": "Photobook order not approved: {{tripName}}",
+          "body": "Your photobook order was not approved."
+        },
+        "openAction": "Open settings"
       }
     }
   },
@@ -167,7 +213,21 @@
     "saveButton": "Save",
     "cancelButton": "Cancel",
     "emailLabel": "Email",
-    "logoutButton": "Log out"
+    "logoutButton": "Log out",
+    "shippingAddress": {
+      "title": "Shipping address",
+      "editButton": "Edit",
+      "emptyState": "No shipping address saved yet.",
+      "recipientName": "Recipient name",
+      "line1": "Address line 1",
+      "line2": "Address line 2",
+      "townOrCity": "Town or city",
+      "stateOrCounty": "State or county",
+      "postalOrZipCode": "Postal or ZIP code",
+      "countryCode": "Country code (e.g. NO)",
+      "email": "Email",
+      "phoneNumber": "Phone number"
+    }
   },
   "trips": {
     "dashboard": {
@@ -244,7 +304,35 @@
       "photobookCoverPreviewOpen": "Preview chosen photobook cover",
       "photobookCoverPreviewHint": "Preview the cover image you chose.",
       "photobookCoverPreviewDialogLabel": "Photobook cover preview",
-      "photobookCoverPreviewImageAlt": "Chosen photobook cover"
+      "photobookCoverPreviewImageAlt": "Chosen photobook cover",
+      "photobookOrder": {
+        "title": "Order a printed copy",
+        "description": "Order a physical printed photobook delivered to your address. We cover the print cost; an admin reviews each order before it’s sent to print.",
+        "orderButton": "Place order",
+        "copiesLabel": "Number of copies",
+        "saveAddressLabel": "Save this address to my profile",
+        "manualStatusNote": "We check order status manually — there’s no live tracking here. We’ll follow up if anything is needed.",
+        "existingOrderTitle": "Your order",
+        "recipientName": "Recipient name",
+        "line1": "Address line 1",
+        "line2": "Address line 2",
+        "townOrCity": "Town or city",
+        "stateOrCounty": "State or county",
+        "postalOrZipCode": "Postal or ZIP code",
+        "countryCode": "Country code (e.g. NO)",
+        "email": "Email",
+        "phoneNumber": "Phone number",
+        "orderError": "Could not place the order. Please try again.",
+        "status": {
+          "requested": "Requested",
+          "awaiting_approval": "Awaiting approval",
+          "submitting": "Submitting to print",
+          "submitted": "Submitted for printing",
+          "failed": "Order failed",
+          "rejected": "Order rejected",
+          "cancelled": "Order cancelled"
+        }
+      }
     },
     "notificationMode": {
       "triggerLabel": "New-entry notifications ({{current}})",

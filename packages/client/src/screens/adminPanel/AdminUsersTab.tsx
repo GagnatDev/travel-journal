@@ -33,6 +33,18 @@ export function AdminUsersTab({ token }: AdminUsersTabProps) {
     },
   });
 
+  const photobookOrderingMutation = useMutation({
+    mutationFn: ({ userId, enabled }: { userId: string; enabled: boolean }) =>
+      apiJson<AdminUser>(`/api/v1/users/${userId}/photobook-ordering`, {
+        method: 'PATCH',
+        token,
+        body: { enabled },
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+  });
+
   const resetLinkMutation = useMutation({
     mutationFn: async (userId: string) => {
       const data = await apiJson<{ resetLink: string }>(`/api/v1/users/${userId}/password-reset-link`, {
@@ -77,6 +89,21 @@ export function AdminUsersTab({ token }: AdminUsersTabProps) {
                 }
                 actions={
                   <div className="flex flex-col gap-2 items-end">
+                    <label className="flex items-center gap-2 font-ui text-xs text-caption">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(u.photobookOrderingEnabled)}
+                        onChange={(e) =>
+                          photobookOrderingMutation.mutate({
+                            userId: u.id,
+                            enabled: e.target.checked,
+                          })
+                        }
+                        disabled={photobookOrderingMutation.isPending}
+                        className="h-4 w-4 rounded border-caption/40 text-accent focus:ring-accent"
+                      />
+                      {t('admin.users.photobookOrderingToggle')}
+                    </label>
                     <button
                       type="button"
                       onClick={() => resetLinkMutation.mutate(u.id)}
