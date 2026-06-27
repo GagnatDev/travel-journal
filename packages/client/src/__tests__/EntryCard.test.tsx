@@ -354,6 +354,75 @@ describe('EntryCard', () => {
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
   });
 
+  it('closes the carousel on downward pull gesture', async () => {
+    const entry = makeEntry({
+      images: [
+        { key: 'media/trip-1/a.jpg', width: 800, height: 600, order: 0, uploadedAt: new Date().toISOString() },
+        { key: 'media/trip-1/b.jpg', width: 800, height: 600, order: 1, uploadedAt: new Date().toISOString() },
+      ],
+    });
+    const user = userEvent.setup();
+    renderCard(entry, 'other-user');
+
+    await user.click(await screen.findByRole('button', { name: /åpne bildekarusell|open image carousel/i }));
+    expect(
+      screen.getByRole('dialog', { name: /bildekarusell|image carousel/i }),
+    ).toBeInTheDocument();
+
+    const carouselContainer = screen.getByTestId('entry-image-carousel-swipe-area');
+
+    fireEvent.touchStart(carouselContainer, {
+      touches: [{ clientX: 200, clientY: 100 }],
+      changedTouches: [{ clientX: 200, clientY: 100 }],
+    });
+    fireEvent.touchMove(carouselContainer, {
+      touches: [{ clientX: 200, clientY: 150 }],
+      changedTouches: [{ clientX: 200, clientY: 150 }],
+    });
+    fireEvent.touchEnd(carouselContainer, {
+      touches: [],
+      changedTouches: [{ clientX: 200, clientY: 280 }],
+    });
+
+    expect(
+      screen.queryByRole('dialog', { name: /bildekarusell|image carousel/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not close the carousel on a small downward pull', async () => {
+    const entry = makeEntry({
+      images: [
+        { key: 'media/trip-1/a.jpg', width: 800, height: 600, order: 0, uploadedAt: new Date().toISOString() },
+        { key: 'media/trip-1/b.jpg', width: 800, height: 600, order: 1, uploadedAt: new Date().toISOString() },
+      ],
+    });
+    const user = userEvent.setup();
+    renderCard(entry, 'other-user');
+
+    await user.click(await screen.findByRole('button', { name: /åpne bildekarusell|open image carousel/i }));
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+
+    const carouselContainer = screen.getByTestId('entry-image-carousel-swipe-area');
+
+    fireEvent.touchStart(carouselContainer, {
+      touches: [{ clientX: 200, clientY: 100 }],
+      changedTouches: [{ clientX: 200, clientY: 100 }],
+    });
+    fireEvent.touchMove(carouselContainer, {
+      touches: [{ clientX: 200, clientY: 115 }],
+      changedTouches: [{ clientX: 200, clientY: 115 }],
+    });
+    fireEvent.touchEnd(carouselContainer, {
+      touches: [],
+      changedTouches: [{ clientX: 200, clientY: 130 }],
+    });
+
+    expect(
+      screen.getByRole('dialog', { name: /bildekarusell|image carousel/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+  });
+
   it('does not change carousel image when a second touch is used (pinch)', async () => {
     const entry = makeEntry({
       images: [
