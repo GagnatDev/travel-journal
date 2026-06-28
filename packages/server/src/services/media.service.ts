@@ -236,6 +236,14 @@ export async function getObjectBuffer(key: string): Promise<Buffer> {
 }
 
 export async function assertMediaAccess(key: string, userId: string): Promise<void> {
+  // Avatar keys (avatars/{ownerId}/...) are accessible to any authenticated user.
+  if (key.startsWith('avatars/')) {
+    if (!userId) {
+      throw createHttpError('Forbidden', 403, 'FORBIDDEN');
+    }
+    return;
+  }
+
   const parts = key.split('/');
   const tripId = parts[1];
 
@@ -251,5 +259,44 @@ export async function assertMediaAccess(key: string, userId: string): Promise<vo
   const isMember = trip.members.some((m) => String(m.userId) === userId);
   if (!isMember) {
     throw createHttpError('Forbidden', 403, 'FORBIDDEN');
+  }
+}
+
+/** Upload a user avatar; converts to WebP and resizes to at most 512px. */
+export async function uploadAvatar(fileBuffer: Buffer, mimeType: string, userId: string): Promise<string> {
+  if (!ALLOWED_MIME_TYPES[mimeType]) {
+    throw createHttpError('Unsupported media type', 415, 'UNSUPPORTED_MEDIA_TYPE');
+  }
+
+  const processed = await sharp(fileBuffer)
+    .rotate()
+    .resize(512, 512, { fit: 'cover', position: 'center', withoutEnlargement: true })
+    .webp({ quality: 85 })
+    .toBuffer();
+
+  const client = createS3Client();
+  const id = randomUUID();
+  const key = `avatars/${userId}/${id}.webp`;
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: processed,
+      ContentType: 'image/webp',
+    }),
+  );
+
+  return key;
+}
+
+/** Delete an object from storage by key (best-effort; swallows not-found). */
+export async function deleteObject(key: string): Promise<void> {
+  const client = createS3Client();
+  const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+  try {
+    await client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
+  } catch {
+    // best-effort
   }
 }

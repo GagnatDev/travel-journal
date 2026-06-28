@@ -167,7 +167,16 @@
     "saveButton": "Save",
     "cancelButton": "Cancel",
     "emailLabel": "Email",
-    "logoutButton": "Log out"
+    "logoutButton": "Log out",
+    "uploadPhoto": "Upload photo",
+    "changePhoto": "Change photo",
+    "removePhoto": "Remove photo",
+    "uploadingPhoto": "Uploading…",
+    "photoUploadError": "Could not upload photo",
+    "viewProfile": "View profile",
+    "memberSince": "Member since",
+    "role": "Role",
+    "closeProfile": "Close profile"
   },
   "trips": {
     "dashboard": {

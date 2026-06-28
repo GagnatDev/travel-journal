@@ -38,6 +38,7 @@ export interface Entry {
   tripId: string;
   authorId: string;
   authorName: string;
+  authorAvatarKey?: string;
   title: string;
   content: string;
   images: EntryImage[];

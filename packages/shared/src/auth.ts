@@ -28,4 +28,6 @@ export interface PublicUser {
   displayName: string;
   appRole: AppRole;
   preferredLocale: 'nb' | 'en';
+  avatarKey?: string;
+  createdAt?: string;
 }

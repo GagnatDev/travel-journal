@@ -1,7 +1,8 @@
 interface AvatarProps {
   name: string;
-  src?: string;
+  src?: string | undefined;
   size?: 'sm' | 'md';
+  onClick?: (() => void) | undefined;
 }
 
 // Fixed palette of warm tones for initials backgrounds (deterministic by name)
@@ -26,15 +27,17 @@ function getColorClass(name: string): string {
   return AVATAR_COLORS[index] ?? AVATAR_COLORS[0] ?? '';
 }
 
-export function Avatar({ name, src, size = 'md' }: AvatarProps) {
+export function Avatar({ name, src, size = 'md', onClick }: AvatarProps) {
   const sizeClass = size === 'sm' ? 'w-8 h-8 text-xs' : 'w-12 h-12 text-sm';
+  const clickClass = onClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : '';
 
   if (src) {
     return (
       <img
         src={src}
         alt={name}
-        className={`${sizeClass} rounded-full object-cover shrink-0`}
+        onClick={onClick}
+        className={`${sizeClass} ${clickClass} rounded-full object-cover shrink-0`}
       />
     );
   }
@@ -44,9 +47,12 @@ export function Avatar({ name, src, size = 'md' }: AvatarProps) {
 
   return (
     <div
-      role="img"
+      role={onClick ? 'button' : 'img'}
       aria-label={name}
-      className={`${sizeClass} ${colorClass} rounded-full flex items-center justify-center font-ui font-semibold shrink-0`}
+      onClick={onClick}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); } : undefined}
+      className={`${sizeClass} ${colorClass} ${clickClass} rounded-full flex items-center justify-center font-ui font-semibold shrink-0`}
     >
       {initials}
     </div>

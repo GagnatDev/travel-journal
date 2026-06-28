@@ -13,8 +13,9 @@ import {
 } from '../lib/authenticatedMedia.js';
 import { patchTrip } from '../api/trips.js';
 import { AuthenticatedImage } from './AuthenticatedImage.js';
+import { AuthenticatedAvatar } from './AuthenticatedAvatar.js';
 import { EntryImageCarouselModal } from './EntryImageCarouselModal.js';
-import { Avatar } from './ui/Avatar.js';
+import { UserProfileModal } from './UserProfileModal.js';
 import { ReactionBar } from './ReactionBar.js';
 import { CommentSection } from './CommentSection.js';
 
@@ -68,6 +69,7 @@ export const EntryCard = memo(function EntryCard({
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [isCarouselOpen, setIsCarouselOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [authorProfileOpen, setAuthorProfileOpen] = useState(false);
   const prefetchedCacheKeyRef = useRef<string | null>(null);
   const carouselOwnsHistoryRef = useRef(false);
 
@@ -203,10 +205,19 @@ export const EntryCard = memo(function EntryCard({
 
       {/* Author row */}
       <div className="flex items-center gap-2 px-4 pt-3">
-        <Avatar name={entry.authorName} size="sm" />
-        <span className="font-ui text-sm font-medium text-body flex-1 min-w-0 truncate">
+        <AuthenticatedAvatar
+          name={entry.authorName}
+          avatarKey={entry.authorAvatarKey}
+          size="sm"
+          onClick={() => setAuthorProfileOpen(true)}
+        />
+        <button
+          type="button"
+          onClick={() => setAuthorProfileOpen(true)}
+          className="font-ui text-sm font-medium text-body flex-1 min-w-0 truncate text-left hover:text-heading transition-colors"
+        >
           {entry.authorName}
-        </span>
+        </button>
         <span className="font-ui text-xs text-caption shrink-0">{relativeTime}</span>
 
         {showEntryActions && (
@@ -300,6 +311,12 @@ export const EntryCard = memo(function EntryCard({
         isOpen={isCarouselOpen}
         onClose={closeCarousel}
         {...(photobookCoverAction ? { photobookCoverAction } : {})}
+      />
+
+      <UserProfileModal
+        userId={entry.authorId}
+        isOpen={authorProfileOpen}
+        onClose={() => setAuthorProfileOpen(false)}
       />
     </article>
   );
