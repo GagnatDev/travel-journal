@@ -17,12 +17,15 @@ export const inviteRouter: Router = Router();
 
 const COOKIE_NAME = 'refreshToken';
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/** Must match the path used by auth.router so that the browser treats both as the same cookie. */
+const REFRESH_COOKIE_PATH = '/api/v1/auth';
 
 function cookieOptions() {
   return {
     httpOnly: true,
     secure: process.env['NODE_ENV'] === 'production',
     sameSite: 'strict' as const,
+    path: REFRESH_COOKIE_PATH,
     maxAge: REFRESH_TOKEN_TTL_MS,
   };
 }
