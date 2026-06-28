@@ -193,7 +193,7 @@ describe('acceptInvite', () => {
     expect(newMember!.notificationPreferences?.newEntriesMode).toBe('off');
   });
 
-  it('contributor accepting a trip invite keeps newEntriesMode per_entry by default', async () => {
+  it('contributor accepting a trip invite gets newEntriesMode off by default', async () => {
     const creator = await makeUser('creator@test.com', 'creator');
     const trip = await createTrip({ name: 'My Trip' }, String(creator._id));
 
@@ -209,7 +209,7 @@ describe('acceptInvite', () => {
     const tripDoc = await Trip.findById(trip.id);
     const newMember = tripDoc!.members.find((m) => m.tripRole === 'contributor');
     expect(newMember).toBeTruthy();
-    expect(newMember!.notificationPreferences?.newEntriesMode).toBe('per_entry');
+    expect(newMember!.notificationPreferences?.newEntriesMode).toBe('off');
   });
 
   it('returns a valid access token', async () => {
@@ -271,7 +271,7 @@ describe('addTripMember', () => {
     expect(newMember!.notificationPreferences?.newEntriesMode).toBe('off');
   });
 
-  it('directly added contributor gets newEntriesMode per_entry by default', async () => {
+  it('directly added contributor gets newEntriesMode off by default', async () => {
     const creator = await makeUser('creator@test.com', 'creator');
     const other = await makeUser('contrib@test.com', 'follower');
     const trip = await createTrip({ name: 'Trip' }, String(creator._id));
@@ -281,7 +281,7 @@ describe('addTripMember', () => {
     const tripDoc = await Trip.findById(trip.id);
     const newMember = tripDoc!.members.find((m) => String(m.userId) === String(other._id));
     expect(newMember).toBeTruthy();
-    expect(newMember!.notificationPreferences?.newEntriesMode).toBe('per_entry');
+    expect(newMember!.notificationPreferences?.newEntriesMode).toBe('off');
   });
 
   it('adds an existing user by displayName (case-insensitive)', async () => {
