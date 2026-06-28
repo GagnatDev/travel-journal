@@ -366,7 +366,11 @@ export function useCreateEntryScreen() {
         return;
       }
 
-      if (navigator.onLine === false) {
+      // Queue offline when the browser reports no connection OR when we have no
+      // access token yet (session is being resumed offline after a flaky-network
+      // startup). Both mean we can't reach the API right now — save locally and
+      // let the background sync flush once connectivity and a token are restored.
+      if (navigator.onLine === false || !accessToken) {
         void saveOfflineEntry({
           localId: crypto.randomUUID(),
           tripId: tripId!,
@@ -380,7 +384,7 @@ export function useCreateEntryScreen() {
         return;
       }
 
-      if (!tripId || !accessToken) return;
+      if (!tripId) return;
 
       setUploadError('');
       createMutation.reset();
