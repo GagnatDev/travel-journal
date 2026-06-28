@@ -13,6 +13,7 @@ import {
   updateTripStatus,
   assertTripCreator,
   isValidStatusTransition,
+  activateTripIfPlanned,
   deleteTrip,
 } from '../services/trip.service.js';
 
@@ -65,6 +66,42 @@ describe('isValidStatusTransition', () => {
 
   it('rejects active → planned', () => {
     expect(isValidStatusTransition('active', 'planned')).toBe(false);
+  });
+});
+
+describe('activateTripIfPlanned', () => {
+  it('sets status to active when trip is planned', async () => {
+    const user = await makeUser('creator@test.com');
+    const trip = await createTrip({ name: 'Trip' }, String(user._id));
+    expect(trip.status).toBe('planned');
+
+    await activateTripIfPlanned(trip.id);
+
+    const updated = await getTripById(trip.id);
+    expect(updated?.status).toBe('active');
+  });
+
+  it('is a no-op when trip is already active', async () => {
+    const user = await makeUser('creator2@test.com');
+    const trip = await createTrip({ name: 'Trip' }, String(user._id));
+    await updateTripStatus(trip.id, 'active', String(user._id));
+
+    await activateTripIfPlanned(trip.id);
+
+    const updated = await getTripById(trip.id);
+    expect(updated?.status).toBe('active');
+  });
+
+  it('is a no-op when trip is completed', async () => {
+    const user = await makeUser('creator3@test.com');
+    const trip = await createTrip({ name: 'Trip' }, String(user._id));
+    await updateTripStatus(trip.id, 'active', String(user._id));
+    await updateTripStatus(trip.id, 'completed', String(user._id));
+
+    await activateTripIfPlanned(trip.id);
+
+    const updated = await getTripById(trip.id);
+    expect(updated?.status).toBe('completed');
   });
 });
 

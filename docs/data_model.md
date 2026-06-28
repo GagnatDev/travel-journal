@@ -53,14 +53,14 @@ Stores active refresh tokens to support server-side revocation in the dual-token
 | `description` | string? | optional |
 | `departureDate` | Date? | planned start; display only, not an auto-trigger |
 | `returnDate` | Date? | planned end; display only |
-| `status` | enum | `planned` \| `active` \| `completed`; manually set by trip creator |
+| `status` | enum | `planned` \| `active` \| `completed`; set by trip creator, except `planned → active` occurs automatically when an entry is posted |
 | `createdBy` | ObjectId | ref → User; always holds trip role `creator` |
 | `members` | TripMember[] | embedded array; see sub-document below |
 | `coverImageKey` | string? | S3 key for trip cover image (Phase 2) |
 | `createdAt` | Date | |
 | `updatedAt` | Date | |
 
-**Status transitions:** `planned → active`, `active → completed`, `completed → active` (re-open allowed).
+**Status transitions:** `planned → active` (automatic when an entry is posted, or manual by creator), `active → completed`, `completed → active` (re-open allowed).
 
 **Indexes:**
 - `{ createdBy: 1 }` — list trips created by a user
