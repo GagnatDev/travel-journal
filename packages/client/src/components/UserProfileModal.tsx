@@ -31,10 +31,6 @@ function formatDate(iso: string | undefined, language: string): string {
   return new Date(iso).toLocaleDateString(language, { year: 'numeric', month: 'long' });
 }
 
-function roleLabel(role: string, t: (k: string) => string): string {
-  const key = `trips.role.${role}`;
-  return t(key) !== key ? t(key) : role;
-}
 
 export function UserProfileModal({ userId, isOpen, onClose }: UserProfileModalProps) {
   const { t, i18n } = useTranslation();
@@ -137,34 +133,25 @@ export function UserProfileModal({ userId, isOpen, onClose }: UserProfileModalPr
           {user ? (
             <div className="text-center">
               <p className="font-display text-xl text-heading">{user.displayName}</p>
-              <p className="font-ui text-sm text-caption">{user.email}</p>
             </div>
           ) : (
-            <div className="h-12 flex items-center justify-center">
+            <div className="h-8 flex items-center justify-center">
               <div className="w-32 h-4 bg-caption/20 rounded animate-pulse" />
             </div>
           )}
         </div>
 
         {/* Details */}
-        {user && (
-          <div className="px-6 pb-6 space-y-3">
+        {user?.createdAt && (
+          <div className="px-6 pb-6">
             <div className="flex items-center justify-between py-2 border-t border-caption/10">
               <span className="font-ui text-xs font-semibold text-caption uppercase tracking-wide">
-                {t('profile.role')}
+                {t('profile.memberSince')}
               </span>
-              <span className="font-ui text-sm text-heading">{roleLabel(user.appRole, t)}</span>
+              <span className="font-ui text-sm text-heading">
+                {formatDate(user.createdAt, i18n.language)}
+              </span>
             </div>
-            {user.createdAt && (
-              <div className="flex items-center justify-between py-2 border-t border-caption/10">
-                <span className="font-ui text-xs font-semibold text-caption uppercase tracking-wide">
-                  {t('profile.memberSince')}
-                </span>
-                <span className="font-ui text-sm text-heading">
-                  {formatDate(user.createdAt, i18n.language)}
-                </span>
-              </div>
-            )}
           </div>
         )}
       </div>
