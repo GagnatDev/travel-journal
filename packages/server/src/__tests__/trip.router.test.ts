@@ -109,7 +109,7 @@ describe('POST /api/v1/trips', () => {
     const member = res.body.members.find((m: { userId: string }) => m.userId === userId);
     expect(member).toBeDefined();
     expect(member.tripRole).toBe('creator');
-    expect(member.notificationPreferences.newEntriesMode).toBe('per_entry');
+    expect(member.notificationPreferences.newEntriesMode).toBe('off');
   });
 });
 
