@@ -34,14 +34,14 @@ function renderControl(currentMode: 'off' | 'per_entry' | 'daily_digest' | undef
 }
 
 describe('TripNotificationModeControl', () => {
-  it('defaults to per_entry when currentMode is undefined (legacy doc)', async () => {
+  it('defaults to off when currentMode is undefined', async () => {
     renderControl(undefined);
 
     await userEvent.click(screen.getByTestId('trip-notification-mode-trigger'));
     await screen.findByTestId('trip-notification-mode-popover');
 
-    const perEntry = screen.getByTestId('trip-notification-mode-option-per_entry');
-    expect(perEntry).toHaveAttribute('aria-checked', 'true');
+    const offOption = screen.getByTestId('trip-notification-mode-option-off');
+    expect(offOption).toHaveAttribute('aria-checked', 'true');
   });
 
   it('offers all three modes in the popover', async () => {

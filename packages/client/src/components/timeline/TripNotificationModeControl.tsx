@@ -9,8 +9,7 @@ interface TripNotificationModeControlProps {
   tripId: string;
   /**
    * Current mode from the trip member record. When undefined (still loading
-   * or a legacy record without the new field), the control defaults to
-   * `per_entry` since that matches the previous legacy default.
+   * or a legacy record without the new field), the control defaults to `off`.
    */
   currentMode: TripEntryNotificationMode | undefined;
 }
@@ -41,7 +40,7 @@ export function TripNotificationModeControl({
 
   const mutation = useTripNotificationModeMutation({ tripId });
 
-  const effectiveMode: TripEntryNotificationMode = currentMode ?? 'per_entry';
+  const effectiveMode: TripEntryNotificationMode = currentMode ?? 'off';
 
   useEffect(() => {
     if (!open) return;

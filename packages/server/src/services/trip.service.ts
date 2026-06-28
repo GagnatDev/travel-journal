@@ -131,7 +131,7 @@ export async function createTrip(data: CreateTripRequest, creatorId: string): Pr
         tripRole: 'creator',
         addedAt: new Date(),
         notificationPreferences: {
-          newEntriesMode: 'per_entry',
+          newEntriesMode: 'off',
         },
       },
     ],
