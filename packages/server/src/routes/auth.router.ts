@@ -25,6 +25,15 @@ const passwordResetCompleteRateLimit = createRateLimit(10);
 
 const COOKIE_NAME = 'refreshToken';
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/**
+ * How long a just-rotated (now "previous") refresh token stays acceptable.
+ * Refresh rotates the token on every use, which normally means a single dropped
+ * response — common on a flaky mobile connection — permanently desyncs the
+ * client from the server and forces a logout. Honouring the previous token for
+ * a brief window lets the client safely retry (and lets concurrent tabs refresh)
+ * without weakening rotation meaningfully.
+ */
+const REFRESH_GRACE_MS = 60 * 1000;
 /** Cookie scope: only auth routes need the refresh token. Must match on clearCookie. */
 const REFRESH_COOKIE_PATH = '/api/v1/auth';
 
@@ -167,12 +176,27 @@ authRouter.post('/refresh', authSessionRateLimit, async (req: Request, res: Resp
   }
 
   const tokenHash = hashToken(rawToken);
-  const session = await Session.findOne({ tokenHash });
+  const session = await Session.findOne({
+    $or: [{ tokenHash }, { previousTokenHash: tokenHash }],
+  });
 
   if (!session || session.expiresAt < new Date()) {
     clearRefreshCookie(res);
     res.status(401).json({ error: { message: 'Invalid or expired session', code: 'UNAUTHORIZED' } });
     return;
+  }
+
+  // A match on the *previous* token is only honoured briefly after rotation, so
+  // a lost response or a concurrent refresh can be retried instead of logging
+  // the user out. Outside that window the old token is treated as invalid.
+  const matchedCurrent = session.tokenHash === tokenHash;
+  if (!matchedCurrent) {
+    const rotatedAtMs = session.rotatedAt?.getTime() ?? 0;
+    if (Date.now() - rotatedAtMs > REFRESH_GRACE_MS) {
+      clearRefreshCookie(res);
+      res.status(401).json({ error: { message: 'Invalid or expired session', code: 'UNAUTHORIZED' } });
+      return;
+    }
   }
 
   const user = await User.findById(session.userId);
@@ -182,11 +206,18 @@ authRouter.post('/refresh', authSessionRateLimit, async (req: Request, res: Resp
     return;
   }
 
-  // Rotate refresh token
+  // Rotate refresh token. On a normal (current-token) refresh, remember the
+  // token we're replacing as the grace token. On a grace-window retry we keep
+  // the original grace token and window intact so the client's old token stays
+  // usable for the rest of the window even if this response is also lost.
   const newRawToken = generateRefreshToken();
   const newTokenHash = hashToken(newRawToken);
   const newExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
 
+  if (matchedCurrent) {
+    session.previousTokenHash = session.tokenHash;
+    session.rotatedAt = new Date();
+  }
   session.tokenHash = newTokenHash;
   session.expiresAt = newExpiresAt;
   await session.save();
@@ -209,7 +240,7 @@ authRouter.post('/logout', authSessionRateLimit, async (req: Request, res: Respo
 
   if (rawToken) {
     const tokenHash = hashToken(rawToken);
-    await Session.deleteOne({ tokenHash });
+    await Session.deleteOne({ $or: [{ tokenHash }, { previousTokenHash: tokenHash }] });
   }
 
   clearRefreshCookie(res);
