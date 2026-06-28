@@ -105,6 +105,22 @@ test.describe('Notification inbox', () => {
 
     await addFollowerToTrip(adminPage, tripId);
 
+    // Default is now 'off'; opt the follower into per_entry directly via API
+    // (avoids the PWA push-subscription prompt that the UI would trigger).
+    await followerPage.evaluate(async (tid) => {
+      const refreshRes = await fetch('/api/v1/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const { accessToken } = (await refreshRes.json()) as { accessToken: string };
+      await fetch(`/api/v1/trips/${tid}/members/me/notification-preferences`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ newEntriesMode: 'per_entry' }),
+      });
+    }, tripId);
+
     const bell = followerPage.getByTestId('notifications-bell');
     await expect(bell).toBeVisible();
     await expect(followerPage.getByTestId('notifications-badge')).toHaveCount(0);
