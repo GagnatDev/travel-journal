@@ -166,7 +166,7 @@ export async function acceptInvite(
             tripRole: doc.tripRole,
             addedAt: new Date(),
             notificationPreferences: {
-              newEntriesMode: 'per_entry',
+              newEntriesMode: doc.tripRole === 'follower' ? 'off' : 'per_entry',
             },
           },
         },
@@ -338,7 +338,7 @@ export async function addTripMember(
             tripRole,
             addedAt: new Date(),
             notificationPreferences: {
-              newEntriesMode: 'per_entry',
+              newEntriesMode: tripRole === 'follower' ? 'off' : 'per_entry',
             },
           },
         },
