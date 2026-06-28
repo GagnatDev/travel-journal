@@ -36,12 +36,14 @@ function createHttpError(message: string, status: number, code: string): Error {
 async function toEntry(doc: IEntry): Promise<Entry> {
   const author = await User.findById(doc.authorId).lean();
   const authorName = (author?.displayName as string | undefined) ?? '';
+  const authorAvatarKey = author?.avatarKey as string | undefined;
 
   const entry: Entry = {
     id: String(doc._id),
     tripId: String(doc.tripId),
     authorId: String(doc.authorId),
     authorName,
+    ...(authorAvatarKey ? { authorAvatarKey } : {}),
     title: doc.title,
     content: doc.content,
     images: doc.images.map((img) => ({

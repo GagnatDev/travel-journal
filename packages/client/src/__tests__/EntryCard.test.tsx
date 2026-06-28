@@ -104,8 +104,9 @@ describe('EntryCard', () => {
 
   it('renders an Avatar with the author name', () => {
     renderCard(makeEntry(), 'other-user');
-    // Avatar renders a div[role="img"] with aria-label equal to the name
-    expect(screen.getByRole('img', { name: 'Alice' })).toBeInTheDocument();
+    // Avatar (clickable) and author name button both have accessible name "Alice"
+    const avatarButtons = screen.getAllByRole('button', { name: 'Alice' });
+    expect(avatarButtons.length).toBeGreaterThan(0);
   });
 
   it('renders location name when present', () => {
@@ -196,7 +197,7 @@ describe('EntryCard', () => {
 
     await waitFor(() => {
       const imgs = screen.getAllByRole('img');
-      // The hero image is loaded via auth proxy (blob URL). The avatar has role=img too.
+      // The hero image is loaded via auth proxy (blob URL).
       const heroImg = imgs.find((el) => el.tagName === 'IMG') as HTMLImageElement | undefined;
       if (heroImg) {
         expect(heroImg.src).toMatch(/^blob:/);

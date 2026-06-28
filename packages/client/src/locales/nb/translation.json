@@ -167,7 +167,16 @@
     "saveButton": "Lagre",
     "cancelButton": "Avbryt",
     "emailLabel": "E-post",
-    "logoutButton": "Logg ut"
+    "logoutButton": "Logg ut",
+    "uploadPhoto": "Last opp bilde",
+    "changePhoto": "Endre bilde",
+    "removePhoto": "Fjern bilde",
+    "uploadingPhoto": "Laster opp…",
+    "photoUploadError": "Kunne ikke laste opp bilde",
+    "viewProfile": "Se profil",
+    "memberSince": "Medlem siden",
+    "role": "Rolle",
+    "closeProfile": "Lukk profil"
   },
   "trips": {
     "dashboard": {
