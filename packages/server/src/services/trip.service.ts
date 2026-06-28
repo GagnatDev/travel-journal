@@ -248,6 +248,15 @@ export async function updateTripStatus(
   return toTrip(doc);
 }
 
+/** System rule: posting an entry on a planned trip moves it to active. */
+export async function activateTripIfPlanned(tripId: string): Promise<void> {
+  if (!mongoose.Types.ObjectId.isValid(tripId)) return;
+  await TripModel.findOneAndUpdate(
+    { _id: tripId, status: 'planned' },
+    { $set: { status: 'active' } },
+  );
+}
+
 export async function deleteTrip(
   tripId: string,
   requesterId: string,

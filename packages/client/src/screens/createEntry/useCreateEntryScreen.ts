@@ -17,6 +17,7 @@ import { uploadEntryLocalFiles } from '../../utils/uploadEntryLocalFiles.js';
 import { getPendingEntry } from '../../offline/db.js';
 import { saveOfflineEntry } from '../../offline/entrySync.js';
 import { QUERY_STALE_MS } from '../../lib/appQueryClient.js';
+import { tripSettingsQueryKeys } from '../tripSettings/useTripSettings.js';
 import { EMPTY_ENTRY_FORM, type EntryFormState } from './entryFormState.js';
 import { formatComposerEntryDate } from './formatComposerEntryDate.js';
 import { useEntryForm } from './useEntryForm.js';
@@ -194,6 +195,8 @@ export function useCreateEntryScreen() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['entries', tripId] }),
         queryClient.invalidateQueries({ queryKey: ['mapPins', tripId] }),
+        queryClient.invalidateQueries({ queryKey: tripSettingsQueryKeys.trip(tripId) }),
+        queryClient.invalidateQueries({ queryKey: tripSettingsQueryKeys.trips }),
       ]);
       navigate(`/trips/${tripId}/timeline`);
     },
