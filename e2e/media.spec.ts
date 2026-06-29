@@ -227,4 +227,60 @@ test.describe('Media', () => {
 
     void key1Before;
   });
+
+  test('move-button reorder: save and reload preserves order', async ({ page }) => {
+    await registerAdmin(page);
+    await page.goto('/trips');
+    await createTrip(page, 'Move Reorder Trip');
+
+    await page.getByRole('button', { name: /legg til innlegg|add entry/i }).click();
+    await page.waitForURL('**/entries/new');
+
+    await page.getByLabel(/tittel|title/i).fill('Move Reorder Entry');
+    await page.getByLabel(/innhold|content/i).fill('Content');
+
+    const fileInput = page.getByTestId('entry-media-file-input');
+
+    for (let i = 0; i < 2; i++) {
+      await fileInput.setInputFiles({
+        name: `move-image-${i}.png`,
+        mimeType: 'image/png',
+        buffer: TINY_PNG,
+      });
+      await expect(page.getByText(/laster opp|uploading/i)).not.toBeVisible({ timeout: 15_000 });
+    }
+
+    const thumbs = page.locator('[data-key]');
+    await expect(thumbs).toHaveCount(2);
+
+    const key1Before = await thumbs.nth(0).getAttribute('data-key');
+    const key2Before = await thumbs.nth(1).getAttribute('data-key');
+
+    await page.getByTestId('move-image-right-0').click();
+
+    const key1After = await thumbs.nth(0).getAttribute('data-key');
+    expect(key1After).toBe(key2Before);
+
+    await page.getByRole('button', { name: /lagre|save/i }).click();
+    await page.waitForURL('**/timeline');
+
+    const entryJsonPromise = page.waitForResponse(
+      (res) =>
+        /\/api\/v1\/trips\/[^/]+\/entries\/[^/?]+$/.test(res.url()) &&
+        res.request().method() === 'GET' &&
+        res.ok(),
+    );
+    await openEntryAuthorMenu(page);
+    await page.getByRole('button', { name: /rediger|edit/i }).click();
+    await page.waitForURL('**/edit');
+    await entryJsonPromise;
+
+    const editThumbs = page.locator('[data-key]');
+    await expect(editThumbs).toHaveCount(2);
+
+    const savedKey1 = await editThumbs.nth(0).getAttribute('data-key');
+    expect(savedKey1).toBe(key2Before);
+
+    void key1Before;
+  });
 });

@@ -353,6 +353,10 @@
     "uploadQueuedOffline": "Opplasting feilet; bildene er lagret på enheten og lastes opp når du er på nett igjen.",
     "imageLimit": "Maks 10 bilder",
     "removeImage": "Fjern bilde",
+    "reorderHint": "Dra eller bruk pilene for å endre rekkefølgen på bildene",
+    "moveImageLeft": "Flytt bilde tidligere",
+    "moveImageRight": "Flytt bilde senere",
+    "dragHandle": "Dra for å endre rekkefølge",
     "carousel": {
       "dialogLabel": "Bildekarusell",
       "previousImage": "Forrige bilde",

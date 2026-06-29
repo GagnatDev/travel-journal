@@ -332,6 +332,10 @@ const nb = {
     uploadProgressCount: '{{completed}} av {{total}} bilder',
     imageLimit: 'Maks 10 bilder',
     removeImage: 'Fjern bilde',
+    reorderHint: 'Dra eller bruk pilene for å endre rekkefølgen på bildene',
+    moveImageLeft: 'Flytt bilde tidligere',
+    moveImageRight: 'Flytt bilde senere',
+    dragHandle: 'Dra for å endre rekkefølge',
     openImageCarousel: 'Åpne bildekarusell',
     openImageCarouselAt: 'Åpne bilde {{index}}',
     carousel: {

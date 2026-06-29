@@ -84,4 +84,52 @@ describe('ImageReorder', () => {
     renderReorder(images);
     expect(screen.queryByRole('button', { name: /legg til bilder|add photos/i })).not.toBeInTheDocument();
   });
+
+  it('shows reorder hint when multiple images are present', () => {
+    renderReorder([makeImage('media/trip-1/a.jpg', 0), makeImage('media/trip-1/b.jpg', 1)]);
+    expect(
+      screen.getByText(/drag or use arrows|dra eller bruk pilene/i),
+    ).toBeInTheDocument();
+  });
+
+  it('does not show reorder hint for a single image', () => {
+    renderReorder([makeImage('media/trip-1/a.jpg', 0)]);
+    expect(
+      screen.queryByText(/drag or use arrows|dra eller bruk pilene/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it('move-right swaps image order', async () => {
+    const onChange = vi.fn();
+    renderReorder(
+      [makeImage('media/trip-1/a.jpg', 0), makeImage('media/trip-1/b.jpg', 1)],
+      onChange,
+    );
+    await userEvent.click(screen.getByTestId('move-image-right-0'));
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({ key: 'media/trip-1/b.jpg', order: 0 }),
+      expect.objectContaining({ key: 'media/trip-1/a.jpg', order: 1 }),
+    ]);
+  });
+
+  it('move-left swaps image order', async () => {
+    const onChange = vi.fn();
+    renderReorder(
+      [makeImage('media/trip-1/a.jpg', 0), makeImage('media/trip-1/b.jpg', 1)],
+      onChange,
+    );
+    await userEvent.click(screen.getByTestId('move-image-left-1'));
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({ key: 'media/trip-1/b.jpg', order: 0 }),
+      expect.objectContaining({ key: 'media/trip-1/a.jpg', order: 1 }),
+    ]);
+  });
+
+  it('disables move-left on the first image and move-right on the last', () => {
+    renderReorder([makeImage('media/trip-1/a.jpg', 0), makeImage('media/trip-1/b.jpg', 1)]);
+    expect(screen.getByTestId('move-image-left-0')).toBeDisabled();
+    expect(screen.getByTestId('move-image-right-1')).toBeDisabled();
+    expect(screen.getByTestId('move-image-right-0')).not.toBeDisabled();
+    expect(screen.getByTestId('move-image-left-1')).not.toBeDisabled();
+  });
 });

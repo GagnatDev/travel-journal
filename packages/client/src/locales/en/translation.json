@@ -353,6 +353,10 @@
     "uploadQueuedOffline": "Upload failed; photos are saved on this device and will upload when you are back online.",
     "imageLimit": "Maximum 10 images",
     "removeImage": "Remove image",
+    "reorderHint": "Drag or use arrows to reorder photos",
+    "moveImageLeft": "Move photo earlier",
+    "moveImageRight": "Move photo later",
+    "dragHandle": "Drag to reorder",
     "carousel": {
       "dialogLabel": "Image carousel",
       "previousImage": "Previous image",
