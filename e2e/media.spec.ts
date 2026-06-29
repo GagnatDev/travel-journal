@@ -199,7 +199,7 @@ test.describe('Media', () => {
     const key1Before = await thumbs.nth(0).getAttribute('data-key');
     const key2Before = await thumbs.nth(1).getAttribute('data-key');
 
-    await thumbs.nth(0).dragTo(thumbs.nth(1));
+    await page.getByTestId('drag-handle-0').dragTo(thumbs.nth(1));
 
     const key1After = await thumbs.nth(0).getAttribute('data-key');
 
