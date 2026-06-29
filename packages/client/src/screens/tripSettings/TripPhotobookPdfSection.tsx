@@ -6,6 +6,7 @@ import type { Trip } from '@travel-journal/shared';
 
 import { fetchTripPhotobookPdf, startTripPhotobookPdfGeneration } from '../../api/trips.js';
 import { AuthenticatedImage } from '../../components/AuthenticatedImage.js';
+import { useViewportPinchZoom } from '../../hooks/useViewportPinchZoom.js';
 
 interface TripPhotobookPdfSectionProps {
   t: TFunction;
@@ -49,6 +50,8 @@ export function TripPhotobookPdfSection({
 }: TripPhotobookPdfSectionProps) {
   const [localError, setLocalError] = useState<string | null>(null);
   const [coverPreviewOpen, setCoverPreviewOpen] = useState(false);
+
+  useViewportPinchZoom(coverPreviewOpen);
 
   const job = trip.photobookPdfJob;
   const status = job?.status;
@@ -206,7 +209,7 @@ export function TripPhotobookPdfSection({
               >
                 {t('common.close')}
               </button>
-              <div className="max-h-[85vh] max-w-[min(100%,42rem)] w-full flex flex-col items-center gap-3">
+              <div className="max-h-[85vh] max-w-[min(100%,42rem)] w-full flex flex-col items-center gap-3 touch-pinch-zoom">
                 <AuthenticatedImage
                   mediaKey={coverKey}
                   alt={t('trips.settings.photobookCoverPreviewImageAlt')}

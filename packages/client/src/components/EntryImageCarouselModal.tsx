@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../context/AuthContext.js';
+import { useViewportPinchZoom } from '../hooks/useViewportPinchZoom.js';
 import {
   acquireAuthenticatedMediaObjectUrl,
   createMediaCacheKey,
@@ -77,6 +78,8 @@ export function EntryImageCarouselModal({
   const gestureAxisRef = useRef<'horizontal' | 'vertical' | null>(null);
   /** True once this gesture used two+ touches (e.g. pinch-zoom); swipe is ignored until all touches end. */
   const skipSwipeForGestureRef = useRef(false);
+
+  useViewportPinchZoom(isOpen);
 
   useEffect(() => {
     if (!isOpen) return;
