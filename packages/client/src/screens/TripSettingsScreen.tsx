@@ -126,10 +126,11 @@ export function TripSettingsScreen() {
         {canEditTripDetailsAndLifecycle(myRole) ? (
           <TripStatusSection t={t} tripStatus={trip.status} statusMutation={statusMutation} />
         ) : null}
-        {accessToken && canDownloadTripPhotobookPdf(myRole, trip.status) ? (
+        {accessToken && user && canDownloadTripPhotobookPdf(myRole, trip.status) ? (
           <TripPhotobookPdfSection
             t={t}
             trip={trip}
+            user={user}
             accessToken={accessToken}
             pdfUiLanguage={i18n.resolvedLanguage?.startsWith('en') ? 'en' : 'nb'}
             refetchTrip={() => void refetchTrip()}

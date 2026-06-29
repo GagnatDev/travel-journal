@@ -15,6 +15,8 @@ export function notificationLinkFor(data: NotificationData): string {
       return `/trips/${data.tripId}/timeline`;
     case 'trip.photobook_pdf_ready':
       return `/trips/${data.tripId}/settings`;
+    case 'photobook.order_status':
+      return `/trips/${data.tripId}/settings`;
     case 'system.release_announcement':
       return '/trips';
     case 'user.private_message':

@@ -44,6 +44,16 @@ function useItemRender(notification: AppNotification): ItemRenderProps {
         body: t('notifications.item.tripPhotobookPdfReady.body', { tripName: data.tripName }),
         actionLabel: t('notifications.item.tripPhotobookPdfReady.openAction'),
       };
+    case 'photobook.order_status':
+      return {
+        title: t(`notifications.item.photobookOrderStatus.${data.event}.title`, {
+          tripName: data.tripName,
+        }),
+        body: t(`notifications.item.photobookOrderStatus.${data.event}.body`, {
+          tripName: data.tripName,
+        }),
+        actionLabel: t('notifications.item.photobookOrderStatus.openAction'),
+      };
     case 'system.release_announcement':
       return {
         title: t('notifications.item.releaseAnnouncement.title', { version: data.version }),

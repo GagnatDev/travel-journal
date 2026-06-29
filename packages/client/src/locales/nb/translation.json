@@ -54,7 +54,8 @@
     "accessDenied": "Tilgang nektet. Kun for admins.",
     "tabs": {
       "users": "Brukere",
-      "invites": "Invitasjoner"
+      "invites": "Invitasjoner",
+      "orders": "Bestillinger"
     },
     "invite": {
       "emailLabel": "E-post",
@@ -77,7 +78,33 @@
       "promoteButton": "Forfrem til oppretter",
       "noUsers": "Ingen brukere funnet.",
       "resetPasswordButton": "Lenke for å nullstille passord",
-      "resetPasswordLinkLabel": "Lenke for å nullstille passord"
+      "resetPasswordLinkLabel": "Lenke for å nullstille passord",
+      "photobookOrderingToggle": "Fotobokbestilling"
+    },
+    "orders": {
+      "title": "Fotobokbestillinger",
+      "noOrders": "Ingen bestillinger samsvarer med filteret.",
+      "filterLabel": "Filtrer etter status",
+      "filterAll": "Alle",
+      "getQuote": "Hent pristilbud",
+      "approve": "Godkjenn",
+      "reject": "Avvis",
+      "retry": "Prøv igjen",
+      "rejectReasonLabel": "Begrunnelse (valgfritt)",
+      "quoteTotal": "Totalt",
+      "quoteItems": "Varer",
+      "quoteShipping": "Frakt",
+      "tripLabel": "Tur",
+      "userLabel": "Bruker",
+      "status": {
+        "requested": "Forespurt",
+        "awaiting_approval": "Venter på godkjenning",
+        "submitting": "Sender inn",
+        "submitted": "Sendt inn",
+        "failed": "Mislyktes",
+        "rejected": "Avvist",
+        "cancelled": "Avbrutt"
+      }
     }
   },
   "nav": {
@@ -157,6 +184,25 @@
         "title": "Ny melding fra {{fromUserName}}",
         "body": "{{preview}}",
         "openAction": "Åpne samtalen"
+      },
+      "photobookOrderStatus": {
+        "awaiting_approval": {
+          "title": "Ny fotobokbestilling venter på godkjenning",
+          "body": "En bestilling for «{{tripName}}» trenger din godkjenning."
+        },
+        "submitted": {
+          "title": "Fotobokbestilling sendt: {{tripName}}",
+          "body": "Bestillingen av den fysiske fotoboken er sendt til trykkeriet."
+        },
+        "failed": {
+          "title": "Fotobokbestilling feilet: {{tripName}}",
+          "body": "Noe gikk galt under innsending av bestillingen. Vi ser på det."
+        },
+        "rejected": {
+          "title": "Fotobokbestilling ikke godkjent: {{tripName}}",
+          "body": "Fotobokbestillingen din ble ikke godkjent."
+        },
+        "openAction": "Åpne innstillinger"
       }
     }
   },
@@ -181,6 +227,20 @@
     "cancelButton": "Avbryt",
     "emailLabel": "E-post",
     "logoutButton": "Logg ut",
+    "shippingAddress": {
+      "title": "Leveringsadresse",
+      "editButton": "Rediger",
+      "emptyState": "Ingen leveringsadresse lagret ennå.",
+      "recipientName": "Mottakers navn",
+      "line1": "Adresselinje 1",
+      "line2": "Adresselinje 2",
+      "townOrCity": "Sted eller by",
+      "stateOrCounty": "Fylke eller delstat",
+      "postalOrZipCode": "Postnummer",
+      "countryCode": "Landskode (f.eks. NO)",
+      "email": "E-post",
+      "phoneNumber": "Telefonnummer"
+    },
     "uploadPhoto": "Last opp bilde",
     "changePhoto": "Endre bilde",
     "removePhoto": "Fjern bilde",
@@ -266,7 +326,35 @@
       "photobookCoverPreviewOpen": "Forhåndsvis valgt omslagsbilde",
       "photobookCoverPreviewHint": "Se forhåndsvisning av omslagsbildet du valgte.",
       "photobookCoverPreviewDialogLabel": "Forhåndsvisning av omslag",
-      "photobookCoverPreviewImageAlt": "Valgt omslagsbilde for fotobok"
+      "photobookCoverPreviewImageAlt": "Valgt omslagsbilde for fotobok",
+      "photobookOrder": {
+        "title": "Bestill et trykt eksemplar",
+        "description": "Bestill en fysisk trykt fotobok levert til adressen din. Vi dekker trykkekostnaden; en administrator gjennomgår hver bestilling før den sendes til trykk.",
+        "orderButton": "Send bestilling",
+        "copiesLabel": "Antall eksemplarer",
+        "saveAddressLabel": "Lagre denne adressen på profilen min",
+        "manualStatusNote": "Vi sjekker bestillingsstatus manuelt — det finnes ingen sanntidssporing her. Vi tar kontakt hvis vi trenger noe.",
+        "existingOrderTitle": "Din bestilling",
+        "recipientName": "Mottakers navn",
+        "line1": "Adresselinje 1",
+        "line2": "Adresselinje 2",
+        "townOrCity": "Sted eller by",
+        "stateOrCounty": "Fylke eller delstat",
+        "postalOrZipCode": "Postnummer",
+        "countryCode": "Landskode (f.eks. NO)",
+        "email": "E-post",
+        "phoneNumber": "Telefonnummer",
+        "orderError": "Kunne ikke sende bestillingen. Prøv igjen.",
+        "status": {
+          "requested": "Forespurt",
+          "awaiting_approval": "Venter på godkjenning",
+          "submitting": "Sender til trykk",
+          "submitted": "Sendt til trykk",
+          "failed": "Bestilling mislyktes",
+          "rejected": "Bestilling avvist",
+          "cancelled": "Bestilling avbrutt"
+        }
+      }
     },
     "notificationMode": {
       "triggerLabel": "Varsler om nye innlegg ({{current}})",

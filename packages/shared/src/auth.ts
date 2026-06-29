@@ -1,3 +1,5 @@
+import type { ShippingAddress } from './photobookOrders.js';
+
 export type AppRole = 'admin' | 'creator' | 'follower';
 
 export interface AccessTokenPayload {
@@ -28,6 +30,10 @@ export interface PublicUser {
   displayName: string;
   appRole: AppRole;
   preferredLocale: 'nb' | 'en';
+  /** Admin-controlled gate: whether this user may order a physical photobook. */
+  photobookOrderingEnabled?: boolean;
+  /** Saved shipping address, prefilled into the order form and updated from it. */
+  shippingAddress?: ShippingAddress;
   avatarKey?: string;
   createdAt?: string;
 }
