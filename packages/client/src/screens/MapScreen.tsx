@@ -23,6 +23,8 @@ import { useMapMarkers } from './map/hooks/useMapMarkers.js';
 import { useUserLocationMarker } from './map/hooks/useUserLocationMarker.js';
 import { usePinsForMap } from './map/hooks/usePinsForMap.js';
 import { useSettingsMenuDismiss } from './map/hooks/useSettingsMenuDismiss.js';
+import { UsageHintBanner } from '../components/UsageHintBanner.js';
+import { scopedHintId } from '../lib/usageHintsPrefs.js';
 
 type MapScreenProps = {
   /** When true, the map is kept mounted but not the active tab (timeline ↔ map cache). */
@@ -271,6 +273,18 @@ export function MapScreen({ mapLayerPaused = false }: MapScreenProps = {}) {
           }}
           onGoToMyLocation={centerOnMyLocation}
         />
+
+        {canManageSaved && hasMapboxToken && !isLoading && !isError && (
+          <div className="absolute top-3 left-3 right-14 z-20">
+            <UsageHintBanner
+              hintId={scopedHintId(user?.id, 'saveMapLocation')}
+              when={true}
+              className="shadow-md"
+            >
+              {t('hints.saveMapLocation')}
+            </UsageHintBanner>
+          </div>
+        )}
 
         <MapScreenOverlays
           hasMapboxToken={hasMapboxToken}

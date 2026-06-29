@@ -160,6 +160,19 @@
       }
     }
   },
+  "hints": {
+    "dismiss": "Lukk hint",
+    "createTrip": "Trykk Opprett tur for å starte din første reise.",
+    "firstEntry": "Bruk +-knappen nedenfor for å legge til ditt første innlegg.",
+    "inviteMembers": "Inviter bidragsytere eller følgere fra turinnstillinger — åpne Innstillinger i bunnmenyen, og bruk medlemsseksjonen.",
+    "entryNotifications": "Trykk på bjelleikonet over for å velge hvordan du varsles om nye innlegg.",
+    "saveMapLocation": "Bruk kartmenyen (tannhjul) for å lagre posisjonen din. Du kan gjøre den om til et innlegg senere.",
+    "profile": {
+      "sectionLabel": "Brukshint",
+      "enabledLabel": "Vis brukshint",
+      "resetButton": "Vis avviste hint igjen"
+    }
+  },
   "profile": {
     "title": "Profil",
     "displayNameLabel": "Kallenavn",

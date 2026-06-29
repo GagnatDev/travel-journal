@@ -8,6 +8,8 @@ import { QUERY_STALE_MS } from '../lib/appQueryClient.js';
 import { useAuth } from '../context/AuthContext.js';
 import { TripCard } from '../components/TripCard.js';
 import { CreateTripModal } from '../components/CreateTripModal.js';
+import { UsageHintBanner } from '../components/UsageHintBanner.js';
+import { scopedHintId } from '../lib/usageHintsPrefs.js';
 
 type TripGroupProps = {
   label: string;
@@ -84,6 +86,12 @@ export function TripDashboardScreen() {
         </header>
 
         <main className="px-4 space-y-6">
+          <UsageHintBanner
+            hintId={scopedHintId(user?.id, 'createTrip')}
+            when={canCreate && !isLoading && trips.length === 0}
+          >
+            {t('hints.createTrip')}
+          </UsageHintBanner>
           {isLoading ? (
             <p className="font-ui text-body text-center py-12">{t('common.loading')}</p>
           ) : trips.length === 0 ? (

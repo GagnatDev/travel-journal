@@ -8,6 +8,9 @@ import { ImageReorder } from '../../components/ImageReorder.js';
 import { entryTextControlClass } from '../../components/ui/fieldStyles.js';
 import type { EntryFormState } from './entryFormState.js';
 import { EntryPhotoUploadProgress, type EntryUploadProgress } from './EntryPhotoUploadProgress.js';
+import { UsageHintBanner } from '../../components/UsageHintBanner.js';
+import { useAuth } from '../../context/AuthContext.js';
+import { scopedHintId } from '../../lib/usageHintsPrefs.js';
 
 export interface CreateEntryFormProps {
   form: EntryFormState;
@@ -54,7 +57,9 @@ export function CreateEntryForm({
   entryDateLabel,
 }: CreateEntryFormProps) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const hasImages = images.length > 0 || localPreviews.length > 0;
+  const photoCount = images.length + localPreviews.length;
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col min-h-full">
@@ -62,6 +67,13 @@ export function CreateEntryForm({
       <div className="relative bg-bg-secondary min-h-[220px] flex flex-col items-center justify-center gap-3 overflow-hidden">
         {hasImages ? (
           <div className="w-full p-4">
+            <UsageHintBanner
+              hintId={scopedHintId(user?.id, 'reorderImages')}
+              when={photoCount >= 2}
+              className="mb-3"
+            >
+              {t('entries.reorderHint')}
+            </UsageHintBanner>
             {uploadProgress && (
               <div className="mb-3">
                 <EntryPhotoUploadProgress progress={uploadProgress} />

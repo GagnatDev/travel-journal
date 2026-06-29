@@ -160,6 +160,19 @@
       }
     }
   },
+  "hints": {
+    "dismiss": "Dismiss hint",
+    "createTrip": "Tap Create Trip to start your first trip.",
+    "firstEntry": "Use the + button below to add your first journal entry.",
+    "inviteMembers": "Invite contributors or followers from trip settings — open Settings in the bottom bar, then use the members section.",
+    "entryNotifications": "Tap the bell icon above to choose how you get notified about new entries.",
+    "saveMapLocation": "Use the map menu (gear icon) to save your current spot. You can turn it into a journal entry later.",
+    "profile": {
+      "sectionLabel": "Usage hints",
+      "enabledLabel": "Show usage hints",
+      "resetButton": "Show dismissed hints again"
+    }
+  },
   "profile": {
     "title": "Profile",
     "displayNameLabel": "Nickname",

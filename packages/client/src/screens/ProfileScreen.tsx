@@ -4,6 +4,7 @@ import type { PublicUser } from '@travel-journal/shared';
 
 import { apiJson } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.js';
+import { useUsageHintsSettings } from '../hooks/useUsageHintsSettings.js';
 import { compressImage } from '../utils/compressImage.js';
 import {
   acquireAuthenticatedMediaObjectUrl,
@@ -28,6 +29,8 @@ export function ProfileScreen() {
   const [draftName, setDraftName] = useState(user?.displayName ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { enabled: hintsEnabled, dismissedCount, setEnabled, resetDismissed } =
+    useUsageHintsSettings();
 
   const [avatarBlobUrl, setAvatarBlobUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -277,6 +280,30 @@ export function ProfileScreen() {
             {t('profile.emailLabel')}
           </p>
           <p className="font-ui text-sm text-body">{user.email}</p>
+        </section>
+
+        <section className="space-y-3">
+          <p className="font-ui text-xs font-semibold text-caption uppercase tracking-wide">
+            {t('hints.profile.sectionLabel')}
+          </p>
+          <label className="flex items-center justify-between gap-3">
+            <span className="font-ui text-sm text-heading">{t('hints.profile.enabledLabel')}</span>
+            <input
+              type="checkbox"
+              checked={hintsEnabled}
+              onChange={(e) => setEnabled(e.target.checked)}
+              className="h-4 w-4 rounded border-caption/30 text-accent focus:ring-accent"
+            />
+          </label>
+          {dismissedCount > 0 && (
+            <button
+              type="button"
+              onClick={resetDismissed}
+              className="font-ui text-sm text-accent hover:text-heading transition-colors"
+            >
+              {t('hints.profile.resetButton')}
+            </button>
+          )}
         </section>
 
         <hr className="border-caption/10" />
