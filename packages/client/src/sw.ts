@@ -8,6 +8,16 @@ declare let self: ServiceWorkerGlobalScope;
 
 precacheAndRoute(self.__WB_MANIFEST);
 
+// With `registerType: 'prompt'` a freshly installed worker stays in the
+// "waiting" state until the page tells it to activate. The PWA UI surfaces an
+// "Update now" action which calls `updateSW(true)`, posting this message — only
+// then do we skip waiting and take over, so the user is never interrupted.
+self.addEventListener('message', (event) => {
+  if ((event.data as { type?: string } | undefined)?.type === 'SKIP_WAITING') {
+    void self.skipWaiting();
+  }
+});
+
 registerRoute(
   ({ url }) => url.pathname.startsWith('/api/v1/trips'),
   new NetworkFirst({ cacheName: 'api-trips' }),

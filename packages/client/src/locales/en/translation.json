@@ -109,7 +109,22 @@
     "openMenu": "Open menu",
     "theme": "Dark mode",
     "language": "Language",
-    "profile": "Profile"
+    "profile": "Profile",
+    "about": "About"
+  },
+  "update": {
+    "bannerTitle": "A new version is available",
+    "bannerBody": "Update now to get the latest version. You can keep working and update later — your unsaved changes won't be lost.",
+    "now": "Update now",
+    "unsavedConfirm": "You have unsaved changes that will be lost if you update now. Update anyway?",
+    "bellLabel": "A new version is available"
+  },
+  "about": {
+    "title": "About",
+    "description": "Travel Journal — keep a shared diary of your trips.",
+    "version": "Version",
+    "buildTime": "Built",
+    "copyVersion": "Copy"
   },
   "notifications": {
     "openPanel": "Notifications",

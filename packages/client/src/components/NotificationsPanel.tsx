@@ -5,6 +5,8 @@ import { useMatch, useNavigate } from 'react-router-dom';
 
 import { fetchPushServerAvailability, type PushServerAvailability } from '../api/notifications.js';
 import { useAuth } from '../context/AuthContext.js';
+import { hasUnsavedChanges } from '../lib/unsavedChanges.js';
+import { usePwaUpdate } from '../pwa/usePwaUpdate.js';
 import { getPushPermissionState, type PushPermissionState } from '../notifications/push.js';
 import {
   useClearAllNotifications,
@@ -38,6 +40,7 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
   const [pushStatusOpen, setPushStatusOpen] = useState(false);
 
   const { notifications, isLoading } = useNotifications();
+  const { updateAvailable, applyUpdate } = usePwaUpdate();
   const markAllRead = useMarkNotificationsRead();
   const dismiss = useDismissNotification();
   const clearAll = useClearAllNotifications();
@@ -140,6 +143,13 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
     clearAll.mutate();
   };
 
+  const handleUpdateNow = () => {
+    // A reload would discard in-progress work (e.g. a half-written entry), so
+    // confirm first when something is unsaved. "Later" is just leaving it be.
+    if (hasUnsavedChanges() && !window.confirm(t('update.unsavedConfirm'))) return;
+    applyUpdate();
+  };
+
   const goTripSettings = () => {
     if (tripId) {
       navigate(`/trips/${tripId}/settings`);
@@ -210,6 +220,26 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
         </div>
 
         <div className="flex-1 px-4 py-4 overflow-y-auto space-y-4 font-ui text-sm text-body">
+          {updateAvailable && (
+            <div
+              className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-3 space-y-2"
+              data-testid="update-banner"
+            >
+              <h3 className="font-ui font-semibold text-heading text-sm">
+                {t('update.bannerTitle')}
+              </h3>
+              <p className="text-body text-xs">{t('update.bannerBody')}</p>
+              <button
+                type="button"
+                onClick={handleUpdateNow}
+                data-testid="update-now"
+                className="w-full font-ui text-sm font-medium px-3 py-2 rounded-lg bg-accent text-white hover:bg-accent/80 transition-colors"
+              >
+                {t('update.now')}
+              </button>
+            </div>
+          )}
+
           {notifications.length === 0 ? (
             <p className="text-caption text-center py-6" data-testid="notifications-empty">
               {isLoading ? '' : t('notifications.empty')}

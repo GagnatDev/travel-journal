@@ -35,6 +35,11 @@ export function MenuDrawer({ isOpen, onClose }: MenuDrawerProps) {
     onClose();
   };
 
+  const handleAboutClick = () => {
+    navigate('/about');
+    onClose();
+  };
+
   // Close on Escape
   useEffect(() => {
     if (!isOpen) return;
@@ -136,6 +141,15 @@ export function MenuDrawer({ isOpen, onClose }: MenuDrawerProps) {
             className="w-full text-left font-ui text-sm text-body hover:text-heading transition-colors py-2"
           >
             {t('menu.profile')}
+          </button>
+
+          {/* About link */}
+          <button
+            type="button"
+            onClick={handleAboutClick}
+            className="w-full text-left font-ui text-sm text-body hover:text-heading transition-colors py-2"
+          >
+            {t('menu.about')}
           </button>
         </div>
       </div>

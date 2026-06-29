@@ -17,8 +17,9 @@ import { uploadEntryLocalFiles } from '../../utils/uploadEntryLocalFiles.js';
 import { getPendingEntry } from '../../offline/db.js';
 import { saveOfflineEntry } from '../../offline/entrySync.js';
 import { QUERY_STALE_MS } from '../../lib/appQueryClient.js';
+import { setUnsavedChanges } from '../../lib/unsavedChanges.js';
 import { tripSettingsQueryKeys } from '../tripSettings/useTripSettings.js';
-import { EMPTY_ENTRY_FORM, type EntryFormState } from './entryFormState.js';
+import { EMPTY_ENTRY_FORM, entryFormIsDirty, type EntryFormState } from './entryFormState.js';
 import { formatComposerEntryDate } from './formatComposerEntryDate.js';
 import { useEntryForm } from './useEntryForm.js';
 
@@ -73,6 +74,15 @@ export function useCreateEntryScreen() {
       localPreviews.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [localPreviews]);
+
+  // Surface the composer's dirty state globally so a pending PWA update can warn
+  // before reloading and discarding an in-progress entry. Reset on unmount.
+  useEffect(() => {
+    setUnsavedChanges(
+      entryFormIsDirty(form, initialForm, images, initialImages, localFiles, initialLocalFiles),
+    );
+    return () => setUnsavedChanges(false);
+  }, [form, initialForm, images, initialImages, localFiles, initialLocalFiles]);
 
   useEffect(() => {
     if (!tripId || !location.pathname.endsWith('/entries/new')) return;
