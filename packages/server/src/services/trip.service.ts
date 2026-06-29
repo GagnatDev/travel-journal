@@ -41,7 +41,7 @@ function toPhotobookPdfJob(doc: ITrip): TripPhotobookPdfJob | undefined {
 async function toTrip(doc: ITrip): Promise<Trip> {
   const userIds = doc.members.map((m) => m.userId);
   const users = await User.find({ _id: { $in: userIds } }).lean();
-  const userMap = new Map(users.map((u) => [String(u._id), u.displayName as string]));
+  const userMap = new Map(users.map((u) => [String(u._id), { displayName: u.displayName as string, avatarKey: u.avatarKey as string | undefined }]));
 
   const trip: Trip = {
     id: String(doc._id),
@@ -49,15 +49,20 @@ async function toTrip(doc: ITrip): Promise<Trip> {
     status: doc.status,
     createdBy: String(doc.createdBy),
     allowContributorInvites: doc.allowContributorInvites === true,
-    members: doc.members.map((m) => ({
-      userId: String(m.userId),
-      displayName: userMap.get(String(m.userId)) ?? '',
-      tripRole: m.tripRole,
-      addedAt: m.addedAt.toISOString(),
-      notificationPreferences: {
-        newEntriesMode: readTripMemberEntryMode(m.notificationPreferences),
-      },
-    })),
+    members: doc.members.map((m) => {
+      const userData = userMap.get(String(m.userId));
+      const member: Trip['members'][number] = {
+        userId: String(m.userId),
+        displayName: userData?.displayName ?? '',
+        tripRole: m.tripRole,
+        addedAt: m.addedAt.toISOString(),
+        notificationPreferences: {
+          newEntriesMode: readTripMemberEntryMode(m.notificationPreferences),
+        },
+      };
+      if (userData?.avatarKey) member.avatarKey = userData.avatarKey;
+      return member;
+    }),
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
   };
@@ -126,7 +131,7 @@ export async function createTrip(data: CreateTripRequest, creatorId: string): Pr
         tripRole: 'creator',
         addedAt: new Date(),
         notificationPreferences: {
-          newEntriesMode: 'per_entry',
+          newEntriesMode: 'off',
         },
       },
     ],
@@ -246,6 +251,15 @@ export async function updateTripStatus(
   doc.status = newStatus;
   await doc.save();
   return toTrip(doc);
+}
+
+/** System rule: posting an entry on a planned trip moves it to active. */
+export async function activateTripIfPlanned(tripId: string): Promise<void> {
+  if (!mongoose.Types.ObjectId.isValid(tripId)) return;
+  await TripModel.findOneAndUpdate(
+    { _id: tripId, status: 'planned' },
+    { $set: { status: 'active' } },
+  );
 }
 
 export async function deleteTrip(

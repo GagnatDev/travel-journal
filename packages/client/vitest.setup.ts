@@ -190,6 +190,22 @@ const nb = {
       },
     },
   },
+  hints: {
+    dismiss: 'Lukk hint',
+    createTrip: 'Trykk Opprett tur for å starte din første reise.',
+    firstEntry: 'Bruk +-knappen nedenfor for å legge til ditt første innlegg.',
+    inviteMembers:
+      'Inviter bidragsytere eller følgere fra turinnstillinger — åpne Innstillinger i bunnmenyen, og bruk medlemsseksjonen.',
+    entryNotifications:
+      'Trykk på bjelleikonet over for å velge hvordan du varsles om nye innlegg.',
+    saveMapLocation:
+      'Bruk kartmenyen (tannhjul) for å lagre posisjonen din. Du kan gjøre den om til et innlegg senere.',
+    profile: {
+      sectionLabel: 'Brukshint',
+      enabledLabel: 'Vis brukshint',
+      resetButton: 'Vis avviste hint igjen',
+    },
+  },
   profile: {
     title: 'Profil',
     displayNameLabel: 'Kallenavn',
@@ -332,6 +348,10 @@ const nb = {
     uploadProgressCount: '{{completed}} av {{total}} bilder',
     imageLimit: 'Maks 10 bilder',
     removeImage: 'Fjern bilde',
+    reorderHint: 'Dra eller bruk pilene for å endre rekkefølgen på bildene',
+    moveImageLeft: 'Flytt bilde tidligere',
+    moveImageRight: 'Flytt bilde senere',
+    dragHandle: 'Dra for å endre rekkefølge',
     openImageCarousel: 'Åpne bildekarusell',
     openImageCarouselAt: 'Åpne bilde {{index}}',
     carousel: {

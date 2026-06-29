@@ -234,8 +234,8 @@ describe('MemberManagement (inside TripSettingsScreen)', () => {
   it('each member row renders an avatar circle with initials', async () => {
     renderSettings(makeTrip());
     await waitFor(() => {
-      // Avatar for "Test User" has role=img and aria-label
-      expect(screen.getByRole('img', { name: 'Test User' })).toBeInTheDocument();
+      // Avatar for "Test User" is now a button (clickable to view profile)
+      expect(screen.getByRole('button', { name: 'Test User' })).toBeInTheDocument();
     });
   });
 

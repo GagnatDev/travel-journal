@@ -101,6 +101,33 @@ describe('AuthContext', () => {
     });
   });
 
+  it('stays authenticated offline when the bootstrap refresh fails on a network error', async () => {
+    // Simulate a prior working session that the user can resume offline.
+    localStorage.setItem('authSessionHint', JSON.stringify(mockUser));
+    server.use(http.post('/api/v1/auth/refresh', () => HttpResponse.error()));
+
+    renderWithAuth(<AuthStatus />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('status').textContent).toBe('authenticated');
+    });
+    // Authenticated, but with no access token (offline) and the cached user.
+    expect(screen.getByTestId('user').textContent).toBe(mockUser.email);
+
+    localStorage.removeItem('authSessionHint');
+  });
+
+  it('becomes unauthenticated on a network error when there is no prior session', async () => {
+    localStorage.removeItem('authSessionHint');
+    server.use(http.post('/api/v1/auth/refresh', () => HttpResponse.error()));
+
+    renderWithAuth(<AuthStatus />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('status').textContent).toBe('unauthenticated');
+    });
+  });
+
   it('setUser updates the user in context without re-auth', async () => {
     server.use(
       http.post('/api/v1/auth/refresh', () =>

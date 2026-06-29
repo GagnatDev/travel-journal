@@ -13,6 +13,7 @@ import { fetchTripPhotobookPdf, startTripPhotobookPdfGeneration } from '../../ap
 import { createPhotobookOrder, fetchMyPhotobookOrder } from '../../api/photobookOrders.js';
 import { AuthenticatedImage } from '../../components/AuthenticatedImage.js';
 import { TextField } from '../../components/ui/TextField.js';
+import { useViewportPinchZoom } from '../../hooks/useViewportPinchZoom.js';
 
 interface TripPhotobookPdfSectionProps {
   t: TFunction;
@@ -138,6 +139,8 @@ export function TripPhotobookPdfSection({
   );
   const [saveAddressToProfile, setSaveAddressToProfile] = useState(false);
   const [copies, setCopies] = useState(1);
+
+  useViewportPinchZoom(coverPreviewOpen);
 
   const job = trip.photobookPdfJob;
   const status = job?.status;
@@ -482,7 +485,7 @@ export function TripPhotobookPdfSection({
               >
                 {t('common.close')}
               </button>
-              <div className="max-h-[85vh] max-w-[min(100%,42rem)] w-full flex flex-col items-center gap-3">
+              <div className="max-h-[85vh] max-w-[min(100%,42rem)] w-full flex flex-col items-center gap-3 touch-pinch-zoom">
                 <AuthenticatedImage
                   mediaKey={coverKey}
                   alt={t('trips.settings.photobookCoverPreviewImageAlt')}

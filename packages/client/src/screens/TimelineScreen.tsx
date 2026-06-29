@@ -21,6 +21,8 @@ import { QUERY_STALE_MS } from '../lib/appQueryClient.js';
 import { groupEntriesByDay } from '../utils/groupEntriesByDay.js';
 import { SectionLabel } from '../components/ui/SectionLabel.js';
 import { DeleteEntryConfirmDialog } from '../components/DeleteEntryConfirmDialog.js';
+import { UsageHintBanner } from '../components/UsageHintBanner.js';
+import { scopedHintId } from '../lib/usageHintsPrefs.js';
 
 export function TimelineScreen() {
   const { id: tripId } = useParams<{ id: string }>();
@@ -160,6 +162,14 @@ export function TimelineScreen() {
     !isEntriesLoading &&
     !(isEntriesError && allEntries.length === 0);
 
+  const canAddEntry = tripRole === 'creator' || tripRole === 'contributor';
+  const hasInvitees =
+    trip?.members.some((m) => m.tripRole === 'follower' || m.tripRole === 'contributor') ?? false;
+  const canUseInvites =
+    tripRole === 'creator' || (tripRole === 'contributor' && trip?.allowContributorInvites === true);
+  const isFollowerOrContributor = tripRole === 'follower' || tripRole === 'contributor';
+  const notificationMode = myMember?.notificationPreferences?.newEntriesMode ?? 'off';
+
   return (
     <div className="min-h-screen bg-bg-primary pb-28 pt-14">
       <div className="px-4 pt-4 pb-2 flex items-center justify-end gap-1">
@@ -172,7 +182,31 @@ export function TimelineScreen() {
         <StoryModeToggle storyMode={storyMode} onToggle={toggleStoryMode} t={t} />
       </div>
 
-      <div className="px-4 pb-2">
+      <div className="px-4 pb-2 space-y-3">
+        <UsageHintBanner
+          hintId={scopedHintId(user?.id, 'firstEntry')}
+          when={
+            canAddEntry &&
+            !isEntriesLoading &&
+            !isEntriesError &&
+            allEntries.length === 0 &&
+            pendingEntries.length === 0
+          }
+        >
+          {t('hints.firstEntry')}
+        </UsageHintBanner>
+        <UsageHintBanner
+          hintId={scopedHintId(user?.id, 'inviteMembers')}
+          when={!isTripPending && canUseInvites && !hasInvitees}
+        >
+          {t('hints.inviteMembers')}
+        </UsageHintBanner>
+        <UsageHintBanner
+          hintId={scopedHintId(user?.id, 'entryNotifications')}
+          when={!isTripPending && isFollowerOrContributor && notificationMode === 'off'}
+        >
+          {t('hints.entryNotifications')}
+        </UsageHintBanner>
         <SectionLabel>{t('entries.sectionLabel')}</SectionLabel>
         {isTripPending ? (
           <div

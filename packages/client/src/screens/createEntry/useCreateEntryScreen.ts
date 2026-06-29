@@ -17,6 +17,7 @@ import { uploadEntryLocalFiles } from '../../utils/uploadEntryLocalFiles.js';
 import { getPendingEntry } from '../../offline/db.js';
 import { saveOfflineEntry } from '../../offline/entrySync.js';
 import { QUERY_STALE_MS } from '../../lib/appQueryClient.js';
+import { tripSettingsQueryKeys } from '../tripSettings/useTripSettings.js';
 import { EMPTY_ENTRY_FORM, type EntryFormState } from './entryFormState.js';
 import { formatComposerEntryDate } from './formatComposerEntryDate.js';
 import { useEntryForm } from './useEntryForm.js';
@@ -194,6 +195,8 @@ export function useCreateEntryScreen() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['entries', tripId] }),
         queryClient.invalidateQueries({ queryKey: ['mapPins', tripId] }),
+        queryClient.invalidateQueries({ queryKey: tripSettingsQueryKeys.trip(tripId) }),
+        queryClient.invalidateQueries({ queryKey: tripSettingsQueryKeys.trips }),
       ]);
       navigate(`/trips/${tripId}/timeline`);
     },
@@ -363,7 +366,11 @@ export function useCreateEntryScreen() {
         return;
       }
 
-      if (navigator.onLine === false) {
+      // Queue offline when the browser reports no connection OR when we have no
+      // access token yet (session is being resumed offline after a flaky-network
+      // startup). Both mean we can't reach the API right now — save locally and
+      // let the background sync flush once connectivity and a token are restored.
+      if (navigator.onLine === false || !accessToken) {
         void saveOfflineEntry({
           localId: crypto.randomUUID(),
           tripId: tripId!,
@@ -377,7 +384,7 @@ export function useCreateEntryScreen() {
         return;
       }
 
-      if (!tripId || !accessToken) return;
+      if (!tripId) return;
 
       setUploadError('');
       createMutation.reset();

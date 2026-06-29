@@ -20,6 +20,8 @@ import {
 } from './tripSettings/tripSettingsPermissions.js';
 import { TripPhotobookPdfSection } from './tripSettings/TripPhotobookPdfSection.js';
 import { useTripSettings } from './tripSettings/useTripSettings.js';
+import { UsageHintBanner } from '../components/UsageHintBanner.js';
+import { scopedHintId } from '../lib/usageHintsPrefs.js';
 
 export function TripSettingsScreen() {
   const { t } = useTranslation();
@@ -94,11 +96,20 @@ export function TripSettingsScreen() {
 
   const canManageMembers = canManageTripInvitesAndMembers(myRole);
   const canUseInvites = canUseTripInviteActions(trip, myRole);
+  const hasInvitees = trip.members.some(
+    (m) => m.tripRole === 'follower' || m.tripRole === 'contributor',
+  );
 
   return (
     <div className="min-h-screen bg-bg-primary pt-14 pb-28">
-      <header className="px-4 pt-4 pb-4">
+      <header className="px-4 pt-4 pb-4 space-y-3">
         <h1 className="font-display text-2xl text-heading">{t('trips.settings.title')}</h1>
+        <UsageHintBanner
+          hintId={scopedHintId(user?.id, 'inviteMembers')}
+          when={canUseInvites && !hasInvitees}
+        >
+          {t('hints.inviteMembers')}
+        </UsageHintBanner>
       </header>
 
       <main className="px-4 space-y-8">

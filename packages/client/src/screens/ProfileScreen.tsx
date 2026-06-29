@@ -1,10 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PublicUser, ShippingAddress } from '@travel-journal/shared';
 
 import { apiJson } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.js';
 import { TextField } from '../components/ui/TextField.js';
+import { useUsageHintsSettings } from '../hooks/useUsageHintsSettings.js';
+import { compressImage } from '../utils/compressImage.js';
+import {
+  acquireAuthenticatedMediaObjectUrl,
+  releaseAuthenticatedMediaObjectUrl,
+} from '../lib/authenticatedMedia.js';
+import { UserProfileModal } from '../components/UserProfileModal.js';
 
 type AddressDraft = {
   recipientName: string;
@@ -67,13 +74,13 @@ function addressSummary(address: ShippingAddress): string {
     .join(', ');
 }
 
-function initials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .map((w) => w[0]?.toUpperCase() ?? '')
-    .slice(0, 2)
-    .join('');
+function CameraIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  );
 }
 
 export function ProfileScreen() {
@@ -84,6 +91,15 @@ export function ProfileScreen() {
   const [draftName, setDraftName] = useState(user?.displayName ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { enabled: hintsEnabled, dismissedCount, setEnabled, resetDismissed } =
+    useUsageHintsSettings();
+
+  const [avatarBlobUrl, setAvatarBlobUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [editingAddress, setEditingAddress] = useState(false);
   const [addressDraft, setAddressDraft] = useState<AddressDraft>(() =>
@@ -103,6 +119,34 @@ export function ProfileScreen() {
       setAddressDraft(addressDraftFrom(user.shippingAddress));
     }
   }, [editingAddress, user]);
+
+  // Load avatar blob URL
+  useEffect(() => {
+    const avatarKey = user?.avatarKey;
+    if (!avatarKey || !accessToken) {
+      setAvatarBlobUrl(null);
+      return;
+    }
+
+    let cacheKey: string | null = null;
+    let cancelled = false;
+
+    acquireAuthenticatedMediaObjectUrl(avatarKey, accessToken)
+      .then(({ cacheKey: ck, objectUrl }) => {
+        if (cancelled) return;
+        cacheKey = ck;
+        setAvatarBlobUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setAvatarBlobUrl(null);
+      });
+
+    return () => {
+      cancelled = true;
+      if (cacheKey) releaseAuthenticatedMediaObjectUrl(cacheKey);
+      setAvatarBlobUrl(null);
+    };
+  }, [user?.avatarKey, accessToken]);
 
   if (!user) return null;
 
@@ -167,17 +211,117 @@ export function ProfileScreen() {
     }
   };
 
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setUploadingAvatar(true);
+    setAvatarError(null);
+    try {
+      const { blob } = await compressImage(file, 800, 0.85);
+      const formData = new FormData();
+      formData.append('file', blob, 'avatar.jpg');
+
+      const res = await fetch('/api/v1/users/me/avatar', {
+        method: 'POST',
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error('Upload failed');
+      const updated = (await res.json()) as PublicUser;
+      setUser(updated);
+    } catch {
+      setAvatarError(t('profile.photoUploadError'));
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!user.avatarKey) return;
+    setUploadingAvatar(true);
+    setAvatarError(null);
+    try {
+      const updated = await apiJson<PublicUser>('/api/v1/users/me/avatar', {
+        method: 'DELETE',
+        ...(accessToken ? { token: accessToken } : {}),
+      });
+      setUser(updated);
+    } catch {
+      setAvatarError(t('profile.photoUploadError'));
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   return (
     <main className="pt-14 min-h-screen bg-bg-primary">
       <div className="max-w-lg mx-auto px-4 py-8 space-y-8">
         {/* Avatar */}
         <div className="flex flex-col items-center gap-3">
-          <div
-            className="w-20 h-20 rounded-full bg-accent flex items-center justify-center"
-            aria-hidden="true"
-          >
-            <span className="font-display text-2xl text-white">{initials(user.displayName)}</span>
+          <div className="relative group">
+            {/* Avatar image or initials */}
+            <button
+              type="button"
+              aria-label={t('profile.viewProfile')}
+              onClick={() => setProfileModalOpen(true)}
+              className="w-20 h-20 rounded-full overflow-hidden focus:outline-none focus:ring-2 focus:ring-accent"
+            >
+              {avatarBlobUrl ? (
+                <img
+                  src={avatarBlobUrl}
+                  alt={user.displayName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-accent flex items-center justify-center" aria-hidden>
+                  <span className="font-display text-2xl text-white">
+                    {user.displayName.trim().split(/\s+/).map((w) => w[0]?.toUpperCase() ?? '').slice(0, 2).join('')}
+                  </span>
+                </div>
+              )}
+            </button>
+
+            {/* Camera overlay */}
+            <button
+              type="button"
+              disabled={uploadingAvatar}
+              onClick={() => fileInputRef.current?.click()}
+              aria-label={user.avatarKey ? t('profile.changePhoto') : t('profile.uploadPhoto')}
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center shadow-md hover:bg-accent/80 transition-colors disabled:opacity-50"
+            >
+              {uploadingAvatar ? (
+                <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              ) : (
+                <CameraIcon />
+              )}
+            </button>
           </div>
+
+          {avatarError && (
+            <p role="alert" className="text-xs text-red-500 font-ui">{avatarError}</p>
+          )}
+
+          {user.avatarKey && !uploadingAvatar && (
+            <button
+              type="button"
+              onClick={handleRemoveAvatar}
+              className="font-ui text-xs text-caption hover:text-red-400 transition-colors"
+            >
+              {t('profile.removePhoto')}
+            </button>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAvatarFileChange}
+          />
+
           <h1 className="font-display text-xl text-heading">{t('profile.title')}</h1>
         </div>
 
@@ -360,6 +504,30 @@ export function ProfileScreen() {
           )}
         </section>
 
+        <section className="space-y-3">
+          <p className="font-ui text-xs font-semibold text-caption uppercase tracking-wide">
+            {t('hints.profile.sectionLabel')}
+          </p>
+          <label className="flex items-center justify-between gap-3">
+            <span className="font-ui text-sm text-heading">{t('hints.profile.enabledLabel')}</span>
+            <input
+              type="checkbox"
+              checked={hintsEnabled}
+              onChange={(e) => setEnabled(e.target.checked)}
+              className="h-4 w-4 rounded border-caption/30 text-accent focus:ring-accent"
+            />
+          </label>
+          {dismissedCount > 0 && (
+            <button
+              type="button"
+              onClick={resetDismissed}
+              className="font-ui text-sm text-accent hover:text-heading transition-colors"
+            >
+              {t('hints.profile.resetButton')}
+            </button>
+          )}
+        </section>
+
         <hr className="border-caption/10" />
 
         {/* Log out */}
@@ -371,6 +539,13 @@ export function ProfileScreen() {
           {t('profile.logoutButton')}
         </button>
       </div>
+
+      {/* Full-screen profile modal */}
+      <UserProfileModal
+        userId={user.id}
+        isOpen={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+      />
     </main>
   );
 }

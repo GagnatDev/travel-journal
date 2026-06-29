@@ -15,6 +15,7 @@ import {
   finalizeConsumedSavedLocation,
   requireConsumableSavedLocation,
 } from './saved-location.service.js';
+import { activateTripIfPlanned } from './trip.service.js';
 
 export interface EntryLocationPin {
   entryId: string;
@@ -35,12 +36,14 @@ function createHttpError(message: string, status: number, code: string): Error {
 async function toEntry(doc: IEntry): Promise<Entry> {
   const author = await User.findById(doc.authorId).lean();
   const authorName = (author?.displayName as string | undefined) ?? '';
+  const authorAvatarKey = author?.avatarKey as string | undefined;
 
   const entry: Entry = {
     id: String(doc._id),
     tripId: String(doc.tripId),
     authorId: String(doc.authorId),
     authorName,
+    ...(authorAvatarKey ? { authorAvatarKey } : {}),
     title: doc.title,
     content: doc.content,
     images: doc.images.map((img) => ({
@@ -146,7 +149,8 @@ export async function createEntry(
     ...(createdAt !== undefined && { createdAt, updatedAt: now }),
   };
 
-  async function saveAndNotify(doc: IEntry): Promise<Entry> {
+  async function saveActivateAndNotify(doc: IEntry): Promise<Entry> {
+    await activateTripIfPlanned(tripId);
     const entry = await toEntry(doc);
     void dispatchNewEntryNotification(entry).catch((err: unknown) => {
       logger.warn({ err, entryId: entry.id }, 'Failed to dispatch new-entry notifications');
@@ -158,11 +162,11 @@ export async function createEntry(
     await requireConsumableSavedLocation(tripId, bookmarkId);
     const doc = await EntryModel.create(entryPayload);
     await finalizeConsumedSavedLocation(tripId, bookmarkId);
-    return saveAndNotify(doc);
+    return saveActivateAndNotify(doc);
   }
 
   const doc = await EntryModel.create(entryPayload);
-  return saveAndNotify(doc);
+  return saveActivateAndNotify(doc);
 }
 
 export async function listEntries(

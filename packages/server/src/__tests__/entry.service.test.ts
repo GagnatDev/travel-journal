@@ -183,6 +183,48 @@ describe('createEntry', () => {
     expect(new Date(doc!.createdAt).getTime()).toBe(clientAt.getTime());
     expect(entry.createdAt).toBe(clientAt.toISOString());
   });
+
+  it('activates a planned trip when an entry is created', async () => {
+    const user = await makeUser('author3@test.com');
+    const trip = await makeTrip(String(user._id));
+    expect(trip.status).toBe('planned');
+
+    await createEntry(trip.id, String(user._id), {
+      title: 'First post',
+      content: 'Trip started',
+    });
+
+    const updated = await Trip.findById(trip.id).lean();
+    expect(updated?.status).toBe('active');
+  });
+
+  it('does not change status when trip is already active', async () => {
+    const user = await makeUser('author4@test.com');
+    const trip = await makeTrip(String(user._id));
+    await Trip.findByIdAndUpdate(trip.id, { status: 'active' });
+
+    await createEntry(trip.id, String(user._id), {
+      title: 'Another post',
+      content: 'Still active',
+    });
+
+    const updated = await Trip.findById(trip.id).lean();
+    expect(updated?.status).toBe('active');
+  });
+
+  it('does not change status when trip is completed', async () => {
+    const user = await makeUser('author5@test.com');
+    const trip = await makeTrip(String(user._id));
+    await Trip.findByIdAndUpdate(trip.id, { status: 'completed' });
+
+    await createEntry(trip.id, String(user._id), {
+      title: 'Late post',
+      content: 'Trip done',
+    });
+
+    const updated = await Trip.findById(trip.id).lean();
+    expect(updated?.status).toBe('completed');
+  });
 });
 
 describe('listEntries', () => {

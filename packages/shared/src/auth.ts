@@ -34,4 +34,6 @@ export interface PublicUser {
   photobookOrderingEnabled?: boolean;
   /** Saved shipping address, prefilled into the order form and updated from it. */
   shippingAddress?: ShippingAddress;
+  avatarKey?: string;
+  createdAt?: string;
 }

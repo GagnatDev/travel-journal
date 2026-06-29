@@ -45,6 +45,7 @@ export interface TripMember {
   tripRole: TripRole;
   addedAt: string; // ISO date
   notificationPreferences?: TripMemberNotificationPreferences;
+  avatarKey?: string;
 }
 
 export interface Trip {

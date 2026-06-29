@@ -5,7 +5,7 @@ vi.mock('../api/tokenStore.js', () => ({
   registerRefresh: vi.fn(),
 }));
 
-import { apiJson, parseApiErrorMessage } from '../api/client.js';
+import { apiJson, NetworkError, parseApiErrorMessage } from '../api/client.js';
 import { attemptRefresh } from '../api/tokenStore.js';
 
 afterEach(() => {
@@ -99,6 +99,41 @@ describe('apiJson', () => {
     expect(events.length).toBe(1);
 
     window.removeEventListener('auth:session-expired', (e) => events.push(e));
+  });
+
+  it('surfaces a NetworkError (not a logout) when the request itself fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+
+    const events: Event[] = [];
+    const handler = (e: Event) => events.push(e);
+    window.addEventListener('auth:session-expired', handler);
+
+    await expect(apiJson('/api/v1/x', { token: 't' })).rejects.toBeInstanceOf(NetworkError);
+    expect(events.length).toBe(0);
+    expect(attemptRefresh).not.toHaveBeenCalled();
+
+    window.removeEventListener('auth:session-expired', handler);
+  });
+
+  it('does NOT log out when a 401 refresh fails because the network is down', async () => {
+    vi.mocked(attemptRefresh).mockRejectedValue(new NetworkError());
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({}),
+      }),
+    );
+
+    const events: Event[] = [];
+    const handler = (e: Event) => events.push(e);
+    window.addEventListener('auth:session-expired', handler);
+
+    await expect(apiJson('/api/v1/x', { token: 'old-token' })).rejects.toBeInstanceOf(NetworkError);
+    expect(events.length).toBe(0);
+
+    window.removeEventListener('auth:session-expired', handler);
   });
 
   it('does not attempt refresh on 401 when no token is provided', async () => {

@@ -1,5 +1,45 @@
 import { attemptRefresh } from './tokenStore.js';
 
+/**
+ * Raised when a `fetch` call rejects — i.e. the request never reached the
+ * server or no response came back (offline, DNS failure, dropped connection,
+ * TLS error, timeout). This is deliberately distinct from an HTTP error
+ * response (e.g. 401): a `NetworkError` means "we could not talk to the
+ * server", NOT "the server rejected us". Auth handling keys off this so a
+ * flaky connection never gets mistaken for an expired session.
+ */
+export class NetworkError extends Error {
+  constructor(cause?: unknown) {
+    super('Network request failed');
+    this.name = 'NetworkError';
+    if (cause !== undefined) this.cause = cause;
+  }
+}
+
+/** `fetch`, but a connectivity failure surfaces as a typed {@link NetworkError}. */
+async function fetchOrThrow(path: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(path, init);
+  } catch (err) {
+    throw new NetworkError(err);
+  }
+}
+
+/**
+ * Decide how to react when a token refresh (triggered by a 401) fails.
+ *
+ * A genuine auth failure means the refresh token is gone/expired, so the
+ * session is truly over → notify the app to log out. A {@link NetworkError}
+ * means we simply could not reach the server: the session may well still be
+ * valid, so we must NOT log the user out — the caller can surface the error
+ * and/or queue the work offline instead.
+ */
+function notifyIfSessionExpired(err: unknown): void {
+  if (!(err instanceof NetworkError)) {
+    window.dispatchEvent(new CustomEvent('auth:session-expired'));
+  }
+}
+
 export type ApiJsonOptions = {
   token?: string;
   method?: string;
@@ -57,17 +97,18 @@ function buildRequestInit(options: ApiJsonOptions): RequestInit {
 
 export async function apiJson<T>(path: string, options: ApiJsonOptions = {}): Promise<T> {
   const { fallbackErrorMessage } = options;
-  const res = await fetch(path, buildRequestInit(options));
+  const res = await fetchOrThrow(path, buildRequestInit(options));
 
   if (res.status === 401 && options.token) {
     let newToken: string;
     try {
       newToken = await attemptRefresh();
-    } catch {
-      window.dispatchEvent(new CustomEvent('auth:session-expired'));
+    } catch (err) {
+      notifyIfSessionExpired(err);
+      if (err instanceof NetworkError) throw err;
       throw new Error(fallbackErrorMessage ?? 'Session expired');
     }
-    const retryRes = await fetch(path, buildRequestInit({ ...options, token: newToken }));
+    const retryRes = await fetchOrThrow(path, buildRequestInit({ ...options, token: newToken }));
     if (!retryRes.ok) {
       if (retryRes.status === 401) {
         window.dispatchEvent(new CustomEvent('auth:session-expired'));
@@ -94,17 +135,17 @@ export async function apiJson<T>(path: string, options: ApiJsonOptions = {}): Pr
  * Same request shape as {@link apiJson}, but returns `undefined` when `!res.ok` instead of throwing.
  */
 export async function apiJsonIfOk<T>(path: string, options: ApiJsonOptions = {}): Promise<T | undefined> {
-  const res = await fetch(path, buildRequestInit(options));
+  const res = await fetchOrThrow(path, buildRequestInit(options));
 
   if (res.status === 401 && options.token) {
     let newToken: string;
     try {
       newToken = await attemptRefresh();
-    } catch {
-      window.dispatchEvent(new CustomEvent('auth:session-expired'));
+    } catch (err) {
+      notifyIfSessionExpired(err);
       return undefined;
     }
-    const retryRes = await fetch(path, buildRequestInit({ ...options, token: newToken }));
+    const retryRes = await fetchOrThrow(path, buildRequestInit({ ...options, token: newToken }));
     if (!retryRes.ok) {
       if (retryRes.status === 401) {
         window.dispatchEvent(new CustomEvent('auth:session-expired'));
@@ -125,17 +166,18 @@ export async function apiJsonIfOk<T>(path: string, options: ApiJsonOptions = {})
  */
 export async function apiBlob(path: string, options: ApiJsonOptions = {}): Promise<Blob> {
   const { fallbackErrorMessage } = options;
-  const res = await fetch(path, buildRequestInit(options));
+  const res = await fetchOrThrow(path, buildRequestInit(options));
 
   if (res.status === 401 && options.token) {
     let newToken: string;
     try {
       newToken = await attemptRefresh();
-    } catch {
-      window.dispatchEvent(new CustomEvent('auth:session-expired'));
+    } catch (err) {
+      notifyIfSessionExpired(err);
+      if (err instanceof NetworkError) throw err;
       throw new Error(fallbackErrorMessage ?? 'Session expired');
     }
-    const retryRes = await fetch(path, buildRequestInit({ ...options, token: newToken }));
+    const retryRes = await fetchOrThrow(path, buildRequestInit({ ...options, token: newToken }));
     if (!retryRes.ok) {
       if (retryRes.status === 401) {
         window.dispatchEvent(new CustomEvent('auth:session-expired'));

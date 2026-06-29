@@ -5,7 +5,8 @@ import type { Invite, Trip, TripMemberInviteSuggestion } from '@travel-journal/s
 
 import type { AddTripMemberResult } from '../../api/trips.js';
 import { BookOpenIcon, HourglassIcon, PersonPlusIcon } from '../../components/icons/index.js';
-import { Avatar } from '../../components/ui/Avatar.js';
+import { AuthenticatedAvatar } from '../../components/AuthenticatedAvatar.js';
+import { UserProfileModal } from '../../components/UserProfileModal.js';
 import { InfoBox } from '../../components/ui/InfoBox.js';
 import { PillButton } from '../../components/ui/PillButton.js';
 import { SectionLabel } from '../../components/ui/SectionLabel.js';
@@ -71,6 +72,7 @@ export function TripMembersSection({
 }: TripMembersSectionProps) {
   const [inviteFormOpen, setInviteFormOpen] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const blurCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const filteredInviteSuggestions = useMemo(() => {
@@ -232,7 +234,12 @@ export function TripMembersSection({
           {trip.members.map((member) => (
             <li key={member.userId} className="py-3">
               <div className="flex items-center gap-3">
-                <Avatar name={member.displayName} size="md" />
+                <AuthenticatedAvatar
+                  name={member.displayName}
+                  avatarKey={member.avatarKey}
+                  size="md"
+                  onClick={() => setProfileUserId(member.userId)}
+                />
                 <div className="flex-1 min-w-0">
                   <p className="font-ui text-sm font-medium text-body">{member.displayName}</p>
                   <p className="font-ui text-xs text-caption">{t(`trips.role.${member.tripRole}`)}</p>
@@ -334,6 +341,14 @@ export function TripMembersSection({
         <p className="font-semibold">{t('trips.settings.collaborativeChaptersTitle')}</p>
         <p className="text-caption mt-0.5">{t('trips.settings.collaborativeChaptersInfo')}</p>
       </InfoBox>
+
+      {profileUserId && (
+        <UserProfileModal
+          userId={profileUserId}
+          isOpen={profileUserId !== null}
+          onClose={() => setProfileUserId(null)}
+        />
+      )}
     </section>
   );
 }

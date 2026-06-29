@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../context/AuthContext.js';
+import { useViewportPinchZoom } from '../hooks/useViewportPinchZoom.js';
 import {
   acquireAuthenticatedMediaObjectUrl,
   createMediaCacheKey,
@@ -26,7 +27,15 @@ interface EntryImageCarouselModalProps {
 }
 
 const SWIPE_THRESHOLD_PX = 40;
+const AXIS_LOCK_THRESHOLD_PX = 12;
+const DISMISS_THRESHOLD_MIN_PX = 80;
+const DISMISS_THRESHOLD_VH = 0.18;
+const DRAG_SNAP_MS = 200;
 const BODY_OPEN_LOCK = 'entryCarouselOpen';
+
+function getDismissThresholdPx(): number {
+  return Math.max(DISMISS_THRESHOLD_MIN_PX, window.innerHeight * DISMISS_THRESHOLD_VH);
+}
 
 function GearIcon({ className }: { className?: string }) {
   return (
@@ -59,17 +68,25 @@ export function EntryImageCarouselModal({
   const { accessToken } = useAuth();
   const [activeIndex, setActiveIndex] = useState(initialIndex);
   const [photobookMenuOpen, setPhotobookMenuOpen] = useState(false);
+  const [dragOffsetY, setDragOffsetY] = useState(0);
+  const [isDragSnapping, setIsDragSnapping] = useState(false);
   const photobookMenuRef = useRef<HTMLDivElement>(null);
   const prefetchedCacheKeysRef = useRef<Set<string>>(new Set());
-  /** Horizontal start for a one-finger swipe; null when not tracking. */
+  /** Touch start for a one-finger swipe; null when not tracking. */
   const swipeStartXRef = useRef<number | null>(null);
+  const swipeStartYRef = useRef<number | null>(null);
+  const gestureAxisRef = useRef<'horizontal' | 'vertical' | null>(null);
   /** True once this gesture used two+ touches (e.g. pinch-zoom); swipe is ignored until all touches end. */
   const skipSwipeForGestureRef = useRef(false);
+
+  useViewportPinchZoom(isOpen);
 
   useEffect(() => {
     if (!isOpen) return;
     setActiveIndex(initialIndex);
     setPhotobookMenuOpen(false);
+    setDragOffsetY(0);
+    setIsDragSnapping(false);
   }, [initialIndex, isOpen]);
 
   useEffect(() => {
@@ -179,38 +196,100 @@ export function EntryImageCarouselModal({
     }
   };
 
+  const resetGestureTracking = () => {
+    swipeStartXRef.current = null;
+    swipeStartYRef.current = null;
+    gestureAxisRef.current = null;
+  };
+
+  const snapDragBack = () => {
+    setIsDragSnapping(true);
+    setDragOffsetY(0);
+    window.setTimeout(() => setIsDragSnapping(false), DRAG_SNAP_MS);
+  };
+
   const onTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     if (event.touches.length >= 2) {
       skipSwipeForGestureRef.current = true;
-      swipeStartXRef.current = null;
+      resetGestureTracking();
+      setDragOffsetY(0);
+      setIsDragSnapping(false);
       return;
     }
     if (skipSwipeForGestureRef.current) return;
     const firstTouch = event.touches[0] ?? event.changedTouches[0];
     swipeStartXRef.current = firstTouch?.clientX ?? null;
+    swipeStartYRef.current = firstTouch?.clientY ?? null;
+    gestureAxisRef.current = null;
+    setIsDragSnapping(false);
   };
 
   const onTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
     if (event.touches.length >= 2) {
       skipSwipeForGestureRef.current = true;
-      swipeStartXRef.current = null;
+      resetGestureTracking();
+      setDragOffsetY(0);
+      return;
+    }
+    if (skipSwipeForGestureRef.current) return;
+
+    const startX = swipeStartXRef.current;
+    const startY = swipeStartYRef.current;
+    const currentTouch = event.touches[0];
+    if (startX === null || startY === null || !currentTouch) return;
+
+    const deltaX = currentTouch.clientX - startX;
+    const deltaY = currentTouch.clientY - startY;
+
+    if (gestureAxisRef.current === null) {
+      const movement = Math.max(Math.abs(deltaX), Math.abs(deltaY));
+      if (movement < AXIS_LOCK_THRESHOLD_PX) return;
+
+      if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY > 0) {
+        gestureAxisRef.current = 'vertical';
+      } else {
+        gestureAxisRef.current = 'horizontal';
+      }
+    }
+
+    if (gestureAxisRef.current === 'vertical' && deltaY > 0) {
+      event.preventDefault();
+      setDragOffsetY(deltaY);
     }
   };
 
   const onTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
     if (event.touches.length > 0) {
       if (skipSwipeForGestureRef.current) {
-        swipeStartXRef.current = null;
+        resetGestureTracking();
       }
       return;
     }
 
+    const axis = gestureAxisRef.current;
     const startX = swipeStartXRef.current;
+    const startY = swipeStartYRef.current;
     const skipSwipe = skipSwipeForGestureRef.current;
     skipSwipeForGestureRef.current = false;
-    swipeStartXRef.current = null;
+    resetGestureTracking();
 
-    if (skipSwipe) return;
+    if (skipSwipe) {
+      setDragOffsetY(0);
+      return;
+    }
+
+    if (axis === 'vertical') {
+      const endY = event.changedTouches[0]?.clientY;
+      const finalDragOffset =
+        startY !== null && endY !== undefined ? Math.max(0, endY - startY) : dragOffsetY;
+      const dismissThreshold = getDismissThresholdPx();
+      if (finalDragOffset >= dismissThreshold) {
+        onClose();
+      } else if (finalDragOffset > 0) {
+        snapDragBack();
+      }
+      return;
+    }
 
     const endX = event.changedTouches[0]?.clientX;
     if (startX === null || endX === undefined) return;
@@ -227,8 +306,15 @@ export function EntryImageCarouselModal({
 
   const onTouchCancel = () => {
     skipSwipeForGestureRef.current = false;
-    swipeStartXRef.current = null;
+    resetGestureTracking();
+    if (dragOffsetY > 0) {
+      snapDragBack();
+    }
   };
+
+  const dismissThreshold = getDismissThresholdPx();
+  const backdropOpacity =
+    dragOffsetY > 0 ? Math.max(0, 0.85 * (1 - dragOffsetY / dismissThreshold)) : 0.85;
 
   return createPortal(
     <div
@@ -237,23 +323,36 @@ export function EntryImageCarouselModal({
       aria-modal="true"
       aria-label={t('entries.carousel.dialogLabel')}
     >
-      <div aria-hidden="true" className="absolute inset-0 bg-black/85" onClick={onClose} />
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-black/85"
+        style={{ opacity: backdropOpacity }}
+        onClick={onClose}
+      />
 
       <div
         data-testid="entry-image-carousel-swipe-area"
-        className="relative z-10 flex h-full w-full touch-pan-x touch-pinch-zoom items-center justify-center overflow-hidden"
+        className="relative z-10 flex h-full w-full touch-none touch-pinch-zoom items-center justify-center overflow-hidden"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchCancel}
       >
-        <AuthenticatedImage
-          mediaKey={activeImage.key}
-          alt={activeImage.alt}
-          loading="eager"
-          className="h-full w-full object-contain select-none"
-          draggable={false}
-        />
+        <div
+          className="flex h-full w-full items-center justify-center"
+          style={{
+            transform: `translateY(${dragOffsetY}px) scale(${1 - dragOffsetY * 0.0008})`,
+            transition: isDragSnapping ? `transform ${DRAG_SNAP_MS}ms ease-out` : 'none',
+          }}
+        >
+          <AuthenticatedImage
+            mediaKey={activeImage.key}
+            alt={activeImage.alt}
+            loading="eager"
+            className="h-full w-full object-contain select-none"
+            draggable={false}
+          />
+        </div>
 
         <button
           type="button"

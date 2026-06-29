@@ -2,12 +2,48 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { useNavigate } from 'react-router-dom';
 import type { PublicUser } from '@travel-journal/shared';
 
-import { apiJson } from '../api/client.js';
+import { apiJson, NetworkError } from '../api/client.js';
 import { registerRefresh } from '../api/tokenStore.js';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
 type BootstrapRefreshResponse = { accessToken: string; user: PublicUser };
+
+/**
+ * Remembers, across reloads, that the user had a working session and who they
+ * were. The access token is intentionally NOT persisted (it stays in memory),
+ * but this hint lets us keep an offline user inside the app — able to browse
+ * cached data and queue journal entries — when the silent refresh can't reach
+ * the server. It is cleared only on a real logout or a genuine session expiry,
+ * never on a mere connectivity failure.
+ */
+const SESSION_HINT_KEY = 'authSessionHint';
+
+function readSessionHint(): PublicUser | null {
+  try {
+    const raw = localStorage.getItem(SESSION_HINT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PublicUser;
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionHint(user: PublicUser): void {
+  try {
+    localStorage.setItem(SESSION_HINT_KEY, JSON.stringify(user));
+  } catch {
+    // localStorage unavailable (private mode / quota) — offline resume just won't persist.
+  }
+}
+
+function clearSessionHint(): void {
+  try {
+    localStorage.removeItem(SESSION_HINT_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 /**
  * Module-level dedupe for the bootstrap refresh call. Under `<React.StrictMode>`
@@ -58,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setAuthenticated = useCallback((accessToken: string, user: PublicUser) => {
     setState({ accessToken, user, status: 'authenticated' });
     localStorage.setItem('preferredLocale', user.preferredLocale);
+    writeSessionHint(user);
   }, []);
 
   // Attempt silent refresh on mount. The `bootstrapRefresh` dedupe guards
@@ -70,14 +107,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         setAuthenticated(data.accessToken, data.user);
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
+        // A connectivity failure must NOT log the user out: if we know they had
+        // a session, keep them in the app (without an access token) so they can
+        // still read cached content and queue entries while offline. A real
+        // auth failure (or no prior session) falls through to unauthenticated.
+        const hintedUser = readSessionHint();
+        if (err instanceof NetworkError && hintedUser) {
+          setState({ accessToken: null, user: hintedUser, status: 'authenticated' });
+          return;
+        }
+        clearSessionHint();
         setState({ accessToken: null, user: null, status: 'unauthenticated' });
       });
     return () => {
       cancelled = true;
     };
   }, [setAuthenticated]);
+
+  // While authenticated offline (no access token yet), try to recover a real
+  // token whenever connectivity is likely back. This re-runs the silent refresh
+  // so queued entries can sync and authenticated requests resume working.
+  useEffect(() => {
+    if (state.status !== 'authenticated' || state.accessToken) return;
+
+    let cancelled = false;
+    const recover = () => {
+      bootstrapRefresh()
+        .then((data) => {
+          if (!cancelled) setAuthenticated(data.accessToken, data.user);
+        })
+        .catch(() => {
+          // Still unreachable, or a genuine auth failure. If the latter, the
+          // next authenticated request will surface `auth:session-expired`.
+        });
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') recover();
+    };
+    window.addEventListener('online', recover);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('online', recover);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [state.status, state.accessToken, setAuthenticated]);
 
   // Register the refresh function with the API client when authenticated
   useEffect(() => {
@@ -100,6 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Handle session expiry (fired by apiJson when both access token and refresh token are invalid)
   useEffect(() => {
     function handleSessionExpired() {
+      clearSessionHint();
       setState({ accessToken: null, user: null, status: 'unauthenticated' });
       navigate('/login', { state: { sessionExpired: true }, replace: true });
     }
@@ -141,6 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // best effort
       });
     }
+    clearSessionHint();
     setState({ accessToken: null, user: null, status: 'unauthenticated' });
   }, [state.accessToken]);
 

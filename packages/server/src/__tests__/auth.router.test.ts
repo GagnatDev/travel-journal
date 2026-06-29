@@ -142,6 +142,42 @@ describe('POST /api/v1/auth/refresh', () => {
     expect(res.body.accessToken).toBeDefined();
     expect(res.headers['set-cookie']).toBeDefined();
   });
+
+  it('still accepts the previous token within the grace window (lost-response retry)', async () => {
+    await User.create({
+      email: 'user@test.com',
+      passwordHash: await hashPassword('password123'),
+      displayName: 'Test User',
+      appRole: 'creator',
+    });
+
+    const loginRes = await request(app).post('/api/v1/auth/login').send({
+      email: 'user@test.com',
+      password: 'password123',
+    });
+    const cookies = loginRes.headers['set-cookie'] as unknown as string[];
+    const originalCookie = cookies.find((c) => c.startsWith('refreshToken='))!;
+
+    // First refresh rotates the token (imagine the response/cookie was lost).
+    const firstRefresh = await request(app)
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', originalCookie);
+    expect(firstRefresh.status).toBe(200);
+
+    // Retrying with the ORIGINAL (now previous) token still succeeds.
+    const retry = await request(app)
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', originalCookie);
+    expect(retry.status).toBe(200);
+    expect(retry.body.accessToken).toBeDefined();
+  });
+
+  it('rejects an unknown refresh token', async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', 'refreshToken=not-a-real-token');
+    expect(res.status).toBe(401);
+  });
 });
 
 describe('POST /api/v1/auth/logout', () => {

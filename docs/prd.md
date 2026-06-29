@@ -189,7 +189,7 @@ The raw refresh token is never stored on the server — only its SHA-256 hash is
 ### 4.1.5 Multi-Trip Support
 - Users with app-level role `admin` or `creator` can create trips; `follower` users cannot
 - Each trip has a name, description, planned departure/return dates, and a status (`planned` / `active` / `completed`)
-- **Status transitions are manual** — the trip creator explicitly sets the status in Trip Settings. Departure/return dates serve as a reference display only, not as auto-triggers
+- **Status transitions are mostly manual** — the trip creator explicitly sets the status in Trip Settings. Departure/return dates serve as a reference display only, not as auto-triggers. Exception: posting an entry on a `planned` trip automatically moves it to `active`
 - Allowed transitions: `planned → active`, `active → completed`, `completed → active` (re-open allowed)
 - Trip dashboard: list of trips the user belongs to (as creator, contributor, or follower), grouped by status
 - Multiple trips can be active simultaneously. The dashboard groups trips by status; no backend constraint limits the number of active trips.

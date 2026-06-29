@@ -35,7 +35,7 @@ async function getInviteLink(page: Page): Promise<string> {
 }
 
 test.describe('Platform invites', () => {
-  test('admin creates platform invite → new user registers → lands on dashboard with correct appRole', async ({ page, context }) => {
+  test('admin creates platform invite → new user registers → lands on dashboard with correct appRole', async ({ page, browser }) => {
     await registerAdmin(page);
     await page.goto('/admin');
 
@@ -63,8 +63,9 @@ test.describe('Platform invites', () => {
     }
     expect(inviteLink).toContain('/invite/accept?token=');
 
-    // New user opens the invite link in a fresh page
-    const newPage = await context.newPage();
+    // New user opens the invite link in an isolated session (no admin cookies)
+    const newUserContext = await browser.newContext();
+    const newPage = await newUserContext.newPage();
     await newPage.goto(inviteLink);
 
     // Email should be pre-filled and read-only
@@ -80,13 +81,16 @@ test.describe('Platform invites', () => {
     expect(newPage.url()).toContain('/trips');
 
     // Re-opening the same invite link should go to login with email pre-filled
-    const reusePage = await context.newPage();
+    await newUserContext.close();
+    const reuseContext = await browser.newContext();
+    const reusePage = await reuseContext.newPage();
     await reusePage.goto(inviteLink);
     await reusePage.waitForURL('**/login');
     await expect(reusePage.getByLabel(/e-post|email/i)).toHaveValue('newuser@test.com');
     await expect(
       reusePage.getByText(/already have an account|har allerede en konto/i),
     ).toBeVisible();
+    await reuseContext.close();
   });
 });
 
