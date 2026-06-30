@@ -109,7 +109,22 @@
     "openMenu": "Åpne meny",
     "theme": "Mørk modus",
     "language": "Språk",
-    "profile": "Profil"
+    "profile": "Profil",
+    "about": "Om appen"
+  },
+  "update": {
+    "bannerTitle": "En ny versjon er tilgjengelig",
+    "bannerBody": "Oppdater nå for å få den nyeste versjonen. Du kan fortsette å jobbe og oppdatere senere — ulagrede endringer går ikke tapt.",
+    "now": "Oppdater nå",
+    "unsavedConfirm": "Du har ulagrede endringer som går tapt hvis du oppdaterer nå. Vil du oppdatere likevel?",
+    "bellLabel": "En ny versjon er tilgjengelig"
+  },
+  "about": {
+    "title": "Om appen",
+    "description": "Reisedagbok — før en delt dagbok over reisene dine.",
+    "version": "Versjon",
+    "buildTime": "Bygget",
+    "copyVersion": "Kopier"
   },
   "notifications": {
     "openPanel": "Varsler",

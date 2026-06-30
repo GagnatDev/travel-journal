@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -7,6 +8,26 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/**
+ * App version = short git commit hash. CI/Docker pass it via `VITE_GIT_SHA`
+ * (the build image has no `.git`); locally we fall back to `git rev-parse`,
+ * then to `'dev'`. Surfaced in the About screen and used for debugging.
+ */
+function resolveGitSha(): string {
+  const fromEnv = process.env['VITE_GIT_SHA'];
+  if (fromEnv && fromEnv.trim() !== '') return fromEnv.trim().slice(0, 12);
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim();
+  } catch {
+    return 'dev';
+  }
+}
+
+const appVersion = resolveGitSha();
+const buildTime = new Date().toISOString();
 
 /** Set `ANALYZE=1` for `pnpm build` / `build:analyze` to emit `dist/stats.html` (treemap). */
 const analyze = process.env['ANALYZE'] === '1';
@@ -28,13 +49,17 @@ function manualChunks(id: string): string | undefined {
 
 export default defineConfig({
   envDir: e2eEnvDir,
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+    __BUILD_TIME__: JSON.stringify(buildTime),
+  },
   plugins: [
     react(),
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['*.png', '*.webmanifest'],
       // Reuse the existing manifest.webmanifest in public/
       manifest: false,
