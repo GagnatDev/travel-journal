@@ -58,7 +58,12 @@ export function useMapMarkers({
     for (const pin of pinList) {
       const elMarker = createMarkerElementForPin(pin);
       const popupHtml = buildPinPopupHtml(pin, tripId, t, canManageSaved);
-      const popup = new mapboxgl.Popup({ offset: 25, closeButton: true }).setHTML(popupHtml);
+      const popup = new mapboxgl.Popup({
+        offset: 25,
+        closeButton: true,
+        className: 'tj-map-popup',
+        maxWidth: '280px',
+      }).setHTML(popupHtml);
 
       const marker = new mapboxgl.Marker(elMarker)
         .setLngLat([pin.lng, pin.lat])
