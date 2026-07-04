@@ -41,7 +41,7 @@ export function TimelineScreen() {
 
   const storyModeKey = `storyMode:${tripId}`;
   const [storyMode, setStoryMode] = useState<boolean>(
-    () => localStorage.getItem(storyModeKey) === 'true',
+    () => localStorage.getItem(storyModeKey) !== 'false',
   );
   const pendingEntries = usePendingEntriesForTrip(tripId);
   const [entryIdPendingDelete, setEntryIdPendingDelete] = useState<string | null>(null);

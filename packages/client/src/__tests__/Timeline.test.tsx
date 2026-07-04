@@ -325,7 +325,7 @@ describe('TimelineScreen', () => {
     expect(screen.getByRole('button', { name: /prøv igjen/i })).toBeInTheDocument();
   });
 
-  it('shows day headers when Story Mode is toggled on', async () => {
+  it('shows day headers by default and hides them when Story Mode is toggled off', async () => {
     const day1Entry = makeEntry({
       id: 'e1',
       title: 'Day 1 Entry',
@@ -349,15 +349,16 @@ describe('TimelineScreen', () => {
       expect(screen.getByText('Day 1 Entry')).toBeInTheDocument();
     });
 
-    // Story Mode is off by default — no DayHeader elements
-    expect(screen.queryAllByTestId('day-header')).toHaveLength(0);
-
-    // Toggle Story Mode on
-    await userEvent.click(screen.getByTestId('story-mode-toggle'));
-
-    // Two entries on two different days → two DayHeader elements
+    // Story Mode is on by default — two entries on two different days → two DayHeader elements
     await waitFor(() => {
       expect(screen.getAllByTestId('day-header')).toHaveLength(2);
+    });
+
+    // Toggle Story Mode off
+    await userEvent.click(screen.getByTestId('story-mode-toggle'));
+
+    await waitFor(() => {
+      expect(screen.queryAllByTestId('day-header')).toHaveLength(0);
     });
   });
 
