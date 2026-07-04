@@ -152,12 +152,12 @@ export function TripDashboardScreen() {
                 items={inactive}
                 currentUserId={currentUserId}
               />
-              <TripGroup
+              <CollapsibleTripGroup
                 label={t('trips.dashboard.statusGroup.planned')}
                 items={planned}
                 currentUserId={currentUserId}
               />
-              <TripGroup
+              <CollapsibleTripGroup
                 label={t('trips.dashboard.statusGroup.completed')}
                 items={completed}
                 currentUserId={currentUserId}

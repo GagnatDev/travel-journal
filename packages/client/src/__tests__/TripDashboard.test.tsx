@@ -94,9 +94,20 @@ describe('TripDashboardScreen', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Active Trip')).toBeInTheDocument();
-      expect(screen.getByText('Planned Trip')).toBeInTheDocument();
-      expect(screen.getByText('Done Trip')).toBeInTheDocument();
     });
+
+    const plannedToggle = screen.getByRole('button', { name: /planlagte \(1\)/i });
+    const completedToggle = screen.getByRole('button', { name: /fullførte \(1\)/i });
+    expect(plannedToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(completedToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Planned Trip')).not.toBeInTheDocument();
+    expect(screen.queryByText('Done Trip')).not.toBeInTheDocument();
+
+    await userEvent.click(plannedToggle);
+    await userEvent.click(completedToggle);
+
+    expect(screen.getByText('Planned Trip')).toBeInTheDocument();
+    expect(screen.getByText('Done Trip')).toBeInTheDocument();
   });
 
   it('moves active trips without entries for over a week into a collapsed Inactive group', async () => {
