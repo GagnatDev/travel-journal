@@ -178,6 +178,13 @@ const nb = {
         body_one: 'Ta deg tid til dagens nye innlegg.',
         body_other: 'Ta deg tid til dagens {{count}} nye innlegg.',
       },
+      tripMemberAdded: {
+        title: 'Du er lagt til i {{tripName}}',
+        bodyContributor:
+          '{{addedByName}} la deg til som bidragsyter. Du kan nå legge inn innlegg på turen.',
+        bodyFollower: '{{addedByName}} la deg til som følger. Du kan nå følge med på turen.',
+        openAction: 'Åpne turen',
+      },
       releaseAnnouncement: {
         title: 'Travel Journal er oppdatert til {{version}}',
         body: 'En ny versjon er klar. Last siden på nytt for å få de siste forbedringene.',

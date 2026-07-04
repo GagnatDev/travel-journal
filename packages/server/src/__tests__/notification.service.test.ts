@@ -8,7 +8,10 @@ import { Trip } from '../models/Trip.model.js';
 import { User } from '../models/User.model.js';
 import { hashPassword } from '../services/auth.service.js';
 import { createTrip } from '../services/trip.service.js';
-import { dispatchNewEntryNotification } from '../services/notification.service.js';
+import {
+  dispatchNewEntryNotification,
+  dispatchTripMemberAddedNotification,
+} from '../services/notification.service.js';
 
 const MONGO_URI =
   process.env['MONGODB_URI'] ??
@@ -299,5 +302,115 @@ describe('dispatchNewEntryNotification', () => {
 
     const doc = await PushSubscription.findOne({ endpoint: 'https://push.example/member-a' });
     expect(doc?.disabledAt).toBeInstanceOf(Date);
+  });
+});
+
+describe('dispatchTripMemberAddedNotification', () => {
+  it('enqueues an inbox notification for the added member', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const added = await makeUser('added@test.com', 'follower');
+    const trip = await createTrip({ name: 'Nordic Adventure' }, String(creator._id));
+
+    vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
+
+    await dispatchTripMemberAddedNotification({
+      tripId: trip.id,
+      userId: String(added._id),
+      tripRole: 'follower',
+      addedByUserId: String(creator._id),
+      addedByName: creator.displayName,
+    });
+
+    const stored = await Notification.find({}).lean();
+    expect(stored).toHaveLength(1);
+    const [row] = stored;
+    expect(String(row!.userId)).toBe(String(added._id));
+    expect(row!.type).toBe('trip.member_added');
+    expect(row!.readAt).toBeNull();
+    expect(row!.data).toMatchObject({
+      type: 'trip.member_added',
+      tripId: trip.id,
+      tripName: 'Nordic Adventure',
+      tripRole: 'follower',
+      addedByUserId: String(creator._id),
+      addedByName: creator.displayName,
+    });
+  });
+
+  it('delivers web push to the added member with a trip deep link', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const added = await makeUser('added@test.com', 'follower');
+    const trip = await createTrip({ name: 'Nordic Adventure' }, String(creator._id));
+
+    await PushSubscription.create({
+      userId: added._id,
+      endpoint: 'https://push.example/added',
+      keys: { p256dh: 'a', auth: 'a' },
+    });
+
+    const sendSpy = vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
+
+    await dispatchTripMemberAddedNotification({
+      tripId: trip.id,
+      userId: String(added._id),
+      tripRole: 'contributor',
+      addedByUserId: String(creator._id),
+      addedByName: creator.displayName,
+    });
+
+    expect(sendSpy).toHaveBeenCalledTimes(1);
+    const [subscriptionArg, payloadArg] = sendSpy.mock.calls[0]!;
+    expect(subscriptionArg.endpoint).toBe('https://push.example/added');
+    const payload = JSON.parse(String(payloadArg));
+    expect(payload.type).toBe('trip.member_added');
+    expect(payload.url).toBe(`/trips/${trip.id}/timeline`);
+    expect(payload.title).toBe('Du er lagt til i Nordic Adventure');
+    expect(payload.body).toBe(`${creator.displayName} la deg til som bidragsyter.`);
+    expect(typeof payload.notificationId).toBe('string');
+  });
+
+  it('localizes the member-added push to the recipient preferredLocale', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const added = await makeUser('added@test.com', 'follower');
+    await User.updateOne({ _id: added._id }, { $set: { preferredLocale: 'en' } });
+    const trip = await createTrip({ name: 'Nordic Adventure' }, String(creator._id));
+
+    await PushSubscription.create({
+      userId: added._id,
+      endpoint: 'https://push.example/added',
+      keys: { p256dh: 'a', auth: 'a' },
+    });
+
+    const sendSpy = vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
+
+    await dispatchTripMemberAddedNotification({
+      tripId: trip.id,
+      userId: String(added._id),
+      tripRole: 'follower',
+      addedByUserId: String(creator._id),
+      addedByName: creator.displayName,
+    });
+
+    expect(sendSpy).toHaveBeenCalledTimes(1);
+    const payload = JSON.parse(String(sendSpy.mock.calls[0]![1]));
+    expect(payload.title).toBe("You've been added to Nordic Adventure");
+    expect(payload.body).toBe(`${creator.displayName} added you as a follower.`);
+  });
+
+  it('is a no-op for a missing trip', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const added = await makeUser('added@test.com', 'follower');
+    const sendSpy = vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
+
+    await dispatchTripMemberAddedNotification({
+      tripId: String(new mongoose.Types.ObjectId()),
+      userId: String(added._id),
+      tripRole: 'follower',
+      addedByUserId: String(creator._id),
+      addedByName: creator.displayName,
+    });
+
+    expect(sendSpy).not.toHaveBeenCalled();
+    expect(await Notification.countDocuments({})).toBe(0);
   });
 });

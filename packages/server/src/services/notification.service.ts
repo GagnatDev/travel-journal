@@ -7,6 +7,7 @@ import { logger } from '../logger.js';
 import { Notification } from '../models/Notification.model.js';
 import { PushSubscription } from '../models/PushSubscription.model.js';
 import { Trip as TripModel, readTripMemberEntryMode } from '../models/Trip.model.js';
+import { User } from '../models/User.model.js';
 
 function isWebPushConfigured(): boolean {
   return Boolean(
@@ -134,6 +135,62 @@ export async function deliverWebPush(
       }
     }),
   );
+}
+
+export interface TripMemberAddedInput {
+  tripId: string;
+  /** The user who was just added to the trip. */
+  userId: string;
+  tripRole: 'contributor' | 'follower';
+  addedByUserId: string;
+  addedByName: string;
+}
+
+/**
+ * Notify a user that they were added to a trip as contributor or follower,
+ * so they learn the trip exists (inbox row + push if subscribed).
+ */
+export async function dispatchTripMemberAddedNotification(
+  input: TripMemberAddedInput,
+): Promise<void> {
+  const trip = await TripModel.findById(input.tripId).lean();
+  if (!trip) {
+    return;
+  }
+
+  const recipientId = new mongoose.Types.ObjectId(input.userId);
+  const data: NotificationData = {
+    type: 'trip.member_added',
+    tripId: input.tripId,
+    tripName: trip.name,
+    tripRole: input.tripRole,
+    addedByUserId: input.addedByUserId,
+    addedByName: input.addedByName,
+  };
+
+  const notificationIdByUser = await enqueueNotifications([recipientId], data);
+
+  const recipient = await User.findById(recipientId).lean();
+  const locale = recipient?.preferredLocale === 'en' ? 'en' : 'nb';
+  const addedByLabel = input.addedByName.trim() || (locale === 'en' ? 'A member' : 'En deltaker');
+
+  const title =
+    locale === 'en' ? `You've been added to ${trip.name}` : `Du er lagt til i ${trip.name}`;
+  const body =
+    locale === 'en'
+      ? input.tripRole === 'contributor'
+        ? `${addedByLabel} added you as a contributor.`
+        : `${addedByLabel} added you as a follower.`
+      : input.tripRole === 'contributor'
+        ? `${addedByLabel} la deg til som bidragsyter.`
+        : `${addedByLabel} la deg til som følger.`;
+
+  await deliverWebPush([recipientId], {
+    title,
+    body,
+    data,
+    notificationIdByUser,
+  });
 }
 
 export async function dispatchNewEntryNotification(entry: Entry): Promise<void> {
