@@ -43,6 +43,7 @@ const orderParams: ProdigiOrderParams = {
   interiorUrl: 'https://signed/interior',
   coverUrl: 'https://signed/cover',
   spineUrl: 'https://signed/spine',
+  backCoverUrl: 'https://signed/back-cover',
   pageCount: 40,
   shippingMethod: 'Budget',
 };
@@ -82,9 +83,11 @@ describe('createProdigiOrder', () => {
       'default',
       'cover',
       'spine',
+      'backCover',
     ]);
     expect(assets[0].pageCount).toBe(40);
     expect(assets[0].url).toBe('https://signed/interior');
+    expect(assets[3].url).toBe('https://signed/back-cover');
   });
 
   it('falls back to json.id when order.id is absent', async () => {

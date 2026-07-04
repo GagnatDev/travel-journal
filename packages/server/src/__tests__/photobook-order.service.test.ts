@@ -90,6 +90,7 @@ async function makeReadyTrip(creatorId: mongoose.Types.ObjectId) {
       interiorPdfStorageKey: 'trips/x/interior.pdf',
       coverPdfStorageKey: 'trips/x/cover.pdf',
       spinePdfStorageKey: 'trips/x/spine.pdf',
+      backCoverPdfStorageKey: 'trips/x/back-cover.pdf',
       pageCount: 42,
     },
   });

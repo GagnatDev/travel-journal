@@ -15,7 +15,7 @@ vi.mock('../services/media.service.js', async (importOriginal) => {
 });
 
 describe('buildTripPhotobookPdf smoke', () => {
-  it('produces interior/cover/spine/preview PDF buffers', async () => {
+  it('produces interior/cover/spine/back-cover/preview PDF buffers', async () => {
     const { buildTripPhotobookPdf } = await import('../services/trip-photobook-pdf.service.js');
 
     const trip: Trip = {
@@ -53,14 +53,14 @@ describe('buildTripPhotobookPdf smoke', () => {
       updatedAt: '2026-06-01T12:00:00.000Z',
     };
 
-    const { interior, cover, spine, preview, pageCount } = await buildTripPhotobookPdf({
+    const { interior, cover, spine, backCover, preview, pageCount } = await buildTripPhotobookPdf({
       trip,
       entries: [entry],
       timeZone: 'UTC',
       photobookLocaleKey: 'en',
     });
 
-    for (const buf of [interior, cover, spine, preview]) {
+    for (const buf of [interior, cover, spine, backCover, preview]) {
       expect(Buffer.isBuffer(buf)).toBe(true);
       expect(buf.subarray(0, 4).toString('ascii')).toBe('%PDF');
       expect(buf.toString('latin1')).toContain('%PDF-1.6');

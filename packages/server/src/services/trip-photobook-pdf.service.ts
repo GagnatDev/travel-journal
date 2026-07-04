@@ -44,6 +44,9 @@ const SAFE_INSET_MM = 6;
 const CONTENT_MARGIN = BLEED_PT + SAFE_INSET_MM * MM;
 // TODO: confirm spine width formula / query Prodigi
 const PAPER_THICKNESS_MM = 0.12;
+/** Hardcover board + wrap allowance included in the spine width (both boards). */
+// TODO: confirm spine width formula / query Prodigi
+const SPINE_BOARD_ALLOWANCE_MM = 4;
 /** Interior must be even and at least this many pages. */
 // TODO: confirm Prodigi page-count increment rules
 const MIN_INTERIOR_PAGES = 24;
@@ -52,7 +55,7 @@ const MIN_INTERIOR_PAGES = 24;
 function spineWidth(pageCount: number): number {
   // TODO: confirm spine width formula / query Prodigi
   const leaves = pageCount / 2;
-  const widthPt = leaves * PAPER_THICKNESS_MM * MM;
+  const widthPt = (SPINE_BOARD_ALLOWANCE_MM + leaves * PAPER_THICKNESS_MM) * MM;
   return Math.max(1, widthPt);
 }
 
@@ -551,6 +554,72 @@ async function drawCoverPage(
   }
 }
 
+/**
+ * Draw the spine strip: cream background with the trip name rotated 90° so it
+ * reads top-to-bottom when the book stands upright. The name is shrunk to the
+ * strip width and ellipsized when it would run past the spine ends.
+ */
+function drawSpinePage(
+  doc: PDFDoc,
+  fontState: PhotobookPdfFontState,
+  trip: Trip,
+  spineW: number,
+): void {
+  doc.addPage({ size: [spineW, PAGE_FULL_PT], margins: { top: 0, bottom: 0, left: 0, right: 0 } });
+  doc.save();
+  doc.rect(0, 0, spineW, PAGE_FULL_PT).fill(CREAM);
+  doc.restore();
+
+  const name = trip.name.trim();
+  if (!name) return;
+
+  const fontSize = Math.min(spineW * 0.55, 13);
+  if (fontSize < 3) return; // spine too thin for legible text
+
+  setPhotobookFont(doc, fontState.fontsOk, 'display');
+  doc.fontSize(fontSize);
+
+  const maxTextLen = PAGE_FULL_PT - 2 * CONTENT_MARGIN;
+  let label = name;
+  if (doc.widthOfString(label) > maxTextLen) {
+    const chars = [...name];
+    while (chars.length > 0 && doc.widthOfString(`${chars.join('').trimEnd()}…`) > maxTextLen) {
+      chars.pop();
+    }
+    label = `${chars.join('').trimEnd()}…`;
+  }
+
+  const cx = spineW / 2;
+  const cy = PAGE_FULL_PT / 2;
+  doc.save();
+  doc.rotate(90, { origin: [cx, cy] });
+  drawPhotobookPdfUserText(doc, fontState, 'display', fontSize, ACCENT, label, cx - PAGE_FULL_PT / 2, cy - doc.currentLineHeight() / 2, {
+    width: PAGE_FULL_PT,
+    align: 'center',
+  });
+  doc.restore();
+}
+
+/**
+ * Draw the back cover: the trip map overview (same artwork as the old interior
+ * map page) when the trip has mappable locations, plain cream otherwise.
+ */
+function drawBackCoverPage(doc: PDFDoc, fontState: PhotobookPdfFontState, map: PreloadedMap | null): void {
+  addSquarePage(doc);
+  if (!map) return;
+
+  const { raster, mapLeft, mapTop, mapW, mapH, footerBand } = map;
+  doc.image(raster, mapLeft, mapTop, { width: mapW, height: mapH });
+  setPhotobookFont(doc, fontState.fontsOk, 'ui');
+  doc
+    .fontSize(5.2)
+    .fillColor(CAPTION)
+    .text(PHOTOBOOK_MAP_ATTRIBUTION, mapLeft, pageContentBottom() - footerBand + 0.3 * MM, {
+      width: mapW,
+      align: 'center',
+    });
+}
+
 /** A single PDFKit output document with its end-promise and font state. */
 interface PhotobookDoc {
   doc: PDFDoc;
@@ -611,7 +680,7 @@ interface PreloadedEntry {
   imageSlots: EntryImageSlot[];
 }
 
-/** A map overview page rastered once and replayed into interior + preview. */
+/** A map overview rastered once and replayed onto the back cover of both print and preview docs. */
 interface PreloadedMap {
   raster: Buffer;
   mapLeft: number;
@@ -692,8 +761,9 @@ async function preloadPhotobookContent(
 }
 
 /**
- * Draw all entry pages (+ empty-trip disclaimer + map page) into `doc` from pre-loaded content.
- * Does NOT draw the cover. Returns the number of pages added.
+ * Draw all entry pages (+ empty-trip disclaimer) into `doc` from pre-loaded content.
+ * Does NOT draw the cover or the back cover (the map lives on the back cover).
+ * Returns the number of pages added.
  */
 async function drawEntryPages(
   doc: PDFDoc,
@@ -795,21 +865,6 @@ async function drawEntryPages(
     }
   }
 
-  if (content.map) {
-    const { raster, mapLeft, mapTop, mapW, mapH, footerBand } = content.map;
-    addSquarePage(doc);
-    pages++;
-    doc.image(raster, mapLeft, mapTop, { width: mapW, height: mapH });
-    setPhotobookFont(doc, fontsOk, 'ui');
-    doc
-      .fontSize(5.2)
-      .fillColor(CAPTION)
-      .text(PHOTOBOOK_MAP_ATTRIBUTION, mapLeft, innerBottom - footerBand + 0.3 * MM, {
-        width: mapW,
-        align: 'center',
-      });
-  }
-
   return pages;
 }
 
@@ -822,13 +877,15 @@ function targetInteriorPageCount(pagesDrawn: number): number {
 }
 
 export interface TripPhotobookPdfResult {
-  /** Entry pages (+ map), no cover, padded to an even count >= MIN_INTERIOR_PAGES. */
+  /** Entry pages, no cover/back cover, padded to an even count >= MIN_INTERIOR_PAGES. */
   interior: Buffer;
   /** Front-cover artwork at full bleed. */
   cover: Buffer;
-  /** Thin cream spine strip sized from `pageCount`. */
+  /** Cream spine strip (sized from `pageCount`) carrying the trip name. */
   spine: Buffer;
-  /** Merged cover + interior (unpadded) for the creator download UX. */
+  /** Back-cover artwork: the trip map overview when available, plain cream otherwise. */
+  backCover: Buffer;
+  /** Merged cover + interior + back cover (unpadded) for the creator download UX. */
   preview: Buffer;
   /** Final interior page count (after padding). */
   pageCount: number;
@@ -836,8 +893,9 @@ export interface TripPhotobookPdfResult {
 
 /**
  * Build the Prodigi print assets for a trip photobook: a padded full-bleed interior, the cover
- * artwork, a spine strip, and a merged preview. Each asset is its own PDFKit document; entry images
- * and the (possibly random) cover image are loaded once and replayed across documents.
+ * artwork, a spine strip with the trip name, a back cover (map overview when available), and a
+ * merged preview. Each asset is its own PDFKit document; entry images and the (possibly random)
+ * cover image are loaded once and replayed across documents.
  */
 export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promise<TripPhotobookPdfResult> {
   const timeZone = input.timeZone ?? process.env['TRIP_PDF_TIMEZONE'] ?? 'UTC';
@@ -864,21 +922,25 @@ export async function buildTripPhotobookPdf(input: TripPhotobookPdfInput): Promi
   coverDoc.doc.end();
   const cover = await coverDoc.done;
 
-  // --- spine: thin cream strip sized from the interior page count ---
+  // --- spine: cream strip sized from the interior page count, carrying the trip name ---
   const spineDoc = await createPhotobookDoc(spineWidth(pageCount), PAGE_FULL_PT);
-  spineDoc.doc.addPage({ size: [spineWidth(pageCount), PAGE_FULL_PT], margins: { top: 0, bottom: 0, left: 0, right: 0 } });
-  spineDoc.doc.save();
-  spineDoc.doc.rect(0, 0, spineWidth(pageCount), PAGE_FULL_PT).fill(CREAM);
-  spineDoc.doc.restore();
+  drawSpinePage(spineDoc.doc, spineDoc.fontState, input.trip, spineWidth(pageCount));
   spineDoc.doc.end();
   const spine = await spineDoc.done;
 
-  // --- preview: cover + interior (unpadded), stored as the creator-facing pdfStorageKey ---
+  // --- back cover: trip map overview when available, plain cream otherwise ---
+  const backCoverDoc = await createPhotobookDoc(PAGE_FULL_PT, PAGE_FULL_PT);
+  drawBackCoverPage(backCoverDoc.doc, backCoverDoc.fontState, content.map);
+  backCoverDoc.doc.end();
+  const backCover = await backCoverDoc.done;
+
+  // --- preview: cover + interior (unpadded) + back cover, stored as the creator-facing pdfStorageKey ---
   const previewDoc = await createPhotobookDoc(PAGE_FULL_PT, PAGE_FULL_PT);
   await drawCoverPage(previewDoc.doc, previewDoc.fontState, input.trip, strings, intlLocale, content.coverBuf);
   await drawEntryPages(previewDoc.doc, previewDoc.fontState, content, strings);
+  drawBackCoverPage(previewDoc.doc, previewDoc.fontState, content.map);
   previewDoc.doc.end();
   const preview = await previewDoc.done;
 
-  return { interior, cover, spine, preview, pageCount };
+  return { interior, cover, spine, backCover, preview, pageCount };
 }

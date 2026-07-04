@@ -16,8 +16,10 @@ export interface TripPhotobookPdfJob {
   interiorPdfStorageKey?: string;
   /** Print-ready hardcover wrap/cover PDF (`cover` print area). */
   coverPdfStorageKey?: string;
-  /** Print-ready spine PDF (`spine` print area). */
+  /** Print-ready spine PDF carrying the trip name (`spine` print area). */
   spinePdfStorageKey?: string;
+  /** Print-ready back-cover PDF — the trip map overview when the trip has mappable locations (`backCover` print area). */
+  backCoverPdfStorageKey?: string;
   /** Interior page count sent to Prodigi as `pageCount` (after padding to the product minimum). */
   pageCount?: number;
   /** ISO time when generation finished successfully or failed. */
