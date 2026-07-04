@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { RefObject } from 'react';
 import type { Virtualizer } from '@tanstack/react-virtual';
 
 const MAX_FRAMES = 120;
@@ -14,6 +15,13 @@ function flashHighlight(el: HTMLElement): void {
  * Scrolls the timeline to the entry wrapper carrying `data-entry-id` and
  * flashes the highlight style, then reports completion via `onScrolledToEntry`.
  *
+ * The lookup is scoped to `listRef` — the list's own container — never the
+ * whole document. TripShell keeps the map screen mounted (hidden) after a map
+ * visit, and its open pin popup contains an element tagged with the same entry
+ * id ahead of the timeline in DOM order; a document-wide query matches that
+ * hidden node, whose position is trivially "stable", so the scroll would be
+ * declared done without the window ever moving.
+ *
  * Virtualized rows only exist in the DOM while the window is scrolled near
  * them, and their offsets are estimates until each row has been measured. So
  * a single `scrollToIndex` (or `querySelector` + `scrollIntoView`) can land
@@ -26,6 +34,7 @@ export function useScrollTimelineEntryIntoView(
   entryId: string | null,
   entryIndex: number,
   virtualizer: Virtualizer<Window, Element> | null,
+  listRef: RefObject<HTMLElement | null>,
   onScrolledToEntry?: (() => void) | undefined,
 ): void {
   const onScrolledRef = useRef(onScrolledToEntry);
@@ -35,6 +44,8 @@ export function useScrollTimelineEntryIntoView(
     if (!entryId || entryIndex < 0) return;
 
     const selector = `[data-entry-id="${CSS.escape(entryId)}"]`;
+    const findRow = (): HTMLElement | null =>
+      listRef.current?.querySelector<HTMLElement>(selector) ?? null;
 
     const finish = (el: HTMLElement | null): void => {
       if (el) flashHighlight(el);
@@ -42,7 +53,7 @@ export function useScrollTimelineEntryIntoView(
     };
 
     if (!virtualizer) {
-      const el = document.querySelector<HTMLElement>(selector);
+      const el = findRow();
       el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       finish(el);
       return;
@@ -55,7 +66,7 @@ export function useScrollTimelineEntryIntoView(
 
     const step = (): void => {
       frames += 1;
-      const el = document.querySelector<HTMLElement>(selector);
+      const el = findRow();
       if (!el) {
         stableFrames = 0;
         lastTop = null;
@@ -83,5 +94,5 @@ export function useScrollTimelineEntryIntoView(
 
     frameHandle = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frameHandle);
-  }, [entryId, entryIndex, virtualizer]);
+  }, [entryId, entryIndex, virtualizer, listRef]);
 }

@@ -120,10 +120,10 @@ export function useMapboxMap(
         return;
       }
 
-      const anchor = target.closest('a[data-entry-id]') as HTMLAnchorElement | null;
+      const anchor = target.closest('a[data-popup-entry-id]') as HTMLAnchorElement | null;
       if (!anchor) return;
       e.preventDefault();
-      const entryId = anchor.dataset['entryId'];
+      const entryId = anchor.dataset['popupEntryId'];
       const { navigate: nv, tripId: tid } = mapActionsRef.current;
       nv(`/trips/${tid}/timeline`, { state: { highlightEntryId: entryId } });
     }

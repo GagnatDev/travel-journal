@@ -24,7 +24,7 @@ export function buildPinPopupHtml(
           <div class="tj-popup__actions">
             <a
               href="/trips/${tripId}/timeline"
-              data-entry-id="${escapeHtml(pin.entryId)}"
+              data-popup-entry-id="${escapeHtml(pin.entryId)}"
               class="tj-popup-cta"
             >${escapeHtml(t('map.viewEntry'))}${CTA_ARROW}</a>
           </div>

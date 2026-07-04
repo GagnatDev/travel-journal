@@ -131,6 +131,47 @@ describe('TimelineScreen', () => {
     expect(wrapper!.classList.contains('timeline-entry-highlight')).toBe(true);
   });
 
+  it('scrolls the timeline row even when the parked map layer holds an element with the same entry id', async () => {
+    // TripShell keeps the map screen mounted (hidden) after a map visit; its open
+    // pin popup sits before the timeline in DOM order. The entry lookup must be
+    // scoped to the timeline list, or it grabs this node and never scrolls.
+    const decoy = document.createElement('div');
+    decoy.setAttribute('data-entry-id', 'entry-2');
+    document.body.prepend(decoy);
+
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries`, () =>
+        HttpResponse.json({
+          entries: [
+            makeEntry(),
+            makeEntry({ id: 'entry-2', title: 'Entry 2' }),
+            makeEntry({ id: 'entry-3', title: 'Entry 3' }),
+          ],
+          total: 3,
+        }),
+      ),
+    );
+
+    try {
+      renderTimeline(mockUser, undefined, {
+        pathname: `/trips/${TRIP_ID}/timeline`,
+        state: { highlightEntryId: 'entry-2' },
+      });
+
+      await waitFor(() => {
+        expect(scrollIntoView).toHaveBeenCalled();
+      });
+      const wrapper = document.querySelector('main [data-entry-id="entry-2"]');
+      expect(wrapper).not.toBeNull();
+      expect(wrapper!.classList.contains('timeline-entry-highlight')).toBe(true);
+      expect(decoy.classList.contains('timeline-entry-highlight')).toBe(false);
+    } finally {
+      decoy.remove();
+    }
+  });
+
   it('shows empty state message when no entries exist', async () => {
     server.use(
       http.get(`/api/v1/trips/${TRIP_ID}/entries`, () =>
