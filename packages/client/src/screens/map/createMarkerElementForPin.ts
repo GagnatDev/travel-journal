@@ -17,16 +17,25 @@ export function createMarkerElementForPin(pin: MapRenderablePin): HTMLElement {
 
   if (pin.kind === 'savedLocation') {
     const el = document.createElement('div');
-    el.className = 'map-marker-saved';
+    el.className = pin.isFavorite ? 'map-marker-favorite' : 'map-marker-saved';
     el.style.cssText = [
       'width: 26px',
       'height: 26px',
-      'background-color: #2563eb',
+      `background-color: ${pin.isFavorite ? '#f59e0b' : '#2563eb'}`,
       'border: 2px solid #fff',
       'border-radius: 50%',
       'cursor: pointer',
       'box-shadow: 0 2px 6px rgba(0,0,0,0.35)',
+      'display: flex',
+      'align-items: center',
+      'justify-content: center',
     ].join(';');
+    if (pin.isFavorite) {
+      el.textContent = '★';
+      el.style.color = '#fff';
+      el.style.fontSize = '14px';
+      el.style.lineHeight = '1';
+    }
     return el;
   }
 

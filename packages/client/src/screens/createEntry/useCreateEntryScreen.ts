@@ -11,7 +11,9 @@ import type {
 
 import { createEntry, fetchEntry, updateEntry } from '../../api/entries.js';
 import { uploadMedia } from '../../api/media.js';
+import type { SavedLocationResponse } from '../../api/savedLocations.js';
 import { useAuth } from '../../context/AuthContext.js';
+import { useFavoriteLocations } from '../../hooks/useFavoriteLocations.js';
 import { compressImage } from '../../utils/compressImage.js';
 import { uploadEntryLocalFiles } from '../../utils/uploadEntryLocalFiles.js';
 import { getPendingEntry } from '../../offline/db.js';
@@ -98,7 +100,8 @@ export function useCreateEntryScreen() {
       !Number.isNaN(fromSaved.lat) &&
       !Number.isNaN(fromSaved.lng)
     ) {
-      setLinkedSavedLocationId(fromSaved.savedLocationId);
+      // Favorites are reusable: never link them for consume-on-create.
+      setLinkedSavedLocationId(fromSaved.isFavorite === true ? null : fromSaved.savedLocationId);
       nextInitial = {
         ...EMPTY_ENTRY_FORM,
         locationEnabled: true,
@@ -205,6 +208,7 @@ export function useCreateEntryScreen() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['entries', tripId] }),
         queryClient.invalidateQueries({ queryKey: ['mapPins', tripId] }),
+        queryClient.invalidateQueries({ queryKey: ['savedLocations', tripId] }),
         queryClient.invalidateQueries({ queryKey: tripSettingsQueryKeys.trip(tripId) }),
         queryClient.invalidateQueries({ queryKey: tripSettingsQueryKeys.trips }),
       ]);
@@ -321,6 +325,20 @@ export function useCreateEntryScreen() {
     }
     toggleLocationInner();
   }, [form.locationEnabled, toggleLocationInner]);
+
+  const { favorites: favoriteLocations } = useFavoriteLocations(tripId);
+
+  /** Pre-fill the location fields from a favorite place; favorites are never consumed. */
+  const handleSelectFavorite = useCallback((favorite: SavedLocationResponse) => {
+    setLinkedSavedLocationId(null);
+    setForm((prev) => ({
+      ...prev,
+      locationEnabled: true,
+      locationLat: favorite.lat,
+      locationLng: favorite.lng,
+      locationName: favorite.name?.trim() ?? '',
+    }));
+  }, []);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -489,6 +507,8 @@ export function useCreateEntryScreen() {
     uploadError,
     handleRemoveLocalFile,
     handleLocationToggle,
+    favoriteLocations,
+    handleSelectFavorite,
     handleSubmit,
     handleDiscard,
     isPending,

@@ -81,8 +81,13 @@ export function useMapboxMap(
         const { tripId: tid, accessToken: tok, invalidateMapPins: invalidate, t: tt } =
           mapActionsRef.current;
 
+        const isFavorite = deleteBtnEl.dataset['deleteSavedFavorite'] === 'true';
+
         void (async (): Promise<void> => {
-          if (!window.confirm(tt('map.confirmDeleteSavedLocation'))) return;
+          const confirmKey = isFavorite
+            ? 'map.confirmRemoveFavoriteLocation'
+            : 'map.confirmDeleteSavedLocation';
+          if (!window.confirm(tt(confirmKey))) return;
           try {
             await deleteSavedLocation(tid, sid, tok);
             await invalidate();
@@ -108,6 +113,7 @@ export function useMapboxMap(
           lat,
           lng,
           ...(nm?.trim() && { name: nm.trim() }),
+          ...(composeBtn.dataset['pinFavorite'] === 'true' && { isFavorite: true }),
         };
 
         nv(`/trips/${tid}/entries/new`, { state: { fromSavedLocation: payload } });
