@@ -56,7 +56,7 @@ describe('TripDashboardScreen', () => {
     server.use(
       http.get('/api/v1/trips', async () => {
         await tripsGate;
-        return HttpResponse.json([makeTrip({ name: 'Gated Trip' })]);
+        return HttpResponse.json([makeTrip({ name: 'Gated Trip', status: 'active' })]);
       }),
     );
 
@@ -179,6 +179,7 @@ describe('TripDashboardScreen', () => {
   it('shows user trip-level role on each card', async () => {
     const trips: Trip[] = [
       makeTrip({
+        status: 'active',
         members: [{ userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() }],
       }),
     ];
