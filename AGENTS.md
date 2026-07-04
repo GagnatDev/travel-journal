@@ -1,5 +1,15 @@
 # Agent instructions
 
+## Repo facts (non-obvious)
+
+- **Build `shared` first.** `pnpm typecheck`/server tests fail with `Cannot find module '@travel-journal/shared'` until `pnpm --filter @travel-journal/shared build` has produced `packages/shared/dist`. Re-run it after editing shared types.
+- **ESM imports need explicit `.js` extensions** on relative paths, even in `.ts`/`.tsx` files (`import { x } from './foo.js'`).
+- **i18n strings live in two places.** User-facing strings need keys in both `packages/client/src/locales/{en,nb}/translation.json` **and** the inline `nb` resources in `packages/client/vitest.setup.ts` — client tests run with `lng: 'nb'` against that inline copy, so a key missing there renders as the raw key and breaks role/name queries.
+- **Server tests need MongoDB.** `mongodb-memory-server` downloads a binary from `fastdl.mongodb.org` on first run; in sandboxes where that host is blocked, set `MONGODB_URI` to an existing instance or accept that server tests only run in CI.
+- **No migrations.** MongoDB via Mongoose; schema changes are code-only, so new fields must tolerate legacy documents (defaults / optional).
+- **Client tests**: Vitest + Testing Library + MSW. Default API handlers live in `packages/client/src/__tests__/mocks/`; override per-test with `server.use(...)`. Test pool is `forks` because the MSW server is a module singleton.
+- **Trip roles gate writes**: `creator`/`contributor` may create entries and manage saved locations; `follower` is read-only (server returns 403). UI hides write affordances behind the same check.
+
 ## Git
 
 For a new feature or larger refactor, work on a separate branch branched from an up-to-date `main`, unless the user says otherwise.
