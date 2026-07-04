@@ -18,6 +18,10 @@ type TripGroupProps = {
   currentUserId: string;
 };
 
+type CollapsibleTripGroupProps = TripGroupProps & {
+  defaultExpanded?: boolean;
+};
+
 function TripGroup({ label, items, currentUserId }: TripGroupProps) {
   if (items.length === 0) return null;
   return (
@@ -36,8 +40,13 @@ function TripGroup({ label, items, currentUserId }: TripGroupProps) {
   );
 }
 
-function CollapsibleTripGroup({ label, items, currentUserId }: TripGroupProps) {
-  const [expanded, setExpanded] = useState(false);
+function CollapsibleTripGroup({
+  label,
+  items,
+  currentUserId,
+  defaultExpanded = false,
+}: CollapsibleTripGroupProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
   if (items.length === 0) return null;
   return (
     <section>
@@ -104,7 +113,7 @@ export function TripDashboardScreen() {
 
   const active = trips.filter((t) => t.status === 'active' && !isTripInactive(t));
   const inactive = trips.filter((t) => isTripInactive(t));
-  const planned = trips.filter((t) => t.status === 'planned');
+  const planned = trips.filter((t) => t.status === 'planned' && !isTripInactive(t));
   const completed = trips.filter((t) => t.status === 'completed');
 
   const canCreate = user?.appRole === 'admin' || user?.appRole === 'creator';
@@ -148,18 +157,19 @@ export function TripDashboardScreen() {
                 currentUserId={currentUserId}
               />
               <CollapsibleTripGroup
-                label={t('trips.dashboard.statusGroup.inactive')}
-                items={inactive}
-                currentUserId={currentUserId}
-              />
-              <CollapsibleTripGroup
                 label={t('trips.dashboard.statusGroup.planned')}
                 items={planned}
                 currentUserId={currentUserId}
+                defaultExpanded
               />
               <CollapsibleTripGroup
                 label={t('trips.dashboard.statusGroup.completed')}
                 items={completed}
+                currentUserId={currentUserId}
+              />
+              <CollapsibleTripGroup
+                label={t('trips.dashboard.statusGroup.inactive')}
+                items={inactive}
                 currentUserId={currentUserId}
               />
             </>

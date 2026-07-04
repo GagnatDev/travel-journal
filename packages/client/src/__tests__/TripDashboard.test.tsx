@@ -94,20 +94,42 @@ describe('TripDashboardScreen', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Active Trip')).toBeInTheDocument();
+      expect(screen.getByText('Planned Trip')).toBeInTheDocument();
     });
 
     const plannedToggle = screen.getByRole('button', { name: /planlagte \(1\)/i });
     const completedToggle = screen.getByRole('button', { name: /fullførte \(1\)/i });
-    expect(plannedToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(plannedToggle).toHaveAttribute('aria-expanded', 'true');
     expect(completedToggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText('Planned Trip')).not.toBeInTheDocument();
     expect(screen.queryByText('Done Trip')).not.toBeInTheDocument();
 
-    await userEvent.click(plannedToggle);
     await userEvent.click(completedToggle);
 
-    expect(screen.getByText('Planned Trip')).toBeInTheDocument();
     expect(screen.getByText('Done Trip')).toBeInTheDocument();
+  });
+
+  it('moves planned trips without activity for over a week into a collapsed Inactive group', async () => {
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+    const trips: Trip[] = [
+      makeTrip({ id: 'trip-1', name: 'Fresh Plan', status: 'planned', updatedAt: new Date().toISOString() }),
+      makeTrip({ id: 'trip-2', name: 'Stale Plan', status: 'planned', updatedAt: eightDaysAgo }),
+    ];
+    server.use(http.get('/api/v1/trips', () => HttpResponse.json(trips)));
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText('Fresh Plan')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /planlagte \(1\)/i })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryByText('Stale Plan')).not.toBeInTheDocument();
+
+    const inactiveToggle = screen.getByRole('button', { name: /inaktive \(1\)/i });
+    expect(inactiveToggle).toHaveAttribute('aria-expanded', 'false');
+
+    await userEvent.click(inactiveToggle);
+
+    expect(screen.getByText('Stale Plan')).toBeInTheDocument();
   });
 
   it('moves active trips without entries for over a week into a collapsed Inactive group', async () => {
