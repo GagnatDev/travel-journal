@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useMatch, useNavigate } from 'react-router-dom';
 
 import { useNotifications } from '../notifications/useNotifications.js';
+import { usePwaUpdate } from '../pwa/usePwaUpdate.js';
 import { BellIcon, ChevronLeftIcon, HamburgerIcon } from './icons/index.js';
 import { MenuDrawer } from './MenuDrawer.js';
 import { NotificationsPanel } from './NotificationsPanel.js';
@@ -12,6 +13,7 @@ export function AppHeader() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { t } = useTranslation();
   const { unreadCount } = useNotifications();
+  const { updateAvailable } = usePwaUpdate();
   const location = useLocation();
   const navigate = useNavigate();
   const tripMatch = useMatch('/trips/:id/*');
@@ -20,12 +22,13 @@ export function AppHeader() {
   const isEntryRoute = location.pathname.includes('/entries/');
   const isProfile = location.pathname === '/profile';
   const isAdmin = location.pathname === '/admin';
+  const isAbout = location.pathname === '/about';
 
   const showBack =
-    !isTripsHome && !isEntryRoute && (!!tripMatch || isProfile || isAdmin);
+    !isTripsHome && !isEntryRoute && (!!tripMatch || isProfile || isAdmin || isAbout);
 
   const handleBack = useCallback(() => {
-    if (isProfile || isAdmin) {
+    if (isProfile || isAdmin || isAbout) {
       navigate(-1);
       return;
     }
@@ -37,7 +40,7 @@ export function AppHeader() {
         navigate('/trips');
       }
     }
-  }, [isAdmin, isProfile, location.pathname, navigate, tripMatch?.params.id]);
+  }, [isAbout, isAdmin, isProfile, location.pathname, navigate, tripMatch?.params.id]);
 
   return (
     <>
@@ -92,7 +95,9 @@ export function AppHeader() {
             aria-label={
               unreadCount > 0
                 ? t('notifications.unreadBadge', { count: unreadCount })
-                : t('notifications.openPanel')
+                : updateAvailable
+                  ? t('update.bellLabel')
+                  : t('notifications.openPanel')
             }
             aria-expanded={notificationsOpen}
             data-testid="notifications-bell"
@@ -100,7 +105,7 @@ export function AppHeader() {
             className="relative inline-flex items-center justify-center min-w-[44px] min-h-[44px] text-body hover:text-heading transition-colors rounded-lg shrink-0"
           >
             <BellIcon width={22} height={22} aria-hidden="true" />
-            {unreadCount > 0 && (
+            {unreadCount > 0 ? (
               <span
                 aria-hidden="true"
                 data-testid="notifications-badge"
@@ -108,6 +113,14 @@ export function AppHeader() {
               >
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
+            ) : (
+              updateAvailable && (
+                <span
+                  aria-hidden="true"
+                  data-testid="update-dot"
+                  className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-accent"
+                />
+              )
             )}
           </button>
         </div>

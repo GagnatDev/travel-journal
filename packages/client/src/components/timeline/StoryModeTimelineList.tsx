@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import type { Entry } from '@travel-journal/shared';
 
 import { DayHeader } from '../DayHeader.js';
 import { EntryCard } from '../EntryCard.js';
 import type { DayGroup } from '../../utils/groupEntriesByDay.js';
+import { useScrollTimelineEntryIntoView } from './useScrollTimelineEntryIntoView.js';
 
 /** Vitest sets `process.env.VITEST`; `import.meta.env.MODE` stays `development` under default Vitest config. */
 const useFlatStoryTimeline =
@@ -50,6 +51,13 @@ interface StoryModeTimelineListProps {
   isTripCreator?: boolean;
   photobookCoverImageKey?: string;
   onDelete: (entryId: string) => void;
+  scrollToEntryId?: string | null;
+  onScrolledToEntry?: () => void;
+}
+
+function findEntryRowIndex(rows: StoryTimelineRow[], entryId: string | null | undefined): number {
+  if (!entryId) return -1;
+  return rows.findIndex((row) => row.type === 'entry' && row.entry.id === entryId);
 }
 
 function StoryModeTimelineListFlat({
@@ -60,10 +68,20 @@ function StoryModeTimelineListFlat({
   isTripCreator,
   photobookCoverImageKey,
   onDelete,
+  scrollToEntryId,
+  onScrolledToEntry,
 }: StoryModeTimelineListProps) {
   const rows = useMemo(() => flattenDayGroups(dayGroups), [dayGroups]);
+  const listRef = useRef<HTMLDivElement>(null);
+  useScrollTimelineEntryIntoView(
+    scrollToEntryId ?? null,
+    findEntryRowIndex(rows, scrollToEntryId),
+    null,
+    listRef,
+    onScrolledToEntry,
+  );
   return (
-    <>
+    <div ref={listRef}>
       {rows.map((row) =>
         row.type === 'header' ? (
           <DayHeader
@@ -92,7 +110,7 @@ function StoryModeTimelineListFlat({
           </div>
         ),
       )}
-    </>
+    </div>
   );
 }
 
@@ -104,8 +122,11 @@ function StoryModeTimelineListVirtual({
   isTripCreator,
   photobookCoverImageKey,
   onDelete,
+  scrollToEntryId,
+  onScrolledToEntry,
 }: StoryModeTimelineListProps) {
   const rows = useMemo(() => flattenDayGroups(dayGroups), [dayGroups]);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const rowVirtualizer = useWindowVirtualizer({
     count: rows.length,
@@ -115,8 +136,20 @@ function StoryModeTimelineListVirtual({
     measureElement: (el) => el.getBoundingClientRect().height,
   });
 
+  useScrollTimelineEntryIntoView(
+    scrollToEntryId ?? null,
+    findEntryRowIndex(rows, scrollToEntryId),
+    rowVirtualizer,
+    listRef,
+    onScrolledToEntry,
+  );
+
   return (
-    <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+    <div
+      ref={listRef}
+      className="relative w-full"
+      style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+    >
       {rowVirtualizer.getVirtualItems().map((virtualRow) => {
         const row = rows[virtualRow.index];
         if (!row) return null;

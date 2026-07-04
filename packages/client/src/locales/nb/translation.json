@@ -136,7 +136,22 @@
     "openMenu": "Åpne meny",
     "theme": "Mørk modus",
     "language": "Språk",
-    "profile": "Profil"
+    "profile": "Profil",
+    "about": "Om appen"
+  },
+  "update": {
+    "bannerTitle": "En ny versjon er tilgjengelig",
+    "bannerBody": "Oppdater nå for å få den nyeste versjonen. Du kan fortsette å jobbe og oppdatere senere — ulagrede endringer går ikke tapt.",
+    "now": "Oppdater nå",
+    "unsavedConfirm": "Du har ulagrede endringer som går tapt hvis du oppdaterer nå. Vil du oppdatere likevel?",
+    "bellLabel": "En ny versjon er tilgjengelig"
+  },
+  "about": {
+    "title": "Om appen",
+    "description": "Reisedagbok — før en delt dagbok over reisene dine.",
+    "version": "Versjon",
+    "buildTime": "Bygget",
+    "copyVersion": "Kopier"
   },
   "notifications": {
     "openPanel": "Varsler",
@@ -169,6 +184,12 @@
         "title_other": "{{count}} nye innlegg i {{tripName}}",
         "body_one": "Ta deg tid til dagens nye innlegg.",
         "body_other": "Ta deg tid til dagens {{count}} nye innlegg."
+      },
+      "tripMemberAdded": {
+        "title": "Du er lagt til i {{tripName}}",
+        "bodyContributor": "{{addedByName}} la deg til som bidragsyter. Du kan nå legge inn innlegg på turen.",
+        "bodyFollower": "{{addedByName}} la deg til som følger. Du kan nå følge med på turen.",
+        "openAction": "Åpne turen"
       },
       "tripPhotobookPdfReady": {
         "title": "Fotobok (PDF) klar: {{tripName}}",
@@ -258,6 +279,7 @@
       "emptyState": "Du har ingen turer ennå.",
       "statusGroup": {
         "active": "Aktive",
+        "inactive": "Inaktive",
         "planned": "Planlagte",
         "completed": "Fullførte"
       }
@@ -410,10 +432,16 @@
     "savedBy": "Lagret av",
     "createEntryFromSaved": "Skriv innlegg…",
     "deleteSavedLocation": "Slett stedemerke",
+    "favoriteLocationBadge": "Favorittsted",
+    "removeFavoriteLocation": "Fjern favoritt",
+    "confirmRemoveFavoriteLocation": "Fjerne dette favorittstedet fra kartet?",
     "confirmDeleteSavedLocation": "Fjerne dette lagrede stedet fra kartet?",
     "pendingSpotOffline": "Ikke lastet opp ennå — blir synlig for alle når enheten er på nett igjen.",
     "discardPendingSpot": "Fjern fra enheten",
     "viewEntry": "Se innlegg",
+    "clusterPinCount": "{{total}} steder på dette punktet",
+    "clusterPrev": "Forrige sted",
+    "clusterNext": "Neste sted",
     "mapboxTokenMissingTitle": "Kartet kan ikke vises",
     "mapboxTokenMissingDev": "Legg til VITE_MAPBOX_TOKEN (Mapbox public token) i miljøfilen for klienten, for eksempel packages/client/.env, og start Vite på nytt.",
     "mapboxTokenMissingStaging": "Klientbygget mangler VITE_MAPBOX_TOKEN. Legg tokenet i hemmeligheter/variabler for staging-bygget.",
@@ -440,6 +468,10 @@
     "contentPlaceholder": "Fortell historien din...",
     "locationToggle": "Legg til plassering",
     "locationNamePlaceholder": "Stednavn (valgfritt)",
+    "favoriteLocation": "Lagre som favorittsted",
+    "unfavoriteLocation": "Fjern favorittsted",
+    "favoriteLocationsLabel": "Favorittsteder",
+    "favoriteLocationUnnamed": "Sted uten navn",
     "edit": "Rediger",
     "delete": "Slett",
     "deleteConfirm": "Slette dette innlegget?",

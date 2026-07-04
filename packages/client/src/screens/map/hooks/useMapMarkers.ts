@@ -2,9 +2,12 @@ import { useEffect } from 'react';
 import type { TFunction } from 'i18next';
 import mapboxgl from 'mapbox-gl';
 
-import { buildPinPopupHtml } from '../pinPopupHtml.js';
-import { pinsRenderKey } from '../pinRenderKey.js';
-import { createMarkerElementForPin } from '../createMarkerElementForPin.js';
+import { buildClusterPopupHtml, buildPinPopupHtml } from '../pinPopupHtml.js';
+import { clusterRenderablePins, clustersRenderKey } from '../clusterPins.js';
+import {
+  createClusterMarkerElement,
+  createMarkerElementForPin,
+} from '../createMarkerElementForPin.js';
 import type { MapRenderablePin } from '../types.js';
 import type { MapboxMapRefsBundle } from './useMapboxMap.js';
 
@@ -41,38 +44,62 @@ export function useMapMarkers({
     if (!map || !mapReady) return;
     if (isLoading || isError || !hasMapboxToken) return;
 
-    const pinKey = pinsRenderKey(pinsForMap);
-    if (pinKey === lastRenderedPinKeyRef.current) return;
-    lastRenderedPinKeyRef.current = pinKey;
+    function renderMarkers(): void {
+      if (!map) return;
+      const clusters = clusterRenderablePins(pinsForMap, (lngLat) => map.project(lngLat));
 
-    markersRef.current.forEach((m) => {
-      (m as unknown as { remove?: () => void }).remove?.();
-    });
-    markersRef.current = [];
+      const renderKey = clustersRenderKey(clusters);
+      if (renderKey === lastRenderedPinKeyRef.current) return;
+      lastRenderedPinKeyRef.current = renderKey;
 
-    const pinList = pinsForMap;
-    if (!pinList || pinList.length === 0) return;
+      markersRef.current.forEach((m) => {
+        (m as unknown as { remove?: () => void }).remove?.();
+      });
+      markersRef.current = [];
 
-    const bounds = new mapboxgl.LngLatBounds();
+      for (const cluster of clusters) {
+        const soloPin = cluster.pins.length === 1 ? cluster.pins[0] : undefined;
+        const elMarker = soloPin
+          ? createMarkerElementForPin(soloPin)
+          : createClusterMarkerElement(
+              cluster.pins.length,
+              t('map.clusterPinCount', { total: cluster.pins.length }),
+            );
+        const popupHtml = soloPin
+          ? buildPinPopupHtml(soloPin, tripId, t, canManageSaved)
+          : buildClusterPopupHtml(cluster.pins, tripId, t, canManageSaved);
+        const popup = new mapboxgl.Popup({
+          offset: 25,
+          closeButton: true,
+          className: 'tj-map-popup',
+          maxWidth: '280px',
+        }).setHTML(popupHtml);
 
-    for (const pin of pinList) {
-      const elMarker = createMarkerElementForPin(pin);
-      const popupHtml = buildPinPopupHtml(pin, tripId, t, canManageSaved);
-      const popup = new mapboxgl.Popup({ offset: 25, closeButton: true }).setHTML(popupHtml);
-
-      const marker = new mapboxgl.Marker(elMarker)
-        .setLngLat([pin.lng, pin.lat])
-        .setPopup(popup)
-        .addTo(map);
-      markersRef.current.push(marker);
-
-      bounds.extend([pin.lng, pin.lat]);
+        const marker = new mapboxgl.Marker(elMarker)
+          .setLngLat([cluster.lng, cluster.lat])
+          .setPopup(popup)
+          .addTo(map);
+        markersRef.current.push(marker);
+      }
     }
 
-    if (!didInitialFitRef.current) {
+    renderMarkers();
+
+    if (!didInitialFitRef.current && pinsForMap.length > 0) {
+      const bounds = new mapboxgl.LngLatBounds();
+      for (const pin of pinsForMap) {
+        bounds.extend([pin.lng, pin.lat]);
+      }
       map.fitBounds(bounds, { padding: 60, maxZoom: 12 });
       didInitialFitRef.current = true;
     }
+
+    // Screen distance between pins changes with zoom, so regroup after zooming.
+    const handleZoomEnd = (): void => renderMarkers();
+    map.on('zoomend', handleZoomEnd);
+    return () => {
+      map.off('zoomend', handleZoomEnd);
+    };
   }, [
     pinsForMap,
     isLoading,

@@ -84,6 +84,8 @@ export interface MapPinSavedLocation {
   savedByUserId: string;
   savedByDisplayName: string;
   name?: string;
+  /** Favorite spots persist — creating an entry from one never consumes it. */
+  isFavorite?: boolean;
 }
 
 export type MapPin = MapPinEntry | MapPinSavedLocation;
@@ -92,6 +94,8 @@ export interface CreateSavedLocationRequest {
   lat: number;
   lng: number;
   name?: string;
+  /** Save as a reusable favorite instead of a one-shot bookmark. */
+  isFavorite?: boolean;
 }
 
 /** Router state passed when opening the composer from a saved map bookmark. */
@@ -100,6 +104,8 @@ export interface ComposeFromSavedLocationPayload {
   lat: number;
   lng: number;
   name?: string;
+  /** When true the composer must not consume the saved location on submit. */
+  isFavorite?: boolean;
 }
 
 export interface UpdateEntryRequest {

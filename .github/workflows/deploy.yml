@@ -40,6 +40,7 @@ jobs:
           IMAGE="${{ steps.login.outputs.registry }}/travel-journal"
           docker build \
             --build-arg VITE_MAPBOX_TOKEN="${{ secrets.APP_VITE_MAPBOX_TOKEN }}" \
+            --build-arg VITE_GIT_SHA="$HEAD_SHA" \
             -t "$IMAGE:$HEAD_SHA" -t "$IMAGE:latest" .
           docker push "$IMAGE:$HEAD_SHA"
           docker push "$IMAGE:latest"

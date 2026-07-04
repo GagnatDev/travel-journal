@@ -136,7 +136,22 @@
     "openMenu": "Open menu",
     "theme": "Dark mode",
     "language": "Language",
-    "profile": "Profile"
+    "profile": "Profile",
+    "about": "About"
+  },
+  "update": {
+    "bannerTitle": "A new version is available",
+    "bannerBody": "Update now to get the latest version. You can keep working and update later — your unsaved changes won't be lost.",
+    "now": "Update now",
+    "unsavedConfirm": "You have unsaved changes that will be lost if you update now. Update anyway?",
+    "bellLabel": "A new version is available"
+  },
+  "about": {
+    "title": "About",
+    "description": "Travel Journal — keep a shared diary of your trips.",
+    "version": "Version",
+    "buildTime": "Built",
+    "copyVersion": "Copy"
   },
   "notifications": {
     "openPanel": "Notifications",
@@ -169,6 +184,12 @@
         "title_other": "{{count}} new entries in {{tripName}}",
         "body_one": "Catch up on today's 1 new entry.",
         "body_other": "Catch up on today's {{count}} new entries."
+      },
+      "tripMemberAdded": {
+        "title": "You've been added to {{tripName}}",
+        "bodyContributor": "{{addedByName}} added you as a contributor. You can now post entries to this trip.",
+        "bodyFollower": "{{addedByName}} added you as a follower. You can now follow along on this trip.",
+        "openAction": "Open trip"
       },
       "tripPhotobookPdfReady": {
         "title": "Photobook (PDF) ready: {{tripName}}",
@@ -258,6 +279,7 @@
       "emptyState": "You have no trips yet.",
       "statusGroup": {
         "active": "Active",
+        "inactive": "Inactive",
         "planned": "Planned",
         "completed": "Completed"
       }
@@ -410,10 +432,16 @@
     "savedBy": "Saved by",
     "createEntryFromSaved": "Write journal entry…",
     "deleteSavedLocation": "Delete bookmark",
+    "favoriteLocationBadge": "Favorite place",
+    "removeFavoriteLocation": "Remove favorite",
+    "confirmRemoveFavoriteLocation": "Remove this favorite place from the map?",
     "confirmDeleteSavedLocation": "Remove this saved spot from the map?",
     "pendingSpotOffline": "Not uploaded yet — will appear for everyone once your device reconnects.",
     "discardPendingSpot": "Remove from device",
     "viewEntry": "View Entry",
+    "clusterPinCount": "{{total}} pins at this spot",
+    "clusterPrev": "Previous pin",
+    "clusterNext": "Next pin",
     "mapboxTokenMissingTitle": "Map unavailable",
     "mapboxTokenMissingDev": "Add VITE_MAPBOX_TOKEN (your Mapbox public token) to the client env file, for example packages/client/.env, then restart the Vite dev server.",
     "mapboxTokenMissingStaging": "This staging client build is missing VITE_MAPBOX_TOKEN. Add the token to your staging build secrets or environment variables.",
@@ -440,6 +468,10 @@
     "contentPlaceholder": "Tell your story...",
     "locationToggle": "Add location",
     "locationNamePlaceholder": "Place name (optional)",
+    "favoriteLocation": "Save as favorite place",
+    "unfavoriteLocation": "Remove favorite place",
+    "favoriteLocationsLabel": "Favorite places",
+    "favoriteLocationUnnamed": "Unnamed place",
     "edit": "Edit",
     "delete": "Delete",
     "deleteConfirm": "Delete this entry?",

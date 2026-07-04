@@ -34,6 +34,7 @@ export async function listMapPins(tripId: string): Promise<MapPin[]> {
       savedByUserId: s.savedByUserId,
       savedByDisplayName: s.savedByDisplayName,
       ...(s.name !== undefined && { name: s.name }),
+      ...(s.isFavorite && { isFavorite: true }),
     });
   }
 

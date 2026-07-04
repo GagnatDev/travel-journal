@@ -18,6 +18,10 @@ COPY tsconfig.base.json ./
 ARG VITE_MAPBOX_TOKEN
 ENV VITE_MAPBOX_TOKEN=$VITE_MAPBOX_TOKEN
 
+# Git commit hash → app version (the build image has no .git, so pass it in).
+ARG VITE_GIT_SHA
+ENV VITE_GIT_SHA=$VITE_GIT_SHA
+
 RUN pnpm --filter @travel-journal/shared build
 RUN pnpm --filter @travel-journal/server build
 RUN pnpm --filter @travel-journal/client build

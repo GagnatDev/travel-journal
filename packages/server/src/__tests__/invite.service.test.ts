@@ -1,7 +1,8 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 
 import { Invite } from '../models/Invite.model.js';
+import { Notification } from '../models/Notification.model.js';
 import { Trip } from '../models/Trip.model.js';
 import { User } from '../models/User.model.js';
 import { hashPassword, hashToken } from '../services/auth.service.js';
@@ -27,6 +28,7 @@ beforeEach(async () => {
   await User.deleteMany({});
   await Trip.deleteMany({});
   await Invite.deleteMany({});
+  await Notification.deleteMany({});
 });
 
 afterAll(async () => {
@@ -212,6 +214,36 @@ describe('acceptInvite', () => {
     expect(newMember!.notificationPreferences?.newEntriesMode).toBe('off');
   });
 
+  it('notifies the new member about the trip when a trip invite is accepted', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const trip = await createTrip({ name: 'My Trip' }, String(creator._id));
+
+    const { rawToken } = await createTripInvite(
+      trip.id,
+      'newmember@test.com',
+      'follower',
+      String(creator._id),
+    );
+
+    const { userId } = await acceptInvite(rawToken, 'New Member', 'password123');
+
+    // Dispatch is fire-and-forget, so poll for the inbox row.
+    await vi.waitFor(async () => {
+      expect(await Notification.countDocuments({ type: 'trip.member_added' })).toBe(1);
+    });
+
+    const row = await Notification.findOne({ type: 'trip.member_added' }).lean();
+    expect(String(row!.userId)).toBe(userId);
+    expect(row!.data).toMatchObject({
+      type: 'trip.member_added',
+      tripId: trip.id,
+      tripName: 'My Trip',
+      tripRole: 'follower',
+      addedByUserId: String(creator._id),
+      addedByName: creator.displayName,
+    });
+  });
+
   it('returns a valid access token', async () => {
     const admin = await makeUser('admin@test.com', 'admin');
     const { rawToken } = await createPlatformInvite(
@@ -282,6 +314,30 @@ describe('addTripMember', () => {
     const newMember = tripDoc!.members.find((m) => String(m.userId) === String(other._id));
     expect(newMember).toBeTruthy();
     expect(newMember!.notificationPreferences?.newEntriesMode).toBe('off');
+  });
+
+  it('notifies a directly added user that they are on the trip', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const other = await makeUser('other@test.com', 'follower');
+    const trip = await createTrip({ name: 'Trip' }, String(creator._id));
+
+    await addTripMember(trip.id, 'other@test.com', 'contributor', String(creator._id));
+
+    // Dispatch is fire-and-forget, so poll for the inbox row.
+    await vi.waitFor(async () => {
+      expect(await Notification.countDocuments({ type: 'trip.member_added' })).toBe(1);
+    });
+
+    const row = await Notification.findOne({ type: 'trip.member_added' }).lean();
+    expect(String(row!.userId)).toBe(String(other._id));
+    expect(row!.data).toMatchObject({
+      type: 'trip.member_added',
+      tripId: trip.id,
+      tripName: 'Trip',
+      tripRole: 'contributor',
+      addedByUserId: String(creator._id),
+      addedByName: creator.displayName,
+    });
   });
 
   it('adds an existing user by displayName (case-insensitive)', async () => {

@@ -178,6 +178,13 @@ const nb = {
         body_one: 'Ta deg tid til dagens nye innlegg.',
         body_other: 'Ta deg tid til dagens {{count}} nye innlegg.',
       },
+      tripMemberAdded: {
+        title: 'Du er lagt til i {{tripName}}',
+        bodyContributor:
+          '{{addedByName}} la deg til som bidragsyter. Du kan nå legge inn innlegg på turen.',
+        bodyFollower: '{{addedByName}} la deg til som følger. Du kan nå følge med på turen.',
+        openAction: 'Åpne turen',
+      },
       releaseAnnouncement: {
         title: 'Travel Journal er oppdatert til {{version}}',
         body: 'En ny versjon er klar. Last siden på nytt for å få de siste forbedringene.',
@@ -220,7 +227,7 @@ const nb = {
       title: 'Mine turer',
       createButton: 'Opprett tur',
       emptyState: 'Du har ingen turer ennå.',
-      statusGroup: { active: 'Aktive', planned: 'Planlagte', completed: 'Fullførte' },
+      statusGroup: { active: 'Aktive', inactive: 'Inaktive', planned: 'Planlagte', completed: 'Fullførte' },
     },
     role: { creator: 'Oppretter', contributor: 'Bidragsyter', follower: 'Følger' },
     status: { planned: 'Planlagt', active: 'Aktiv', completed: 'Fullført' },
@@ -303,6 +310,9 @@ const nb = {
     title: 'Kart',
     noLocations: 'Ingen innlegg med plassering ennå. Legg til plassering når du oppretter et innlegg.',
     viewEntry: 'Se innlegg',
+    clusterPinCount: '{{total}} steder på dette punktet',
+    clusterPrev: 'Forrige sted',
+    clusterNext: 'Neste sted',
     mapboxTokenMissingTitle: 'Kartet kan ikke vises',
     mapboxTokenMissingDev:
       'Legg til VITE_MAPBOX_TOKEN (Mapbox public token) i miljøfilen for klienten, for eksempel packages/client/.env, og start Vite på nytt.',
@@ -337,6 +347,10 @@ const nb = {
     contentPlaceholder: 'Fortell historien din...',
     locationToggle: 'Legg til plassering',
     locationNamePlaceholder: 'Stednavn (valgfritt)',
+    favoriteLocation: 'Lagre som favorittsted',
+    unfavoriteLocation: 'Fjern favorittsted',
+    favoriteLocationsLabel: 'Favorittsteder',
+    favoriteLocationUnnamed: 'Sted uten navn',
     edit: 'Rediger',
     delete: 'Slett',
     deleteConfirm: 'Slette dette innlegget?',

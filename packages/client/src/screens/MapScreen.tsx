@@ -81,7 +81,11 @@ export function MapScreen({ mapLayerPaused = false }: MapScreenProps = {}) {
   const canManageSaved = tripRole === 'creator' || tripRole === 'contributor';
 
   const invalidateMapPins = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['mapPins', tripId] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['mapPins', tripId] }),
+      // Favorite stars on entry cards derive from the saved-locations list.
+      queryClient.invalidateQueries({ queryKey: ['savedLocations', tripId] }),
+    ]);
   }, [queryClient, tripId]);
 
   const mapActionsRef = useRef<MapScreenMapActions>({

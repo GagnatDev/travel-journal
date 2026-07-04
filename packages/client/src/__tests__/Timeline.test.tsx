@@ -43,7 +43,11 @@ function makeEntry(overrides: Partial<Entry> = {}): Entry {
   };
 }
 
-function renderTimeline(user = mockUser, tripPartial?: Partial<Trip>) {
+function renderTimeline(
+  user = mockUser,
+  tripPartial?: Partial<Trip>,
+  initialEntry: string | { pathname: string; state?: unknown } = `/trips/${TRIP_ID}/timeline`,
+) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const trip = { ...mockTrip, ...tripPartial };
   server.use(
@@ -54,7 +58,7 @@ function renderTimeline(user = mockUser, tripPartial?: Partial<Trip>) {
   );
   const renderResult = render(
     <QueryClientProvider client={qc}>
-      <TestMemoryRouter initialEntries={[`/trips/${TRIP_ID}/timeline`]}>
+      <TestMemoryRouter initialEntries={[initialEntry]}>
         <AuthProvider>
           <Routes>
             <Route path="/trips/:id/timeline" element={<TimelineScreen />} />
@@ -96,6 +100,76 @@ describe('TimelineScreen', () => {
       expect(screen.getByText('Test Entry')).toBeInTheDocument();
       expect(screen.getByText('Entry 2')).toBeInTheDocument();
     });
+  });
+
+  it('scrolls to and highlights the target entry when arriving from the map popover', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries`, () =>
+        HttpResponse.json({
+          entries: [
+            makeEntry(),
+            makeEntry({ id: 'entry-2', title: 'Entry 2' }),
+            makeEntry({ id: 'entry-3', title: 'Entry 3' }),
+          ],
+          total: 3,
+        }),
+      ),
+    );
+
+    renderTimeline(mockUser, undefined, {
+      pathname: `/trips/${TRIP_ID}/timeline`,
+      state: { highlightEntryId: 'entry-2' },
+    });
+
+    await waitFor(() => {
+      expect(scrollIntoView).toHaveBeenCalled();
+    });
+    const wrapper = document.querySelector('[data-entry-id="entry-2"]');
+    expect(wrapper).not.toBeNull();
+    expect(wrapper!.classList.contains('timeline-entry-highlight')).toBe(true);
+  });
+
+  it('scrolls the timeline row even when the parked map layer holds an element with the same entry id', async () => {
+    // TripShell keeps the map screen mounted (hidden) after a map visit; its open
+    // pin popup sits before the timeline in DOM order. The entry lookup must be
+    // scoped to the timeline list, or it grabs this node and never scrolls.
+    const decoy = document.createElement('div');
+    decoy.setAttribute('data-entry-id', 'entry-2');
+    document.body.prepend(decoy);
+
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries`, () =>
+        HttpResponse.json({
+          entries: [
+            makeEntry(),
+            makeEntry({ id: 'entry-2', title: 'Entry 2' }),
+            makeEntry({ id: 'entry-3', title: 'Entry 3' }),
+          ],
+          total: 3,
+        }),
+      ),
+    );
+
+    try {
+      renderTimeline(mockUser, undefined, {
+        pathname: `/trips/${TRIP_ID}/timeline`,
+        state: { highlightEntryId: 'entry-2' },
+      });
+
+      await waitFor(() => {
+        expect(scrollIntoView).toHaveBeenCalled();
+      });
+      const wrapper = document.querySelector('main [data-entry-id="entry-2"]');
+      expect(wrapper).not.toBeNull();
+      expect(wrapper!.classList.contains('timeline-entry-highlight')).toBe(true);
+      expect(decoy.classList.contains('timeline-entry-highlight')).toBe(false);
+    } finally {
+      decoy.remove();
+    }
   });
 
   it('shows empty state message when no entries exist', async () => {
@@ -251,7 +325,7 @@ describe('TimelineScreen', () => {
     expect(screen.getByRole('button', { name: /prøv igjen/i })).toBeInTheDocument();
   });
 
-  it('shows day headers when Story Mode is toggled on', async () => {
+  it('shows day headers by default and hides them when Story Mode is toggled off', async () => {
     const day1Entry = makeEntry({
       id: 'e1',
       title: 'Day 1 Entry',
@@ -275,15 +349,16 @@ describe('TimelineScreen', () => {
       expect(screen.getByText('Day 1 Entry')).toBeInTheDocument();
     });
 
-    // Story Mode is off by default — no DayHeader elements
-    expect(screen.queryAllByTestId('day-header')).toHaveLength(0);
-
-    // Toggle Story Mode on
-    await userEvent.click(screen.getByTestId('story-mode-toggle'));
-
-    // Two entries on two different days → two DayHeader elements
+    // Story Mode is on by default — two entries on two different days → two DayHeader elements
     await waitFor(() => {
       expect(screen.getAllByTestId('day-header')).toHaveLength(2);
+    });
+
+    // Toggle Story Mode off
+    await userEvent.click(screen.getByTestId('story-mode-toggle'));
+
+    await waitFor(() => {
+      expect(screen.queryAllByTestId('day-header')).toHaveLength(0);
     });
   });
 

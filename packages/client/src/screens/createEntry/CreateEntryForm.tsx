@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import type { EntryImage } from '@travel-journal/shared';
 
-import { CalendarIcon, CameraIcon, MapPinIcon } from '../../components/icons/index.js';
+import type { SavedLocationResponse } from '../../api/savedLocations.js';
+import { CalendarIcon, CameraIcon, MapPinIcon, StarIcon } from '../../components/icons/index.js';
 import { IconBadge } from '../../components/ui/IconBadge.js';
 import { PillButton } from '../../components/ui/PillButton.js';
 import { ImageReorder } from '../../components/ImageReorder.js';
@@ -25,6 +26,9 @@ export interface CreateEntryFormProps {
   uploadError: string;
   handleRemoveLocalFile: (index: number) => void;
   handleLocationToggle: () => void;
+  /** Favorite places on this trip; picking one pre-fills the location fields. */
+  favoriteLocations: SavedLocationResponse[];
+  handleSelectFavorite: (favorite: SavedLocationResponse) => void;
   handleSubmit: (e: React.FormEvent) => void | Promise<void>;
   handleDiscard: () => void;
   isPending: boolean;
@@ -33,6 +37,7 @@ export interface CreateEntryFormProps {
   updateMutationError: boolean;
   /** Formatted registration date, or null while server/pending metadata is still loading. */
   entryDateLabel: string | null;
+  isEditing: boolean;
 }
 
 export function CreateEntryForm({
@@ -48,6 +53,8 @@ export function CreateEntryForm({
   uploadError,
   handleRemoveLocalFile,
   handleLocationToggle,
+  favoriteLocations,
+  handleSelectFavorite,
   handleSubmit,
   handleDiscard,
   isPending,
@@ -55,11 +62,16 @@ export function CreateEntryForm({
   createMutationError,
   updateMutationError,
   entryDateLabel,
+  isEditing,
 }: CreateEntryFormProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const hasImages = images.length > 0 || localPreviews.length > 0;
   const photoCount = images.length + localPreviews.length;
+  const hasSelectedLocation =
+    form.locationEnabled && form.locationLat !== null && form.locationLng !== null;
+  const showFavoriteLocations =
+    favoriteLocations.length > 0 && (!isEditing || !hasSelectedLocation);
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col min-h-full">
@@ -238,6 +250,37 @@ export function CreateEntryForm({
                 className={`w-full text-sm ${entryTextControlClass}`}
                 placeholder={t('entries.locationNamePlaceholder')}
               />
+            </div>
+          )}
+          {showFavoriteLocations && (
+            <div className="mt-3">
+              <p className="font-ui text-xs text-caption uppercase tracking-wide">
+                {t('entries.favoriteLocationsLabel')}
+              </p>
+              <div className="flex flex-wrap gap-2 mt-1.5" role="group" aria-label={t('entries.favoriteLocationsLabel')}>
+                {favoriteLocations.map((fav) => {
+                  const isSelected =
+                    form.locationEnabled &&
+                    form.locationLat === fav.lat &&
+                    form.locationLng === fav.lng;
+                  return (
+                    <button
+                      key={fav.id}
+                      type="button"
+                      onClick={() => handleSelectFavorite(fav)}
+                      aria-pressed={isSelected}
+                      className={`inline-flex items-center gap-1 font-ui text-xs rounded-full border px-2.5 py-1 transition-colors ${
+                        isSelected
+                          ? 'border-accent text-accent bg-accent/10'
+                          : 'border-caption/30 text-body hover:border-accent hover:text-accent'
+                      }`}
+                    >
+                      <StarIcon filled width={11} height={11} className="text-amber-500" />
+                      {fav.name ?? t('entries.favoriteLocationUnnamed')}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

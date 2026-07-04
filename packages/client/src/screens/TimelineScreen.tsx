@@ -35,11 +35,13 @@ export function TimelineScreen() {
   const stateHighlight =
     (location.state as { highlightEntryId?: string } | null)?.highlightEntryId ?? null;
   const highlightEntryId = searchParams.get('entryId') ?? stateHighlight;
-  const scrolledForHighlightRef = useRef<string | null>(null);
+  const [handledHighlightId, setHandledHighlightId] = useState<string | null>(null);
+  const pendingHighlightId =
+    highlightEntryId && highlightEntryId !== handledHighlightId ? highlightEntryId : null;
 
   const storyModeKey = `storyMode:${tripId}`;
   const [storyMode, setStoryMode] = useState<boolean>(
-    () => localStorage.getItem(storyModeKey) === 'true',
+    () => localStorage.getItem(storyModeKey) !== 'false',
   );
   const pendingEntries = usePendingEntriesForTrip(tripId);
   const [entryIdPendingDelete, setEntryIdPendingDelete] = useState<string | null>(null);
@@ -113,29 +115,27 @@ export function TimelineScreen() {
 
   useInfiniteScrollSentinel(sentinelRef, fetchNextPage, !!hasNextPage, isFetchingNextPage);
 
-  // When arriving via a notification (?entryId=...), scroll the target entry
-  // into view once it appears in the list and clear the query param so the
-  // highlight isn't re-triggered on navigation within the timeline.
+  // When arriving via a notification (?entryId=...) or the map popover
+  // (location state), the target entry may live on a page that isn't loaded
+  // yet — keep fetching until it shows up. The scroll itself is performed by
+  // the list components, which own the virtualizer needed to bring the row
+  // into the DOM.
   useEffect(() => {
-    if (!highlightEntryId) return;
-    if (scrolledForHighlightRef.current === highlightEntryId) return;
-    const target = allEntries.find((e) => e.id === highlightEntryId);
-    if (!target) return;
-    scrolledForHighlightRef.current = highlightEntryId;
-    const el = document.querySelector<HTMLElement>(
-      `[data-entry-id="${CSS.escape(highlightEntryId)}"]`,
-    );
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      el.classList.add('timeline-entry-highlight');
-      window.setTimeout(() => el.classList.remove('timeline-entry-highlight'), 2000);
-    }
+    if (!pendingHighlightId) return;
+    if (allEntries.some((e) => e.id === pendingHighlightId)) return;
+    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  }, [pendingHighlightId, allEntries, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Once the list has scrolled, clear the query param so the highlight isn't
+  // re-triggered on navigation within the timeline.
+  const onScrolledToEntry = useCallback(() => {
+    setHandledHighlightId(highlightEntryId);
     if (searchParams.get('entryId')) {
       const next = new URLSearchParams(searchParams);
       next.delete('entryId');
       setSearchParams(next, { replace: true });
     }
-  }, [highlightEntryId, allEntries, searchParams, setSearchParams]);
+  }, [highlightEntryId, searchParams, setSearchParams]);
 
   const dayGroups = storyMode ? groupEntriesByDay(allEntries, trip?.departureDate) : null;
   const listProps = useMemo(
@@ -145,11 +145,21 @@ export function TimelineScreen() {
       canManageEntries: tripRole === 'creator' || tripRole === 'contributor',
       isTripCreator: tripRole === 'creator',
       onDelete: requestDeleteEntry,
+      scrollToEntryId: pendingHighlightId,
+      onScrolledToEntry,
       ...(trip?.photobookCoverImageKey != null && trip.photobookCoverImageKey !== ''
         ? { photobookCoverImageKey: trip.photobookCoverImageKey }
         : {}),
     }),
-    [tripId, user?.id, tripRole, trip?.photobookCoverImageKey, requestDeleteEntry],
+    [
+      tripId,
+      user?.id,
+      tripRole,
+      trip?.photobookCoverImageKey,
+      requestDeleteEntry,
+      pendingHighlightId,
+      onScrolledToEntry,
+    ],
   );
 
   const entriesErrorMessage =
