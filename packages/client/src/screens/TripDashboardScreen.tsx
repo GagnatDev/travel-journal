@@ -10,6 +10,7 @@ import { TripCard } from '../components/TripCard.js';
 import { CreateTripModal } from '../components/CreateTripModal.js';
 import { UsageHintBanner } from '../components/UsageHintBanner.js';
 import { scopedHintId } from '../lib/usageHintsPrefs.js';
+import { isTripInactive } from '../utils/tripActivity.js';
 
 type TripGroupProps = {
   label: string;
@@ -31,6 +32,48 @@ function TripGroup({ label, items, currentUserId }: TripGroupProps) {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+function CollapsibleTripGroup({ label, items, currentUserId }: TripGroupProps) {
+  const [expanded, setExpanded] = useState(false);
+  if (items.length === 0) return null;
+  return (
+    <section>
+      <h2 className="mb-2">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="w-full flex items-center justify-between font-ui text-sm font-semibold text-caption uppercase tracking-wide"
+        >
+          <span>
+            {label} ({items.length})
+          </span>
+          <svg
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden="true"
+            className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`}
+          >
+            <path
+              fillRule="evenodd"
+              d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.06l3.71-3.83a.75.75 0 1 1 1.08 1.04l-4.25 4.39a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+      </h2>
+      {expanded && (
+        <ul className="space-y-3">
+          {items.map((trip) => (
+            <li key={trip.id}>
+              <TripCard trip={trip} currentUserId={currentUserId} />
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
@@ -59,7 +102,8 @@ export function TripDashboardScreen() {
     staleTime: QUERY_STALE_MS.trips,
   });
 
-  const active = trips.filter((t) => t.status === 'active');
+  const active = trips.filter((t) => t.status === 'active' && !isTripInactive(t));
+  const inactive = trips.filter((t) => isTripInactive(t));
   const planned = trips.filter((t) => t.status === 'planned');
   const completed = trips.filter((t) => t.status === 'completed');
 
@@ -101,6 +145,11 @@ export function TripDashboardScreen() {
               <TripGroup
                 label={t('trips.dashboard.statusGroup.active')}
                 items={active}
+                currentUserId={currentUserId}
+              />
+              <CollapsibleTripGroup
+                label={t('trips.dashboard.statusGroup.inactive')}
+                items={inactive}
                 currentUserId={currentUserId}
               />
               <TripGroup
