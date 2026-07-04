@@ -310,6 +310,9 @@ const nb = {
     title: 'Kart',
     noLocations: 'Ingen innlegg med plassering ennå. Legg til plassering når du oppretter et innlegg.',
     viewEntry: 'Se innlegg',
+    clusterPinCount: '{{total}} steder på dette punktet',
+    clusterPrev: 'Forrige sted',
+    clusterNext: 'Neste sted',
     mapboxTokenMissingTitle: 'Kartet kan ikke vises',
     mapboxTokenMissingDev:
       'Legg til VITE_MAPBOX_TOKEN (Mapbox public token) i miljøfilen for klienten, for eksempel packages/client/.env, og start Vite på nytt.',

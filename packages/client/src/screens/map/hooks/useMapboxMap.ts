@@ -64,6 +64,28 @@ export function useMapboxMap(
     function handlePopupClick(e: MouseEvent): void {
       const target = e.target as HTMLElement;
 
+      const clusterNavBtn = target.closest('[data-cluster-nav]') as HTMLElement | null;
+      if (clusterNavBtn?.dataset['clusterNav']) {
+        e.preventDefault();
+        const clusterRoot = clusterNavBtn.closest('[data-cluster-size]');
+        if (!clusterRoot) return;
+        const items = Array.from(clusterRoot.querySelectorAll('[data-cluster-item]'));
+        if (items.length === 0) return;
+        const currentIndex = Math.max(
+          0,
+          items.findIndex((item) => !item.hasAttribute('hidden')),
+        );
+        const delta = clusterNavBtn.dataset['clusterNav'] === 'next' ? 1 : -1;
+        const nextIndex = (currentIndex + delta + items.length) % items.length;
+        items.forEach((item, i) => {
+          if (i === nextIndex) item.removeAttribute('hidden');
+          else item.setAttribute('hidden', '');
+        });
+        const counter = clusterRoot.querySelector('[data-cluster-counter]');
+        if (counter) counter.textContent = `${nextIndex + 1} / ${items.length}`;
+        return;
+      }
+
       const pendDelEl = target.closest('[data-delete-pending-saved]') as HTMLElement | null;
       if (pendDelEl?.dataset['deletePendingSaved']) {
         e.preventDefault();

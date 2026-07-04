@@ -5,7 +5,7 @@ import { escapeHtml } from './utils/escapeHtml.js';
 
 const CTA_ARROW = '<span class="tj-popup-cta__arrow" aria-hidden="true">&rarr;</span>';
 
-export function buildPinPopupHtml(
+function buildPinPopupInnerHtml(
   pin: MapRenderablePin,
   tripId: string | undefined,
   t: TFunction,
@@ -18,8 +18,7 @@ export function buildPinPopupHtml(
   });
 
   if (pin.kind === 'entry') {
-    return `<div class="tj-popup">
-          <div class="tj-popup__title">${escapeHtml(pin.title)}</div>
+    return `<div class="tj-popup__title">${escapeHtml(pin.title)}</div>
           <div class="tj-popup__meta">${dateFormatted}</div>
           <div class="tj-popup__actions">
             <a
@@ -27,24 +26,21 @@ export function buildPinPopupHtml(
               data-popup-entry-id="${escapeHtml(pin.entryId)}"
               class="tj-popup-cta"
             >${escapeHtml(t('map.viewEntry'))}${CTA_ARROW}</a>
-          </div>
-        </div>`;
+          </div>`;
   }
 
   if (pin.kind === 'pendingSavedLocation') {
     const label = pin.name?.trim()
       ? escapeHtml(pin.name)
       : `<span class="tj-popup__untitled">${escapeHtml(t('map.savedLocationUntitled'))}</span>`;
-    return `<div class="tj-popup">
-          <div class="tj-popup__title">${label}</div>
+    return `<div class="tj-popup__title">${label}</div>
           <div class="tj-popup__note">${escapeHtml(t('map.pendingSpotOffline'))}</div>
           <div class="tj-popup__meta">${dateFormatted}</div>
           ${
             canManageSaved
               ? `<div class="tj-popup__actions"><button type="button" data-delete-pending-saved="${escapeHtml(pin.localId)}" class="tj-popup-danger">${escapeHtml(t('map.discardPendingSpot'))}</button></div>`
               : ''
-          }
-        </div>`;
+          }`;
   }
 
   const label = pin.name?.trim()
@@ -61,8 +57,7 @@ export function buildPinPopupHtml(
     ? `<button type="button" data-delete-saved="${escapeHtml(pin.id)}" ${isFavorite ? 'data-delete-saved-favorite="true"' : ''} class="tj-popup-danger">${escapeHtml(t(isFavorite ? 'map.removeFavoriteLocation' : 'map.deleteSavedLocation'))}</button>`
     : '';
 
-  return `<div class="tj-popup">
-          <div class="tj-popup__title">${label}</div>
+  return `<div class="tj-popup__title">${label}</div>
           ${favoriteBadge}
           <div class="tj-popup__meta">${escapeHtml(t('map.savedBy'))} ${escapeHtml(pin.savedByDisplayName)}<br>${dateFormatted}</div>
           <div class="tj-popup__actions">
@@ -70,6 +65,42 @@ export function buildPinPopupHtml(
               class="tj-popup-cta"
             >${escapeHtml(t('map.createEntryFromSaved'))}${CTA_ARROW}</button>
             ${deleteBtn}
+          </div>`;
+}
+
+export function buildPinPopupHtml(
+  pin: MapRenderablePin,
+  tripId: string | undefined,
+  t: TFunction,
+  canManageSaved: boolean,
+): string {
+  return `<div class="tj-popup">${buildPinPopupInnerHtml(pin, tripId, t, canManageSaved)}</div>`;
+}
+
+/**
+ * Popup for a cluster of overlapping pins: one pin visible at a time, with
+ * prev/next buttons and a counter. Paging is handled by the document-level
+ * click handler in useMapboxMap (data-cluster-nav) — no framework state.
+ */
+export function buildClusterPopupHtml(
+  pins: MapRenderablePin[],
+  tripId: string | undefined,
+  t: TFunction,
+  canManageSaved: boolean,
+): string {
+  const items = pins
+    .map(
+      (pin, i) =>
+        `<div class="tj-cluster-item" data-cluster-item="${i}"${i === 0 ? '' : ' hidden'}>${buildPinPopupInnerHtml(pin, tripId, t, canManageSaved)}</div>`,
+    )
+    .join('');
+
+  return `<div class="tj-popup tj-popup--cluster" data-cluster-size="${pins.length}">
+          <div class="tj-cluster-nav">
+            <button type="button" class="tj-cluster-nav__btn" data-cluster-nav="prev" aria-label="${escapeHtml(t('map.clusterPrev'))}">&lsaquo;</button>
+            <span class="tj-cluster-nav__counter" data-cluster-counter aria-live="polite">1 / ${pins.length}</span>
+            <button type="button" class="tj-cluster-nav__btn" data-cluster-nav="next" aria-label="${escapeHtml(t('map.clusterNext'))}">&rsaquo;</button>
           </div>
+          ${items}
         </div>`;
 }
