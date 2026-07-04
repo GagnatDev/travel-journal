@@ -1,10 +1,12 @@
 import { NextFunction, Request, Response, Router } from 'express';
 import multer from 'multer';
-import type { AccessTokenPayload } from '@travel-journal/shared';
+import type { AccessTokenPayload, ShippingAddress } from '@travel-journal/shared';
 
 import { requireAppRole, requireAuth } from '../middleware/auth.middleware.js';
 import { User } from '../models/User.model.js';
 import { createAdminPasswordResetLink } from '../services/adminPasswordReset.service.js';
+import { sanitizeShippingAddress } from '../services/photobook-order.service.js';
+import { isProdigiConfigured } from '../services/prodigi.service.js';
 import { uploadAvatar, deleteObject } from '../services/media.service.js';
 
 export const userRouter: Router = Router();
@@ -21,21 +23,40 @@ function createHttpError(message: string, status: number, code: string): Error {
   return err;
 }
 
-function toPublicUser(user: {
-  _id: unknown;
-  email: string;
-  displayName: string;
-  appRole: string;
-  preferredLocale: string;
-  avatarKey?: string;
-  createdAt?: Date;
-}) {
+function toPublicUser(
+  user: {
+    _id: unknown;
+    email: string;
+    displayName: string;
+    appRole: string;
+    preferredLocale: string;
+    photobookOrderingEnabled?: boolean;
+    shippingAddress?: ShippingAddress;
+    avatarKey?: string;
+    createdAt?: Date;
+  },
+  opts: {
+    /**
+     * Return the stored per-user flag instead of the effective entitlement.
+     * The admin panel toggles the stored flag and must see it round-trip even
+     * when Prodigi (PRODIGI_API_KEY) is not configured; everywhere else the
+     * flag is masked to `false` so ordering UI stays hidden while photobook
+     * PDF generation/download keeps working.
+     */
+    rawPhotobookOrderingFlag?: boolean;
+  } = {},
+) {
+  const storedOrderingFlag = user.photobookOrderingEnabled ?? false;
   return {
     id: String(user._id),
     email: user.email,
     displayName: user.displayName,
     appRole: user.appRole,
     preferredLocale: user.preferredLocale,
+    photobookOrderingEnabled: opts.rawPhotobookOrderingFlag
+      ? storedOrderingFlag
+      : isProdigiConfigured() && storedOrderingFlag,
+    ...(user.shippingAddress && { shippingAddress: user.shippingAddress }),
     ...(user.avatarKey ? { avatarKey: user.avatarKey } : {}),
     createdAt: user.createdAt?.toISOString(),
   };
@@ -48,12 +69,28 @@ userRouter.patch(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const auth = res.locals['auth'] as AccessTokenPayload;
-      const { preferredLocale, displayName } = req.body as {
+      const { preferredLocale, displayName, shippingAddress } = req.body as {
         preferredLocale?: string;
         displayName?: string;
+        shippingAddress?: unknown;
       };
 
       const update: Record<string, unknown> = {};
+
+      if (shippingAddress !== undefined) {
+        if (shippingAddress === null) {
+          update['shippingAddress'] = undefined;
+        } else {
+          const sanitized = sanitizeShippingAddress(shippingAddress);
+          if (!sanitized) {
+            res.status(400).json({
+              error: { message: 'Invalid shipping address', code: 'VALIDATION_ERROR' },
+            });
+            return;
+          }
+          update['shippingAddress'] = sanitized;
+        }
+      }
 
       if (preferredLocale !== undefined) {
         if (!['nb', 'en'].includes(preferredLocale)) {
@@ -203,7 +240,7 @@ userRouter.get(
   async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const users = await User.find().sort({ createdAt: -1 }).lean();
-      res.json(users.map(toPublicUser));
+      res.json(users.map((user) => toPublicUser(user, { rawPhotobookOrderingFlag: true })));
     } catch (err) {
       next(err);
     }
@@ -231,6 +268,36 @@ userRouter.patch(
       await user.save();
 
       res.json(toPublicUser(user));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// PATCH /:id/photobook-ordering — Enable/disable a user's ability to order a physical photobook (admin only)
+userRouter.patch(
+  '/:id/photobook-ordering',
+  requireAppRole('admin'),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.params['id']!;
+      const { enabled } = req.body as { enabled?: unknown };
+      if (typeof enabled !== 'boolean') {
+        res.status(400).json({
+          error: { message: 'enabled must be a boolean', code: 'VALIDATION_ERROR' },
+        });
+        return;
+      }
+      const user = await User.findByIdAndUpdate(
+        userId,
+        { photobookOrderingEnabled: enabled },
+        { new: true },
+      );
+      if (!user) {
+        res.status(404).json({ error: { message: 'User not found', code: 'NOT_FOUND' } });
+        return;
+      }
+      res.json(toPublicUser(user, { rawPhotobookOrderingFlag: true }));
     } catch (err) {
       next(err);
     }

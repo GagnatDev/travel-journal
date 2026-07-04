@@ -79,8 +79,13 @@ export async function runPhotobookPdfJob(tripId: string): Promise<void> {
       photobookLocaleKey: localeKey,
       ...(timeZone !== undefined ? { timeZone } : {}),
     };
-    const pdf = await buildTripPhotobookPdf(input);
-    const key = await uploadTripPdf(tripId, pdf);
+    const { interior, cover, spine, preview, pageCount } = await buildTripPhotobookPdf(input);
+    const [previewKey, interiorKey, coverKey, spineKey] = await Promise.all([
+      uploadTripPdf(tripId, preview),
+      uploadTripPdf(tripId, interior),
+      uploadTripPdf(tripId, cover),
+      uploadTripPdf(tripId, spine),
+    ]);
 
     await TripModel.updateOne(
       { _id: doc._id },
@@ -88,7 +93,11 @@ export async function runPhotobookPdfJob(tripId: string): Promise<void> {
         $set: {
           photobookPdfJob: {
             status: 'ready',
-            pdfStorageKey: key,
+            pdfStorageKey: previewKey,
+            interiorPdfStorageKey: interiorKey,
+            coverPdfStorageKey: coverKey,
+            spinePdfStorageKey: spineKey,
+            pageCount,
             finishedAt: new Date(),
             localeKey,
             ...(timeZone !== undefined ? { timeZone } : {}),
