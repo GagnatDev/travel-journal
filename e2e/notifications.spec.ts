@@ -123,14 +123,27 @@ test.describe('Notification inbox', () => {
 
     const bell = followerPage.getByTestId('notifications-bell');
     await expect(bell).toBeVisible();
-    await expect(followerPage.getByTestId('notifications-badge')).toHaveCount(0);
+
+    // Being added to the trip raises a member-added notification — verify it,
+    // then dismiss it so the new-entry assertions start from a clean inbox.
+    await followerPage.reload();
+    const badge = followerPage.getByTestId('notifications-badge');
+    await expect(badge).toBeVisible({ timeout: 15_000 });
+    await expect(badge).toHaveText('1');
+    await bell.click();
+    await expect(followerPage.getByTestId('notifications-list')).toBeVisible();
+    await expect(followerPage.getByText('Du er lagt til i Arctic Circle')).toBeVisible();
+    await expect(followerPage.getByText(/Ada Admin la deg til som følger/)).toBeVisible();
+    await followerPage.getByRole('button', { name: /fjern varsel/i }).click();
+    await expect(followerPage.getByTestId('notifications-empty')).toBeVisible({
+      timeout: 10_000,
+    });
 
     await createEntryOnTrip(adminPage, tripId, 'Midnight Sun');
 
     // A reload (or focus) refetches the inbox query.
     await followerPage.reload();
 
-    const badge = followerPage.getByTestId('notifications-badge');
     await expect(badge).toBeVisible({ timeout: 15_000 });
     await expect(badge).toHaveText('1');
 
@@ -193,12 +206,25 @@ test.describe('Notification inbox', () => {
       timeout: 10_000,
     });
 
+    // Being added to the trip raised a member-added notification — dismiss it
+    // so the mode=off assertions below can expect a clean inbox.
+    const bell = followerPage.getByTestId('notifications-bell');
+    await expect(bell).toBeVisible();
+    await bell.click();
+    await expect(followerPage.getByText('Du er lagt til i Baltic Voyage')).toBeVisible({
+      timeout: 15_000,
+    });
+    await followerPage.getByRole('button', { name: /fjern varsel/i }).click();
+    await expect(followerPage.getByTestId('notifications-empty')).toBeVisible({
+      timeout: 10_000,
+    });
+    await followerPage.getByRole('button', { name: /lukk varselspanelet/i }).click();
+
     await createEntryOnTrip(adminPage, tripId, 'Tallinn Harbour');
 
     await followerPage.reload();
 
     // With mode=off, neither an inbox item nor an unread badge should appear.
-    const bell = followerPage.getByTestId('notifications-bell');
     await expect(bell).toBeVisible();
     // Wait a bit to let any stray notifications land, then assert none did.
     await followerPage.waitForTimeout(1_500);
