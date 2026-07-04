@@ -37,6 +37,7 @@ export interface CreateEntryFormProps {
   updateMutationError: boolean;
   /** Formatted registration date, or null while server/pending metadata is still loading. */
   entryDateLabel: string | null;
+  isEditing: boolean;
 }
 
 export function CreateEntryForm({
@@ -61,11 +62,16 @@ export function CreateEntryForm({
   createMutationError,
   updateMutationError,
   entryDateLabel,
+  isEditing,
 }: CreateEntryFormProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const hasImages = images.length > 0 || localPreviews.length > 0;
   const photoCount = images.length + localPreviews.length;
+  const hasSelectedLocation =
+    form.locationEnabled && form.locationLat !== null && form.locationLng !== null;
+  const showFavoriteLocations =
+    favoriteLocations.length > 0 && (!isEditing || !hasSelectedLocation);
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col min-h-full">
@@ -246,7 +252,7 @@ export function CreateEntryForm({
               />
             </div>
           )}
-          {favoriteLocations.length > 0 && (
+          {showFavoriteLocations && (
             <div className="mt-3">
               <p className="font-ui text-xs text-caption uppercase tracking-wide">
                 {t('entries.favoriteLocationsLabel')}

@@ -427,5 +427,41 @@ describe('CreateEntryScreen', () => {
       expect(lastEntryBody!['location']).toEqual({ lat: 63.4305, lng: 10.3951, name: 'Cabin' });
       expect(lastEntryBody).not.toHaveProperty('consumedSavedLocationId');
     });
+
+    it('hides favorite chips when editing an entry that already has a location', async () => {
+      server.use(
+        http.get(`/api/v1/trips/${TRIP_ID}/saved-locations`, () =>
+          HttpResponse.json([favoriteFixture]),
+        ),
+        http.get(`/api/v1/trips/${TRIP_ID}/entries/:entryId`, () =>
+          HttpResponse.json({
+            ...mockEntry,
+            location: { lat: 59.9139, lng: 10.7522, name: 'Oslo' },
+          }),
+        ),
+      );
+
+      renderCreate(`/trips/${TRIP_ID}/entries/entry-1/edit`);
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Oslo')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('button', { name: /cabin/i })).not.toBeInTheDocument();
+      expect(screen.queryByText(/favorittsteder|favorite places/i)).not.toBeInTheDocument();
+    });
+
+    it('shows favorite chips when editing an entry without a location', async () => {
+      server.use(
+        http.get(`/api/v1/trips/${TRIP_ID}/saved-locations`, () =>
+          HttpResponse.json([favoriteFixture]),
+        ),
+        http.get(`/api/v1/trips/${TRIP_ID}/entries/:entryId`, () => HttpResponse.json(mockEntry)),
+      );
+
+      renderCreate(`/trips/${TRIP_ID}/entries/entry-1/edit`);
+
+      expect(await screen.findByRole('button', { name: /cabin/i })).toBeInTheDocument();
+    });
   });
 });

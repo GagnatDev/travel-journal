@@ -30,7 +30,7 @@ export function CreateEntryScreen() {
         {isEditing && <span className="w-6" />}
       </header>
       <div className="flex-1 overflow-y-auto">
-        <CreateEntryForm {...form} />
+        <CreateEntryForm {...form} isEditing={isEditing} />
       </div>
     </div>
   );
