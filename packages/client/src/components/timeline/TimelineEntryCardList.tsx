@@ -2,6 +2,7 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import type { Entry } from '@travel-journal/shared';
 
 import { EntryCard } from '../EntryCard.js';
+import { useScrollTimelineEntryIntoView } from './useScrollTimelineEntryIntoView.js';
 
 /** Vitest sets `process.env.VITEST`; `import.meta.env.MODE` stays `development` under default Vitest config. */
 const useFlatTimelineList =
@@ -15,6 +16,8 @@ interface TimelineEntryCardListProps {
   isTripCreator?: boolean;
   photobookCoverImageKey?: string;
   onDelete: (entryId: string) => void;
+  scrollToEntryId?: string | null;
+  onScrolledToEntry?: () => void;
 }
 
 /** Plain list for vitest (no layout engine); window virtualizer in app builds. */
@@ -26,7 +29,15 @@ function TimelineEntryCardListFlat({
   isTripCreator,
   photobookCoverImageKey,
   onDelete,
+  scrollToEntryId,
+  onScrolledToEntry,
 }: TimelineEntryCardListProps) {
+  useScrollTimelineEntryIntoView(
+    scrollToEntryId ?? null,
+    scrollToEntryId ? entries.findIndex((e) => e.id === scrollToEntryId) : -1,
+    null,
+    onScrolledToEntry,
+  );
   return (
     <>
       {entries.map((entry) => (
@@ -56,6 +67,8 @@ function TimelineEntryCardListVirtual({
   isTripCreator,
   photobookCoverImageKey,
   onDelete,
+  scrollToEntryId,
+  onScrolledToEntry,
 }: TimelineEntryCardListProps) {
   const rowVirtualizer = useWindowVirtualizer({
     count: entries.length,
@@ -63,6 +76,13 @@ function TimelineEntryCardListVirtual({
     overscan: 6,
     measureElement: (el) => el.getBoundingClientRect().height,
   });
+
+  useScrollTimelineEntryIntoView(
+    scrollToEntryId ?? null,
+    scrollToEntryId ? entries.findIndex((e) => e.id === scrollToEntryId) : -1,
+    rowVirtualizer,
+    onScrolledToEntry,
+  );
 
   return (
     <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
