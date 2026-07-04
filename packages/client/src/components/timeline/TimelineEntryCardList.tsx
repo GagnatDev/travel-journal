@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import type { Entry } from '@travel-journal/shared';
 
@@ -32,14 +33,16 @@ function TimelineEntryCardListFlat({
   scrollToEntryId,
   onScrolledToEntry,
 }: TimelineEntryCardListProps) {
+  const listRef = useRef<HTMLDivElement>(null);
   useScrollTimelineEntryIntoView(
     scrollToEntryId ?? null,
     scrollToEntryId ? entries.findIndex((e) => e.id === scrollToEntryId) : -1,
     null,
+    listRef,
     onScrolledToEntry,
   );
   return (
-    <>
+    <div ref={listRef}>
       {entries.map((entry) => (
         <div key={entry.id} className="pb-4" data-entry-id={entry.id}>
           <EntryCard
@@ -55,7 +58,7 @@ function TimelineEntryCardListFlat({
           />
         </div>
       ))}
-    </>
+    </div>
   );
 }
 
@@ -70,6 +73,7 @@ function TimelineEntryCardListVirtual({
   scrollToEntryId,
   onScrolledToEntry,
 }: TimelineEntryCardListProps) {
+  const listRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useWindowVirtualizer({
     count: entries.length,
     estimateSize: () => 520,
@@ -81,11 +85,16 @@ function TimelineEntryCardListVirtual({
     scrollToEntryId ?? null,
     scrollToEntryId ? entries.findIndex((e) => e.id === scrollToEntryId) : -1,
     rowVirtualizer,
+    listRef,
     onScrolledToEntry,
   );
 
   return (
-    <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+    <div
+      ref={listRef}
+      className="relative w-full"
+      style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+    >
       {rowVirtualizer.getVirtualItems().map((virtualRow) => {
         const entry = entries[virtualRow.index];
         if (!entry) return null;

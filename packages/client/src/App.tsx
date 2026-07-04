@@ -7,6 +7,7 @@ import { ThemeProvider } from './context/ThemeContext.js';
 import { AppHeader } from './components/AppHeader.js';
 import { ProtectedLayout } from './components/ProtectedLayout.js';
 import { OfflineBanner } from './components/OfflineBanner.js';
+import { ScrollToTopOnNavigate } from './components/ScrollToTopOnNavigate.js';
 import { AboutScreen } from './screens/AboutScreen.js';
 import { AdminPanelScreen } from './screens/AdminPanelScreen.js';
 import { ProfileScreen } from './screens/ProfileScreen.js';
@@ -58,6 +59,7 @@ export function App() {
 
   return (
     <ThemeProvider>
+      <ScrollToTopOnNavigate />
       <OfflineBanner />
       {status === 'authenticated' && <AppHeader />}
       <Routes>
