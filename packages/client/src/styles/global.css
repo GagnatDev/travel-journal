@@ -211,6 +211,58 @@
   color: #f87171;
 }
 
+/* Clustered-pin popup: prev/next paging between overlapping pins */
+.tj-cluster-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* keep clear of the close button */
+  margin: 0 24px 8px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(27, 28, 26, 0.08);
+}
+
+.dark .tj-cluster-nav {
+  border-bottom-color: rgba(251, 249, 245, 0.14);
+}
+
+.tj-cluster-nav__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid rgba(27, 28, 26, 0.15);
+  border-radius: 50%;
+  background: none;
+  color: var(--color-heading);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tj-cluster-nav__btn:hover {
+  background: var(--color-sage-bg);
+}
+
+.tj-cluster-nav__btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.dark .tj-cluster-nav__btn {
+  border-color: rgba(251, 249, 245, 0.2);
+}
+
+.tj-cluster-nav__counter {
+  flex: 1;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-caption);
+}
+
 /* GPS “you are here” on trip map — smaller + pulse vs saved-location blue pins */
 .map-user-location-marker {
   position: relative;
