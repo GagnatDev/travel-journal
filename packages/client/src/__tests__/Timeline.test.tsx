@@ -43,7 +43,11 @@ function makeEntry(overrides: Partial<Entry> = {}): Entry {
   };
 }
 
-function renderTimeline(user = mockUser, tripPartial?: Partial<Trip>) {
+function renderTimeline(
+  user = mockUser,
+  tripPartial?: Partial<Trip>,
+  initialEntry: string | { pathname: string; state?: unknown } = `/trips/${TRIP_ID}/timeline`,
+) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const trip = { ...mockTrip, ...tripPartial };
   server.use(
@@ -54,7 +58,7 @@ function renderTimeline(user = mockUser, tripPartial?: Partial<Trip>) {
   );
   const renderResult = render(
     <QueryClientProvider client={qc}>
-      <TestMemoryRouter initialEntries={[`/trips/${TRIP_ID}/timeline`]}>
+      <TestMemoryRouter initialEntries={[initialEntry]}>
         <AuthProvider>
           <Routes>
             <Route path="/trips/:id/timeline" element={<TimelineScreen />} />
@@ -96,6 +100,35 @@ describe('TimelineScreen', () => {
       expect(screen.getByText('Test Entry')).toBeInTheDocument();
       expect(screen.getByText('Entry 2')).toBeInTheDocument();
     });
+  });
+
+  it('scrolls to and highlights the target entry when arriving from the map popover', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/entries`, () =>
+        HttpResponse.json({
+          entries: [
+            makeEntry(),
+            makeEntry({ id: 'entry-2', title: 'Entry 2' }),
+            makeEntry({ id: 'entry-3', title: 'Entry 3' }),
+          ],
+          total: 3,
+        }),
+      ),
+    );
+
+    renderTimeline(mockUser, undefined, {
+      pathname: `/trips/${TRIP_ID}/timeline`,
+      state: { highlightEntryId: 'entry-2' },
+    });
+
+    await waitFor(() => {
+      expect(scrollIntoView).toHaveBeenCalled();
+    });
+    const wrapper = document.querySelector('[data-entry-id="entry-2"]');
+    expect(wrapper).not.toBeNull();
+    expect(wrapper!.classList.contains('timeline-entry-highlight')).toBe(true);
   });
 
   it('shows empty state message when no entries exist', async () => {
