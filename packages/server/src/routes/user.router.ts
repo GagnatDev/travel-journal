@@ -6,6 +6,7 @@ import { requireAppRole, requireAuth } from '../middleware/auth.middleware.js';
 import { User } from '../models/User.model.js';
 import { createAdminPasswordResetLink } from '../services/adminPasswordReset.service.js';
 import { sanitizeShippingAddress } from '../services/photobook-order.service.js';
+import { isProdigiConfigured } from '../services/prodigi.service.js';
 import { uploadAvatar, deleteObject } from '../services/media.service.js';
 
 export const userRouter: Router = Router();
@@ -22,24 +23,39 @@ function createHttpError(message: string, status: number, code: string): Error {
   return err;
 }
 
-function toPublicUser(user: {
-  _id: unknown;
-  email: string;
-  displayName: string;
-  appRole: string;
-  preferredLocale: string;
-  photobookOrderingEnabled?: boolean;
-  shippingAddress?: ShippingAddress;
-  avatarKey?: string;
-  createdAt?: Date;
-}) {
+function toPublicUser(
+  user: {
+    _id: unknown;
+    email: string;
+    displayName: string;
+    appRole: string;
+    preferredLocale: string;
+    photobookOrderingEnabled?: boolean;
+    shippingAddress?: ShippingAddress;
+    avatarKey?: string;
+    createdAt?: Date;
+  },
+  opts: {
+    /**
+     * Return the stored per-user flag instead of the effective entitlement.
+     * The admin panel toggles the stored flag and must see it round-trip even
+     * when Prodigi (PRODIGI_API_KEY) is not configured; everywhere else the
+     * flag is masked to `false` so ordering UI stays hidden while photobook
+     * PDF generation/download keeps working.
+     */
+    rawPhotobookOrderingFlag?: boolean;
+  } = {},
+) {
+  const storedOrderingFlag = user.photobookOrderingEnabled ?? false;
   return {
     id: String(user._id),
     email: user.email,
     displayName: user.displayName,
     appRole: user.appRole,
     preferredLocale: user.preferredLocale,
-    photobookOrderingEnabled: user.photobookOrderingEnabled ?? false,
+    photobookOrderingEnabled: opts.rawPhotobookOrderingFlag
+      ? storedOrderingFlag
+      : isProdigiConfigured() && storedOrderingFlag,
     ...(user.shippingAddress && { shippingAddress: user.shippingAddress }),
     ...(user.avatarKey ? { avatarKey: user.avatarKey } : {}),
     createdAt: user.createdAt?.toISOString(),
@@ -224,7 +240,7 @@ userRouter.get(
   async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const users = await User.find().sort({ createdAt: -1 }).lean();
-      res.json(users.map(toPublicUser));
+      res.json(users.map((user) => toPublicUser(user, { rawPhotobookOrderingFlag: true })));
     } catch (err) {
       next(err);
     }
@@ -281,7 +297,7 @@ userRouter.patch(
         res.status(404).json({ error: { message: 'User not found', code: 'NOT_FOUND' } });
         return;
       }
-      res.json(toPublicUser(user));
+      res.json(toPublicUser(user, { rawPhotobookOrderingFlag: true }));
     } catch (err) {
       next(err);
     }

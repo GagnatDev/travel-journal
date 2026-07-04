@@ -9,7 +9,9 @@ const getProdigiQuoteMock = vi.fn(async () => ({
   totalCost: { amount: '15', currency: 'GBP' },
   fetchedAt: '2026-06-17T00:00:00.000Z',
 }));
-vi.mock('../services/prodigi.service.js', () => ({
+vi.mock('../services/prodigi.service.js', async (importOriginal) => ({
+  // Keep the real env-driven `isProdigiConfigured`; only the HTTP calls are faked.
+  ...(await importOriginal<typeof import('../services/prodigi.service.js')>()),
   createProdigiOrder: (...args: unknown[]) => createProdigiOrderMock(...(args as [])),
   getProdigiQuote: (...args: unknown[]) => getProdigiQuoteMock(...(args as [])),
 }));
@@ -52,6 +54,7 @@ beforeEach(async () => {
   await Trip.deleteMany({});
   await PhotobookOrder.deleteMany({});
   delete process.env['PHOTOBOOK_ORDER_REQUIRE_APPROVAL'];
+  process.env['PRODIGI_API_KEY'] = 'test-key';
   createProdigiOrderMock.mockClear();
   getProdigiQuoteMock.mockClear();
 });
@@ -293,5 +296,65 @@ describe('admin transitions', () => {
     expect(quote.totalCost).toEqual({ amount: '15', currency: 'GBP' });
     const stored = await PhotobookOrder.findById(dto.id);
     expect(stored!.prodigiQuote!.totalCost.amount).toBe('15');
+  });
+});
+
+describe('when PRODIGI_API_KEY is not set', () => {
+  async function seedAwaitingOrder() {
+    const creator = await makeUser('creator@test.com', { ordering: true });
+    const trip = await makeReadyTrip(creator._id as mongoose.Types.ObjectId);
+    const dto = await createPhotobookOrder({
+      tripId: String(trip._id),
+      userId: String(creator._id),
+      request: { shippingAddress: ADDRESS },
+    });
+    return { creator, trip, dto };
+  }
+
+  it('createPhotobookOrder refuses with 503 even for an entitled creator with a ready trip', async () => {
+    const creator = await makeUser('creator@test.com', { ordering: true });
+    const trip = await makeReadyTrip(creator._id as mongoose.Types.ObjectId);
+    delete process.env['PRODIGI_API_KEY'];
+
+    await expect(
+      createPhotobookOrder({
+        tripId: String(trip._id),
+        userId: String(creator._id),
+        request: { shippingAddress: ADDRESS },
+      }),
+    ).rejects.toMatchObject({ status: 503, code: 'PRODIGI_NOT_CONFIGURED' });
+    expect(await PhotobookOrder.countDocuments()).toBe(0);
+    expect(createProdigiOrderMock).not.toHaveBeenCalled();
+  });
+
+  it('approveOrder, retryOrder and getQuoteForOrder refuse with 503', async () => {
+    const { dto } = await seedAwaitingOrder();
+    delete process.env['PRODIGI_API_KEY'];
+
+    await expect(approveOrder(dto.id)).rejects.toMatchObject({
+      status: 503,
+      code: 'PRODIGI_NOT_CONFIGURED',
+    });
+    await expect(getQuoteForOrder(dto.id)).rejects.toMatchObject({
+      status: 503,
+      code: 'PRODIGI_NOT_CONFIGURED',
+    });
+
+    await PhotobookOrder.updateOne({ _id: dto.id }, { $set: { status: 'failed' } });
+    await expect(retryOrder(dto.id)).rejects.toMatchObject({
+      status: 503,
+      code: 'PRODIGI_NOT_CONFIGURED',
+    });
+
+    expect(createProdigiOrderMock).not.toHaveBeenCalled();
+    expect(getProdigiQuoteMock).not.toHaveBeenCalled();
+  });
+
+  it('rejectOrder still works so a stale order can be cleaned up', async () => {
+    const { dto } = await seedAwaitingOrder();
+    delete process.env['PRODIGI_API_KEY'];
+
+    const rejected = await rejectOrder(dto.id, 'ordering disabled');
+    expect(rejected.status).toBe('rejected');
   });
 });

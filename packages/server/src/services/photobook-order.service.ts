@@ -28,6 +28,7 @@ import { enqueueNotifications, deliverWebPush } from './notification.service.js'
 import {
   createProdigiOrder,
   getProdigiQuote,
+  isProdigiConfigured,
   type ProdigiOrderParams,
 } from './prodigi.service.js';
 
@@ -42,6 +43,22 @@ function createHttpError(message: string, status: number, code: string): Error {
 
 function requireApproval(): boolean {
   return process.env['PHOTOBOOK_ORDER_REQUIRE_APPROVAL'] !== 'false';
+}
+
+/**
+ * Without `PRODIGI_API_KEY`, photobook PDFs are still generated and
+ * downloadable but physical ordering is switched off: order creation and all
+ * Prodigi-touching admin actions refuse with 503 instead of creating orders
+ * that can never be submitted.
+ */
+function assertProdigiConfigured(): void {
+  if (!isProdigiConfigured()) {
+    throw createHttpError(
+      'Physical photobook ordering is not available on this server',
+      503,
+      'PRODIGI_NOT_CONFIGURED',
+    );
+  }
 }
 
 function photobookSku(): string {
@@ -301,6 +318,8 @@ export async function createPhotobookOrder(args: {
 }): Promise<PhotobookOrderDTO> {
   const { tripId, userId, request } = args;
 
+  assertProdigiConfigured();
+
   const [user, tripDoc] = await Promise.all([User.findById(userId), TripModel.findById(tripId)]);
   if (!user) throw createHttpError('User not found', 404, 'NOT_FOUND');
   if (!tripDoc) throw createHttpError('Trip not found', 404, 'NOT_FOUND');
@@ -416,6 +435,7 @@ export async function listAdminOrders(args: {
 }
 
 export async function getQuoteForOrder(orderId: string) {
+  assertProdigiConfigured();
   const order = await PhotobookOrder.findById(orderId);
   if (!order) throw createHttpError('Order not found', 404, 'NOT_FOUND');
 
@@ -432,6 +452,7 @@ export async function getQuoteForOrder(orderId: string) {
 }
 
 export async function approveOrder(orderId: string): Promise<PhotobookOrderDTO> {
+  assertProdigiConfigured();
   const order = await PhotobookOrder.findById(orderId);
   if (!order) throw createHttpError('Order not found', 404, 'NOT_FOUND');
   if (order.status !== 'awaiting_approval') {
@@ -459,6 +480,7 @@ export async function rejectOrder(orderId: string, reason?: string): Promise<Pho
 }
 
 export async function retryOrder(orderId: string): Promise<PhotobookOrderDTO> {
+  assertProdigiConfigured();
   const order = await PhotobookOrder.findById(orderId);
   if (!order) throw createHttpError('Order not found', 404, 'NOT_FOUND');
   if (order.status !== 'failed') {

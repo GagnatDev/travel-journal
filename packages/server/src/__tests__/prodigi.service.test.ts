@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { createProdigiOrder, getProdigiQuote } from '../services/prodigi.service.js';
+import {
+  createProdigiOrder,
+  getProdigiQuote,
+  isProdigiConfigured,
+} from '../services/prodigi.service.js';
 import type { ProdigiOrderParams, ProdigiQuoteParams } from '../services/prodigi.service.js';
 
 interface Captured {
@@ -167,5 +171,40 @@ describe('getProdigiQuote', () => {
     const fetchFn = fakeFetch(captured, { ok: true, status: 200, json: { quotes: [{}] } });
     await getProdigiQuote(quoteParams, fetchFn);
     expect(captured[0]!.url).toBe('https://prodigi.example.com/v4.0/quotes');
+  });
+});
+
+describe('when PRODIGI_API_KEY is not set', () => {
+  const quoteParams: ProdigiQuoteParams = {
+    sku: 'BOOK-9X9-HARD',
+    copies: 1,
+    destinationCountryCode: 'GB',
+    shippingMethod: 'Budget',
+  };
+
+  beforeEach(() => {
+    delete process.env['PRODIGI_API_KEY'];
+  });
+
+  it('isProdigiConfigured reflects the presence of a non-blank key', () => {
+    expect(isProdigiConfigured()).toBe(false);
+    process.env['PRODIGI_API_KEY'] = '   ';
+    expect(isProdigiConfigured()).toBe(false);
+    process.env['PRODIGI_API_KEY'] = 'test-key';
+    expect(isProdigiConfigured()).toBe(true);
+  });
+
+  it('createProdigiOrder refuses without touching the network', async () => {
+    const captured: Captured[] = [];
+    const fetchFn = fakeFetch(captured, { ok: true, status: 200, json: { order: { id: 'x' } } });
+    await expect(createProdigiOrder(orderParams, fetchFn)).rejects.toThrow(/not configured/);
+    expect(captured).toHaveLength(0);
+  });
+
+  it('getProdigiQuote refuses without touching the network', async () => {
+    const captured: Captured[] = [];
+    const fetchFn = fakeFetch(captured, { ok: true, status: 200, json: { quotes: [{}] } });
+    await expect(getProdigiQuote(quoteParams, fetchFn)).rejects.toThrow(/not configured/);
+    expect(captured).toHaveLength(0);
   });
 });

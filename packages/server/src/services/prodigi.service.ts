@@ -61,7 +61,22 @@ function prodigiBaseUrl(): string {
 }
 
 function prodigiApiKey(): string {
-  return process.env['PRODIGI_API_KEY'] ?? '';
+  return (process.env['PRODIGI_API_KEY'] ?? '').trim();
+}
+
+/**
+ * Whether the Prodigi integration is enabled for this deployment. Without
+ * `PRODIGI_API_KEY` the app still generates and serves photobook PDFs, but
+ * physical ordering is unavailable.
+ */
+export function isProdigiConfigured(): boolean {
+  return prodigiApiKey().length > 0;
+}
+
+function assertProdigiConfigured(): void {
+  if (!isProdigiConfigured()) {
+    throw new Error('Prodigi integration is not configured (PRODIGI_API_KEY is not set)');
+  }
 }
 
 function prodigiHeaders(idempotencyKey?: string): Record<string, string> {
@@ -96,6 +111,7 @@ export async function createProdigiOrder(
   params: ProdigiOrderParams,
   fetchFn: FetchFn = fetch,
 ): Promise<CreateProdigiOrderResult> {
+  assertProdigiConfigured();
   const url = `${prodigiBaseUrl()}/v4.0/orders`;
 
   const interiorAsset: Record<string, unknown> = {
@@ -148,6 +164,7 @@ export async function getProdigiQuote(
   params: ProdigiQuoteParams,
   fetchFn: FetchFn = fetch,
 ): Promise<ProdigiQuote> {
+  assertProdigiConfigured();
   const url = `${prodigiBaseUrl()}/v4.0/quotes`;
 
   const body = {

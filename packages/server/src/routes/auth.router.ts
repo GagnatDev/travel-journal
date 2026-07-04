@@ -16,6 +16,7 @@ import {
   completeAdminPasswordReset,
   validateAdminPasswordResetToken,
 } from '../services/adminPasswordReset.service.js';
+import { isProdigiConfigured } from '../services/prodigi.service.js';
 
 export const authRouter: Router = Router();
 
@@ -84,7 +85,10 @@ function toPublicUser(user: {
     displayName: user.displayName,
     appRole: user.appRole as PublicUser['appRole'],
     preferredLocale: user.preferredLocale as PublicUser['preferredLocale'],
-    photobookOrderingEnabled: user.photobookOrderingEnabled ?? false,
+    // Effective entitlement: the per-user flag only takes effect when the
+    // Prodigi integration is configured, so the client hides ordering UI
+    // (PDF generation/download is unaffected) when PRODIGI_API_KEY is unset.
+    photobookOrderingEnabled: isProdigiConfigured() && (user.photobookOrderingEnabled ?? false),
     ...(user.shippingAddress && { shippingAddress: user.shippingAddress }),
   };
 }
