@@ -5,6 +5,37 @@ export const entryHandlers = [
   http.get('/api/v1/trips/:id/entries/locations', () => HttpResponse.json([])),
   http.get('/api/v1/trips/:id/map-pins', () => HttpResponse.json([])),
 
+  http.get('/api/v1/trips/:id/saved-locations', () => HttpResponse.json([])),
+
+  http.post('/api/v1/trips/:id/saved-locations', async ({ params, request }) => {
+    const body = (await request.json()) as {
+      lat: number;
+      lng: number;
+      name?: string;
+      isFavorite?: boolean;
+    };
+    return HttpResponse.json(
+      {
+        id: 'saved-1',
+        tripId: params['id'],
+        lat: body.lat,
+        lng: body.lng,
+        ...(body.name !== undefined && { name: body.name }),
+        isFavorite: body.isFavorite === true,
+        savedByUserId: 'user-1',
+        savedByDisplayName: 'Test User',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.delete(
+    '/api/v1/trips/:id/saved-locations/:savedId',
+    () => new HttpResponse(null, { status: 204 }),
+  ),
+
   http.get('/api/v1/trips/:id/entries', () =>
     HttpResponse.json({ entries: [], total: 0 }),
   ),

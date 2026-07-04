@@ -121,6 +121,96 @@ describe('EntryCard', () => {
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
   });
 
+  it('shows the favorite-location star for trip managers when entry has a location', () => {
+    const entry = makeEntry({ location: { lat: 10, lng: 20, name: 'Paris' } });
+    renderCard(entry, 'other-user', vi.fn(), true);
+
+    expect(
+      screen.getByRole('button', { name: /lagre som favorittsted|save as favorite place/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('hides the favorite-location star for followers', () => {
+    const entry = makeEntry({ location: { lat: 10, lng: 20, name: 'Paris' } });
+    renderCard(entry, 'other-user', vi.fn(), false);
+
+    expect(
+      screen.queryByRole('button', { name: /favorittsted|favorite place/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('clicking the star saves the location as a favorite', async () => {
+    let lastPostBody: unknown;
+    server.use(
+      http.post('/api/v1/trips/trip-1/saved-locations', async ({ request }) => {
+        lastPostBody = await request.json();
+        return HttpResponse.json(
+          {
+            id: 'saved-fav-1',
+            tripId: 'trip-1',
+            lat: 10,
+            lng: 20,
+            name: 'Paris',
+            isFavorite: true,
+            savedByUserId: 'user-1',
+            savedByDisplayName: 'Test User',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          { status: 201 },
+        );
+      }),
+    );
+
+    const entry = makeEntry({ location: { lat: 10, lng: 20, name: 'Paris' } });
+    renderCard(entry, 'other-user', vi.fn(), true);
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /lagre som favorittsted|save as favorite place/i }),
+    );
+
+    await waitFor(() => {
+      expect(lastPostBody).toEqual({ lat: 10, lng: 20, name: 'Paris', isFavorite: true });
+    });
+  });
+
+  it('star is pressed when the location is already a favorite, and unfavorites on click', async () => {
+    let deletedId: string | undefined;
+    server.use(
+      http.get('/api/v1/trips/trip-1/saved-locations', () =>
+        HttpResponse.json([
+          {
+            id: 'saved-fav-9',
+            tripId: 'trip-1',
+            lat: 10,
+            lng: 20,
+            name: 'Paris',
+            isFavorite: true,
+            savedByUserId: 'user-1',
+            savedByDisplayName: 'Test User',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ]),
+      ),
+      http.delete('/api/v1/trips/trip-1/saved-locations/:savedId', ({ params }) => {
+        deletedId = params['savedId'] as string;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    const entry = makeEntry({ location: { lat: 10, lng: 20, name: 'Paris' } });
+    renderCard(entry, 'other-user', vi.fn(), true);
+
+    const star = await screen.findByRole('button', {
+      name: /fjern favorittsted|remove favorite place/i,
+    });
+    expect(star).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.click(star);
+    await waitFor(() => expect(deletedId).toBe('saved-fav-9'));
+  });
+
   it('overflow menu button is present for the author and hidden by default', () => {
     const entry = makeEntry({ authorId: 'user-1' });
     renderCard(entry, 'user-1');

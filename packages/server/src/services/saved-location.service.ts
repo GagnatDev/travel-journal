@@ -11,6 +11,7 @@ interface SavedLocationDocFields {
   lat: number;
   lng: number;
   name?: string;
+  isFavorite?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +40,7 @@ export interface SavedLocationDto {
   createdAt: string;
   updatedAt: string;
   name?: string;
+  isFavorite: boolean;
 }
 
 async function enrichWithDisplayNames(docs: SavedLocationDocFields[]): Promise<SavedLocationDto[]> {
@@ -64,6 +66,7 @@ async function enrichWithDisplayNames(docs: SavedLocationDocFields[]): Promise<S
       savedByDisplayName: nameById.get(String(doc.userId)) ?? '',
       createdAt: doc.createdAt.toISOString(),
       updatedAt: doc.updatedAt.toISOString(),
+      isFavorite: doc.isFavorite === true,
     };
     if (doc.name !== undefined && doc.name.trim() !== '') dto.name = doc.name.trim();
     return dto;
@@ -78,7 +81,7 @@ export async function createSavedLocation(
 ): Promise<SavedLocationDto> {
   assertCanManageSavedLocation(tripRole);
 
-  const { lat, lng, name } = data;
+  const { lat, lng, name, isFavorite } = data;
   if (typeof lat !== 'number' || Number.isNaN(lat) || typeof lng !== 'number' || Number.isNaN(lng)) {
     throw createHttpError('lat and lng are required numbers', 400, 'VALIDATION_ERROR');
   }
@@ -91,6 +94,7 @@ export async function createSavedLocation(
     lat,
     lng,
     ...(trimmedName !== undefined && { name: trimmedName }),
+    isFavorite: isFavorite === true,
   });
 
   const [dto] = await enrichWithDisplayNames([doc]);
@@ -141,10 +145,14 @@ export async function requireConsumableSavedLocation(tripId: string, savedLocati
   }
 }
 
-/** Removes bookmark after entry create (standalone Mongo-compatible; avoids multi-document transactions). */
+/**
+ * Removes bookmark after entry create (standalone Mongo-compatible; avoids multi-document
+ * transactions). Favorites are reusable and survive being composed from.
+ */
 export async function finalizeConsumedSavedLocation(tripId: string, savedLocationId: string): Promise<void> {
   await SavedLocation.deleteOne({
     _id: new mongoose.Types.ObjectId(savedLocationId),
     tripId: new mongoose.Types.ObjectId(tripId),
+    isFavorite: { $ne: true },
   });
 }

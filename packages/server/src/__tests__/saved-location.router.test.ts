@@ -355,4 +355,83 @@ describe('Saved locations API', () => {
       expect(res.status).toBe(400);
     });
   });
+
+  describe('favorite locations', () => {
+    it('POST with isFavorite → 201 with isFavorite true; default is false', async () => {
+      const { creator, trip } = await setupTripWithMember();
+      const auth = authHeader(String(creator._id), creator.email, 'creator');
+
+      const favRes = await request(app)
+        .post(`/api/v1/trips/${trip.id}/saved-locations`)
+        .set('Authorization', auth)
+        .send({ lat: 63.4305, lng: 10.3951, name: 'Cabin', isFavorite: true });
+
+      expect(favRes.status).toBe(201);
+      expect(favRes.body.isFavorite).toBe(true);
+
+      const plainRes = await request(app)
+        .post(`/api/v1/trips/${trip.id}/saved-locations`)
+        .set('Authorization', auth)
+        .send({ lat: 1, lng: 2 });
+
+      expect(plainRes.status).toBe(201);
+      expect(plainRes.body.isFavorite).toBe(false);
+
+      const listRes = await request(app)
+        .get(`/api/v1/trips/${trip.id}/saved-locations`)
+        .set('Authorization', auth);
+
+      expect(listRes.status).toBe(200);
+      const favorite = listRes.body.find((l: { name?: string }) => l.name === 'Cabin');
+      expect(favorite.isFavorite).toBe(true);
+    });
+
+    it('map-pins expose isFavorite on favorite saved pins', async () => {
+      const { creator, trip } = await setupTripWithMember();
+      const auth = authHeader(String(creator._id), creator.email, 'creator');
+
+      await request(app)
+        .post(`/api/v1/trips/${trip.id}/saved-locations`)
+        .set('Authorization', auth)
+        .send({ lat: 60, lng: 5, name: 'Fav', isFavorite: true });
+      await request(app)
+        .post(`/api/v1/trips/${trip.id}/saved-locations`)
+        .set('Authorization', auth)
+        .send({ lat: 61, lng: 6, name: 'Plain' });
+
+      const res = await request(app)
+        .get(`/api/v1/trips/${trip.id}/map-pins`)
+        .set('Authorization', auth);
+
+      expect(res.status).toBe(200);
+      const favPin = res.body.find((p: { name?: string }) => p.name === 'Fav');
+      const plainPin = res.body.find((p: { name?: string }) => p.name === 'Plain');
+      expect(favPin.isFavorite).toBe(true);
+      expect(plainPin.isFavorite).toBeUndefined();
+    });
+
+    it('creating an entry from a favorite does NOT consume it', async () => {
+      const { creator, trip } = await setupTripWithMember();
+      const auth = authHeader(String(creator._id), creator.email, 'creator');
+
+      const postRes = await request(app)
+        .post(`/api/v1/trips/${trip.id}/saved-locations`)
+        .set('Authorization', auth)
+        .send({ lat: 71, lng: 8, name: 'Fjord', isFavorite: true });
+      const favoriteId = postRes.body.id as string;
+
+      const entryRes = await request(app)
+        .post(`/api/v1/trips/${trip.id}/entries`)
+        .set('Authorization', auth)
+        .send({
+          title: 'Back again',
+          content: 'Same spot, new memories.',
+          location: { lat: 71, lng: 8, name: 'Fjord' },
+          consumedSavedLocationId: favoriteId,
+        });
+
+      expect(entryRes.status).toBe(201);
+      expect(await SavedLocation.countDocuments({ _id: favoriteId })).toBe(1);
+    });
+  });
 });
