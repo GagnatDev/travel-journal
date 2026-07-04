@@ -158,6 +158,12 @@
         "body_one": "Ta deg tid til dagens nye innlegg.",
         "body_other": "Ta deg tid til dagens {{count}} nye innlegg."
       },
+      "tripMemberAdded": {
+        "title": "Du er lagt til i {{tripName}}",
+        "bodyContributor": "{{addedByName}} la deg til som bidragsyter. Du kan nå legge inn innlegg på turen.",
+        "bodyFollower": "{{addedByName}} la deg til som følger. Du kan nå følge med på turen.",
+        "openAction": "Åpne turen"
+      },
       "tripPhotobookPdfReady": {
         "title": "Fotobok (PDF) klar: {{tripName}}",
         "body": "Du kan laste ned PDF-en fra turens innstillinger.",

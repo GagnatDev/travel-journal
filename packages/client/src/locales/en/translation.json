@@ -158,6 +158,12 @@
         "body_one": "Catch up on today's 1 new entry.",
         "body_other": "Catch up on today's {{count}} new entries."
       },
+      "tripMemberAdded": {
+        "title": "You've been added to {{tripName}}",
+        "bodyContributor": "{{addedByName}} added you as a contributor. You can now post entries to this trip.",
+        "bodyFollower": "{{addedByName}} added you as a follower. You can now follow along on this trip.",
+        "openAction": "Open trip"
+      },
       "tripPhotobookPdfReady": {
         "title": "Photobook (PDF) ready: {{tripName}}",
         "body": "You can download the PDF from this trip’s settings.",

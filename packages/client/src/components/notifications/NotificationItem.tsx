@@ -38,6 +38,17 @@ function useItemRender(notification: AppNotification): ItemRenderProps {
           tripName: data.tripName,
         }),
       };
+    case 'trip.member_added':
+      return {
+        title: t('notifications.item.tripMemberAdded.title', { tripName: data.tripName }),
+        body: t(
+          data.tripRole === 'contributor'
+            ? 'notifications.item.tripMemberAdded.bodyContributor'
+            : 'notifications.item.tripMemberAdded.bodyFollower',
+          { addedByName: data.addedByName },
+        ),
+        actionLabel: t('notifications.item.tripMemberAdded.openAction'),
+      };
     case 'trip.photobook_pdf_ready':
       return {
         title: t('notifications.item.tripPhotobookPdfReady.title', { tripName: data.tripName }),
