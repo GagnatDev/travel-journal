@@ -213,6 +213,7 @@
       "emptyState": "Du har ingen turer ennå.",
       "statusGroup": {
         "active": "Aktive",
+        "inactive": "Inaktive",
         "planned": "Planlagte",
         "completed": "Fullførte"
       }

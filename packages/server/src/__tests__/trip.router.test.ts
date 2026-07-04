@@ -137,6 +137,46 @@ describe('GET /api/v1/trips', () => {
     expect(res.body).toHaveLength(1);
     expect(res.body[0].name).toBe('User1 Trip');
   });
+
+  it('includes lastEntryAt from the newest non-deleted entry, omits it for trips without entries', async () => {
+    const user = await makeUser('creator@test.com', 'creator');
+    const userId = String(user._id);
+    const auth = authHeader(userId, user.email, 'creator');
+
+    const withEntries = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', auth)
+      .send({ name: 'With Entries' });
+    await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', auth)
+      .send({ name: 'Without Entries' });
+
+    const older = new Date('2026-06-01T10:00:00.000Z');
+    const newer = new Date('2026-06-20T10:00:00.000Z');
+    const deletedNewest = new Date('2026-06-25T10:00:00.000Z');
+    await Entry.create(
+      { tripId: withEntries.body.id, authorId: user._id, title: 'a', content: 'a', createdAt: older },
+      { tripId: withEntries.body.id, authorId: user._id, title: 'b', content: 'b', createdAt: newer },
+      {
+        tripId: withEntries.body.id,
+        authorId: user._id,
+        title: 'c',
+        content: 'c',
+        createdAt: deletedNewest,
+        deletedAt: new Date(),
+      },
+    );
+
+    const res = await request(app).get('/api/v1/trips').set('Authorization', auth);
+
+    expect(res.status).toBe(200);
+    const byName = new Map(res.body.map((t: { name: string }) => [t.name, t]));
+    expect((byName.get('With Entries') as { lastEntryAt?: string }).lastEntryAt).toBe(
+      newer.toISOString(),
+    );
+    expect(byName.get('Without Entries')).not.toHaveProperty('lastEntryAt');
+  });
 });
 
 describe('GET /api/v1/trips/:id/photobook.pdf', () => {

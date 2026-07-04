@@ -220,7 +220,7 @@ const nb = {
       title: 'Mine turer',
       createButton: 'Opprett tur',
       emptyState: 'Du har ingen turer ennå.',
-      statusGroup: { active: 'Aktive', planned: 'Planlagte', completed: 'Fullførte' },
+      statusGroup: { active: 'Aktive', inactive: 'Inaktive', planned: 'Planlagte', completed: 'Fullførte' },
     },
     role: { creator: 'Oppretter', contributor: 'Bidragsyter', follower: 'Følger' },
     status: { planned: 'Planlagt', active: 'Aktiv', completed: 'Fullført' },

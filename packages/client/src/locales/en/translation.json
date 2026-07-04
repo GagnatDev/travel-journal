@@ -213,6 +213,7 @@
       "emptyState": "You have no trips yet.",
       "statusGroup": {
         "active": "Active",
+        "inactive": "Inactive",
         "planned": "Planned",
         "completed": "Completed"
       }

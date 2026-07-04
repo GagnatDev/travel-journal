@@ -53,6 +53,8 @@ export interface Trip {
   photobookPdfJob?: TripPhotobookPdfJob;
   /** When true, trip contributors may invite people to this trip (same flows as the creator). */
   allowContributorInvites: boolean;
+  /** ISO time of the trip's newest non-deleted entry. Populated by the trips list endpoint; absent when the trip has no entries. */
+  lastEntryAt?: string;
   members: TripMember[];
   createdAt: string;
   updatedAt: string;

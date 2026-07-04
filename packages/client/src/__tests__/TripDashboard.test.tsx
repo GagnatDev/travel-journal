@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -96,6 +97,51 @@ describe('TripDashboardScreen', () => {
       expect(screen.getByText('Planned Trip')).toBeInTheDocument();
       expect(screen.getByText('Done Trip')).toBeInTheDocument();
     });
+  });
+
+  it('moves active trips without entries for over a week into a collapsed Inactive group', async () => {
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+    const trips: Trip[] = [
+      makeTrip({ id: 'trip-1', name: 'Fresh Trip', status: 'active', lastEntryAt: new Date().toISOString() }),
+      makeTrip({ id: 'trip-2', name: 'Stale Trip', status: 'active', lastEntryAt: eightDaysAgo }),
+      makeTrip({ id: 'trip-3', name: 'Quiet Trip', status: 'active', updatedAt: eightDaysAgo }),
+    ];
+    server.use(http.get('/api/v1/trips', () => HttpResponse.json(trips)));
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText('Fresh Trip')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('heading', { name: 'Aktive' })).toBeInTheDocument();
+
+    // Collapsed by default: heading with count is there, cards are not
+    const toggle = screen.getByRole('button', { name: /inaktive \(2\)/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Stale Trip')).not.toBeInTheDocument();
+    expect(screen.queryByText('Quiet Trip')).not.toBeInTheDocument();
+
+    await userEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Stale Trip')).toBeInTheDocument();
+    expect(screen.getByText('Quiet Trip')).toBeInTheDocument();
+    // The fresh trip stays in the active group
+    expect(screen.getByText('Fresh Trip')).toBeInTheDocument();
+  });
+
+  it('does not render an Inactive group when all active trips have recent entries', async () => {
+    const trips: Trip[] = [
+      makeTrip({ id: 'trip-1', name: 'Fresh Trip', status: 'active', lastEntryAt: new Date().toISOString() }),
+    ];
+    server.use(http.get('/api/v1/trips', () => HttpResponse.json(trips)));
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText('Fresh Trip')).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /inaktive/i })).not.toBeInTheDocument();
   });
 
   it('shows Create Trip button for creator and admin', async () => {
