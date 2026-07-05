@@ -15,10 +15,16 @@ import { resolvePhotobookEmojiFontPaths } from './trip-photobook-fonts.js';
 import { registerPhotobookFonts, setPhotobookFont } from './trip-photobook-pdf-fonts.js';
 import {
   drawPhotobookPdfUserText,
+  measurePhotobookPdfUserTextHeight,
   openPhotobookEmojiKitFonts,
   registerPhotobookEmojiFonts,
   type PhotobookPdfFontState,
 } from './trip-photobook-pdf-text.js';
+import {
+  computeJustifiedImageLayout,
+  planPhotobookEntryPageCounts,
+  splitPhotobookImagesAcrossPages,
+} from './trip-photobook-pdf-layout.js';
 import { attachPhotobookPdfX4 } from './trip-photobook-pdfx.js';
 import {
   collectPhotobookEntryLocations,
@@ -62,9 +68,16 @@ function spineWidth(pageCount: number): number {
 const GAP = 2 * MM;
 const MAX_IMAGES_PER_PAGE = 4;
 
-/** Vertical reserve below image band when entry has body text (separator + paragraph). */
-const BODY_RESERVE_WITH_TEXT_MM = 34;
+/** Breathing room kept below the image band when the entry has no body text. */
 const BODY_RESERVE_EMPTY_MM = 3;
+/** Body text may take at most this share of the space below the entry header; longer text clips. */
+const BODY_RESERVE_MAX_FRACTION = 0.45;
+/** Vertical chrome around entry body text (below the image band). */
+const BODY_SEP_GAP_PT = 4;
+const BODY_TEXT_GAP_PT = 10;
+const BODY_BOTTOM_PAD_PT = 4;
+const ENTRY_BODY_FONT_PT = 9;
+const ENTRY_BODY_LINE_GAP_PT = 3;
 
 const CREAM = '#fbf9f5';
 const ACCENT = '#9b3f2b';
@@ -252,25 +265,16 @@ async function intrinsicImageSizePt(buffer: Buffer): Promise<{ iw: number; ih: n
   return { iw, ih };
 }
 
-type PhotoOrient = 'portrait' | 'landscape' | 'square';
-
-function classifyOrient(iw: number, ih: number): PhotoOrient {
-  const r = iw / ih;
-  if (r < 0.92) return 'portrait';
-  if (r > 1.08) return 'landscape';
-  return 'square';
-}
-
 async function intrinsicsForSlots(
   slots: EntryImageSlot[],
-): Promise<Array<{ iw: number; ih: number; o: PhotoOrient; slot: EntryImageSlot }>> {
+): Promise<Array<{ iw: number; ih: number; slot: EntryImageSlot }>> {
   return Promise.all(
     slots.map(async (slot) => {
       try {
         const { iw, ih } = await intrinsicImageSizePt(slot.buffer);
-        return { iw, ih, o: classifyOrient(iw, ih), slot };
+        return { iw, ih, slot };
       } catch {
-        return { iw: 1, ih: 1, o: 'square' as const, slot };
+        return { iw: 1, ih: 1, slot };
       }
     }),
   );
@@ -324,6 +328,11 @@ async function drawPhotobookImage(
   }
 }
 
+/**
+ * Lay the page's images out via {@link computeJustifiedImageLayout}: rows are
+ * sized so aspect-ratio-true images fill the band width, and the row split with
+ * the highest page coverage wins.
+ */
 async function embedPhotobookImages(
   doc: PDFDoc,
   fontsOk: boolean,
@@ -337,166 +346,25 @@ async function embedPhotobookImages(
   const n = Math.min(slots.length, MAX_IMAGES_PER_PAGE);
   if (n === 0) return;
 
-  const cxMid = bandLeft + bandW / 2;
-  const cyMid = bandTop + bandH / 2;
-
-  if (n === 1) {
-    await drawPhotobookImage(doc, fontsOk, slots[0]!, imagePlaceholder, cxMid, cyMid, bandW * 0.98, bandH * 0.98);
-    return;
-  }
-
   const infos = await intrinsicsForSlots(slots.slice(0, n));
-
-  const isPortraitLike = (o: PhotoOrient) => o === 'portrait' || o === 'square';
-  const isLandscapeLike = (o: PhotoOrient) => o === 'landscape';
-
-  if (n === 2) {
-    const a = infos[0]!;
-    const b = infos[1]!;
-    const ap = isPortraitLike(a.o);
-    const bp = isPortraitLike(b.o);
-    const al = isLandscapeLike(a.o);
-    const bl = isLandscapeLike(b.o);
-
-    const bothPortraitLike = ap && bp && !al && !bl;
-    const bothLandscapeLike = al && bl && !ap && !bp;
-
-    if (bothPortraitLike) {
-      const colW = (bandW - GAP) / 2;
-      const cx0 = bandLeft + colW / 2;
-      const cx1 = bandLeft + colW + GAP + colW / 2;
-      const cy = cyMid;
-      await drawPhotobookImage(doc, fontsOk, a.slot, imagePlaceholder, cx0, cy, colW * 0.97, bandH * 0.97);
-      await drawPhotobookImage(doc, fontsOk, b.slot, imagePlaceholder, cx1, cy, colW * 0.97, bandH * 0.97);
-      return;
-    }
-
-    if (bothLandscapeLike) {
-      const rowH = (bandH - GAP) / 2;
-      const cy0 = bandTop + rowH / 2;
-      const cy1 = bandTop + rowH + GAP + rowH / 2;
-      await drawPhotobookImage(doc, fontsOk, a.slot, imagePlaceholder, cxMid, cy0, bandW * 0.97, rowH * 0.97);
-      await drawPhotobookImage(doc, fontsOk, b.slot, imagePlaceholder, cxMid, cy1, bandW * 0.97, rowH * 0.97);
-      return;
-    }
-
-    const stackW = bandW * 0.58;
-    const sideW = bandW - stackW - GAP;
-
-    if (al && !bl && bp) {
-      const cxL = bandLeft + stackW / 2;
-      const cxR = bandLeft + stackW + GAP + sideW / 2;
-      await drawPhotobookImage(doc, fontsOk, a.slot, imagePlaceholder, cxL, cyMid, stackW * 0.96, bandH * 0.97);
-      await drawPhotobookImage(doc, fontsOk, b.slot, imagePlaceholder, cxR, cyMid, sideW * 0.96, bandH * 0.97);
-      return;
-    }
-    if (ap && !bp && bl) {
-      const cxL = bandLeft + sideW / 2;
-      const cxR = bandLeft + sideW + GAP + stackW / 2;
-      await drawPhotobookImage(doc, fontsOk, a.slot, imagePlaceholder, cxL, cyMid, sideW * 0.96, bandH * 0.97);
-      await drawPhotobookImage(doc, fontsOk, b.slot, imagePlaceholder, cxR, cyMid, stackW * 0.96, bandH * 0.97);
-      return;
-    }
-    if (bl && !al && ap) {
-      const cxL = bandLeft + stackW / 2;
-      const cxR = bandLeft + stackW + GAP + sideW / 2;
-      await drawPhotobookImage(doc, fontsOk, b.slot, imagePlaceholder, cxL, cyMid, stackW * 0.96, bandH * 0.97);
-      await drawPhotobookImage(doc, fontsOk, a.slot, imagePlaceholder, cxR, cyMid, sideW * 0.96, bandH * 0.97);
-      return;
-    }
-
-    const cxL = bandLeft + stackW / 2;
-    const cxR = bandLeft + stackW + GAP + sideW / 2;
-    await drawPhotobookImage(doc, fontsOk, a.slot, imagePlaceholder, cxL, cyMid, stackW * 0.96, bandH * 0.97);
-    await drawPhotobookImage(doc, fontsOk, b.slot, imagePlaceholder, cxR, cyMid, sideW * 0.96, bandH * 0.97);
-    return;
-  }
-
-  if (n === 3) {
-    const lInfos = infos.filter((x) => isLandscapeLike(x.o));
-    const pInfos = infos.filter((x) => x.o === 'portrait');
-    const tallCount = infos.filter((x) => isPortraitLike(x.o)).length;
-    const wideCount = lInfos.length;
-
-    if (tallCount === 3) {
-      const colW = (bandW - 2 * GAP) / 3;
-      for (let i = 0; i < 3; i++) {
-        const cx = bandLeft + colW / 2 + i * (colW + GAP);
-        await drawPhotobookImage(doc, fontsOk, infos[i]!.slot, imagePlaceholder, cx, cyMid, colW * 0.96, bandH * 0.96);
-      }
-      return;
-    }
-
-    if (wideCount === 3) {
-      const rowH = (bandH - 2 * GAP) / 3;
-      for (let i = 0; i < 3; i++) {
-        const cy = bandTop + rowH / 2 + i * (rowH + GAP);
-        await drawPhotobookImage(
-          doc,
-          fontsOk,
-          infos[i]!.slot,
-          imagePlaceholder,
-          cxMid,
-          cy,
-          bandW * 0.96,
-          rowH * 0.96,
-        );
-      }
-      return;
-    }
-
-    if (wideCount === 2 && pInfos.length === 1) {
-      const stackW = bandW * 0.58;
-      const sideW = bandW - stackW - GAP;
-      const rowH = (bandH - GAP) / 2;
-      const cxL = bandLeft + stackW / 2;
-      const cxR = bandLeft + stackW + GAP + sideW / 2;
-      const cy0 = bandTop + rowH / 2;
-      const cy1 = bandTop + rowH + GAP + rowH / 2;
-      const [L1, L2] = [lInfos[0]!, lInfos[1]!];
-      const P = pInfos[0]!;
-      await drawPhotobookImage(doc, fontsOk, L1.slot, imagePlaceholder, cxL, cy0, stackW * 0.95, rowH * 0.95);
-      await drawPhotobookImage(doc, fontsOk, L2.slot, imagePlaceholder, cxL, cy1, stackW * 0.95, rowH * 0.95);
-      await drawPhotobookImage(doc, fontsOk, P.slot, imagePlaceholder, cxR, cyMid, sideW * 0.95, bandH * 0.97);
-      return;
-    }
-
-    if (pInfos.length === 2 && wideCount === 1) {
-      const sideW = bandW * 0.42;
-      const stackW = bandW - sideW - GAP;
-      const rowH = (bandH - GAP) / 2;
-      const cxL = bandLeft + sideW / 2;
-      const cxR = bandLeft + sideW + GAP + stackW / 2;
-      const cy0 = bandTop + rowH / 2;
-      const cy1 = bandTop + rowH + GAP + rowH / 2;
-      const [P1, P2] = [pInfos[0]!, pInfos[1]!];
-      const L = lInfos[0]!;
-      await drawPhotobookImage(doc, fontsOk, P1.slot, imagePlaceholder, cxL, cy0, sideW * 0.95, rowH * 0.95);
-      await drawPhotobookImage(doc, fontsOk, P2.slot, imagePlaceholder, cxL, cy1, sideW * 0.95, rowH * 0.95);
-      await drawPhotobookImage(doc, fontsOk, L.slot, imagePlaceholder, cxR, cyMid, stackW * 0.95, bandH * 0.97);
-      return;
-    }
-
-    const colW = (bandW - 2 * GAP) / 3;
-    for (let i = 0; i < 3; i++) {
-      const cx = bandLeft + colW / 2 + i * (colW + GAP);
-      await drawPhotobookImage(doc, fontsOk, infos[i]!.slot, imagePlaceholder, cx, cyMid, colW * 0.94, bandH * 0.94);
-    }
-    return;
-  }
-
-  if (n === 4) {
-    const cols = 2;
-    const rows = 2;
-    const cellW = (bandW - GAP) / cols;
-    const cellH = (bandH - GAP) / rows;
-    for (let i = 0; i < 4; i++) {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const cx = bandLeft + col * (cellW + GAP) + cellW / 2;
-      const cy = bandTop + row * (cellH + GAP) + cellH / 2;
-      await drawPhotobookImage(doc, fontsOk, infos[i]!.slot, imagePlaceholder, cx, cy, cellW * 0.96, cellH * 0.96);
-    }
+  const rects = computeJustifiedImageLayout(
+    infos.map(({ iw, ih }) => ({ iw, ih })),
+    bandW,
+    bandH,
+    GAP,
+  );
+  for (let i = 0; i < rects.length; i++) {
+    const r = rects[i]!;
+    await drawPhotobookImage(
+      doc,
+      fontsOk,
+      infos[i]!.slot,
+      imagePlaceholder,
+      bandLeft + r.x + r.w / 2,
+      bandTop + r.y + r.h / 2,
+      r.w,
+      r.h,
+    );
   }
 }
 
@@ -786,11 +654,19 @@ async function drawEntryPages(
     return pages;
   }
 
-  for (const { entry, dayNum, dayDatePart, imageSlots } of content.entries) {
-    const imagePageCount =
-      imageSlots.length === 0 ? 1 : Math.ceil(imageSlots.length / MAX_IMAGES_PER_PAGE);
+  // Spread images across extra pages when the trip would otherwise fall short of
+  // the product minimum, replacing blank padding pages with real content pages.
+  const pageCounts = planPhotobookEntryPageCounts(
+    content.entries.map((e) => e.imageSlots.length),
+    { minPages: MIN_INTERIOR_PAGES, maxImagesPerPage: MAX_IMAGES_PER_PAGE },
+  );
 
-    for (let p = 0; p < imagePageCount; p++) {
+  for (let ei = 0; ei < content.entries.length; ei++) {
+    const { entry, dayNum, dayDatePart, imageSlots } = content.entries[ei]!;
+    const pageSlices = splitPhotobookImagesAcrossPages(imageSlots, pageCounts[ei]!);
+
+    for (let p = 0; p < pageSlices.length; p++) {
+      const slice = pageSlices[p]!;
       addSquarePage(doc);
       pages++;
 
@@ -811,15 +687,27 @@ async function drawEntryPages(
         y = doc.y + 10;
       }
 
-      const slice = imageSlots.slice(p * MAX_IMAGES_PER_PAGE, (p + 1) * MAX_IMAGES_PER_PAGE);
       const hasBodyText = Boolean(p === 0 && entry.content?.trim());
-      const textReservePt =
-        slice.length > 0
-          ? hasBodyText
-            ? BODY_RESERVE_WITH_TEXT_MM * MM
-            : BODY_RESERVE_EMPTY_MM * MM
-          : 0;
       const bandTop = y + 2;
+      let textReservePt = 0;
+      if (slice.length > 0) {
+        textReservePt = BODY_RESERVE_EMPTY_MM * MM;
+        if (hasBodyText) {
+          // Reserve exactly what the measured body text needs (plus chrome and a
+          // small rounding guard) so short captions leave more room for photos.
+          const bodyH = measurePhotobookPdfUserTextHeight(
+            doc,
+            fontState,
+            'displayItalic',
+            ENTRY_BODY_FONT_PT,
+            entry.content ?? '',
+            PAGE_FULL_PT - 2 * CONTENT_MARGIN,
+            ENTRY_BODY_LINE_GAP_PT,
+          );
+          const wanted = BODY_SEP_GAP_PT + BODY_TEXT_GAP_PT + bodyH + BODY_BOTTOM_PAD_PT + 2;
+          textReservePt = Math.min(wanted, (innerBottom - bandTop) * BODY_RESERVE_MAX_FRACTION);
+        }
+      }
       const imageBandH = slice.length > 0 ? Math.max(48, innerBottom - bandTop - textReservePt) : 0;
 
       if (slice.length > 0) {
@@ -845,7 +733,7 @@ async function drawEntryPages(
       }
 
       if (slice.length > 0 && p === 0 && hasBodyText) {
-        const sepY = bandTop + imageBandH + 4;
+        const sepY = bandTop + imageBandH + BODY_SEP_GAP_PT;
         doc.save();
         doc.strokeColor('#e0d8cc')
           .lineWidth(0.35)
@@ -854,13 +742,23 @@ async function drawEntryPages(
           .stroke();
         doc.restore();
 
-        const bodyY = sepY + 10;
-        drawPhotobookPdfUserText(doc, fontState, 'displayItalic', 9, BODY, entry.content ?? '', CONTENT_MARGIN, bodyY, {
-          width: PAGE_FULL_PT - 2 * CONTENT_MARGIN,
-          height: innerBottom - bodyY - 4,
-          align: 'center',
-          lineGap: 3,
-        });
+        const bodyY = sepY + BODY_TEXT_GAP_PT;
+        drawPhotobookPdfUserText(
+          doc,
+          fontState,
+          'displayItalic',
+          ENTRY_BODY_FONT_PT,
+          BODY,
+          entry.content ?? '',
+          CONTENT_MARGIN,
+          bodyY,
+          {
+            width: PAGE_FULL_PT - 2 * CONTENT_MARGIN,
+            height: innerBottom - bodyY - BODY_BOTTOM_PAD_PT,
+            align: 'center',
+            lineGap: ENTRY_BODY_LINE_GAP_PT,
+          },
+        );
       }
     }
   }
