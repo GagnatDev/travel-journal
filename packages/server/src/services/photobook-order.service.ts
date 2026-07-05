@@ -234,9 +234,10 @@ async function loadTripDoc(tripId: mongoose.Types.ObjectId | string): Promise<IT
 }
 
 /**
- * Presign the interior/cover/spine PDFs and submit the order to Prodigi.
- * On success → `submitted`, on error → `failed`. Never throws so admin/route
- * handlers always get a clean result; the order doc carries the outcome.
+ * Presign the interior/cover/spine/back-cover PDFs and submit the order to
+ * Prodigi. On success → `submitted`, on error → `failed`. Never throws so
+ * admin/route handlers always get a clean result; the order doc carries the
+ * outcome.
  */
 async function submitOrderToProdigi(order: IPhotobookOrder, tripDocIn?: ITrip): Promise<void> {
   const tripDoc = tripDocIn ?? (await loadTripDoc(order.tripId));
@@ -249,14 +250,16 @@ async function submitOrderToProdigi(order: IPhotobookOrder, tripDocIn?: ITrip): 
     const interiorKey = job?.interiorPdfStorageKey;
     const coverKey = job?.coverPdfStorageKey;
     const spineKey = job?.spinePdfStorageKey;
-    if (!interiorKey || !coverKey || !spineKey) {
+    const backCoverKey = job?.backCoverPdfStorageKey;
+    if (!interiorKey || !coverKey || !spineKey || !backCoverKey) {
       throw new Error('Photobook PDF assets are no longer available');
     }
 
-    const [interiorUrl, coverUrl, spineUrl] = await Promise.all([
+    const [interiorUrl, coverUrl, spineUrl, backCoverUrl] = await Promise.all([
       generateSignedUrl(interiorKey, 3600),
       generateSignedUrl(coverKey, 3600),
       generateSignedUrl(spineKey, 3600),
+      generateSignedUrl(backCoverKey, 3600),
     ]);
 
     const address = order.shippingAddress;
@@ -280,6 +283,7 @@ async function submitOrderToProdigi(order: IPhotobookOrder, tripDocIn?: ITrip): 
       interiorUrl,
       coverUrl,
       spineUrl,
+      backCoverUrl,
       shippingMethod: order.shippingMethod,
       ...(job?.pageCount !== undefined ? { pageCount: job.pageCount } : {}),
     };
@@ -331,7 +335,8 @@ export async function createPhotobookOrder(args: {
     job?.status === 'ready' &&
     Boolean(job.interiorPdfStorageKey) &&
     Boolean(job.coverPdfStorageKey) &&
-    Boolean(job.spinePdfStorageKey);
+    Boolean(job.spinePdfStorageKey) &&
+    Boolean(job.backCoverPdfStorageKey);
   if (!ready) {
     throw createHttpError(
       'The photobook PDF is not ready. Generate it from trip settings first.',

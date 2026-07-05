@@ -37,6 +37,7 @@ export interface ProdigiOrderParams {
   interiorUrl: string;
   coverUrl: string;
   spineUrl: string;
+  backCoverUrl: string;
   pageCount?: number;
   shippingMethod: ProdigiShippingMethod;
 }
@@ -132,6 +133,8 @@ export async function createProdigiOrder(
           interiorAsset,
           { printArea: 'cover', url: params.coverUrl },
           { printArea: 'spine', url: params.spineUrl },
+          // TODO: confirm the back-cover print-area name against Prodigi's hardcover file-setup guidelines.
+          { printArea: 'backCover', url: params.backCoverUrl },
         ],
       },
     ],

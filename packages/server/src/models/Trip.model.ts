@@ -37,6 +37,7 @@ export interface ITrip extends Document {
     interiorPdfStorageKey?: string;
     coverPdfStorageKey?: string;
     spinePdfStorageKey?: string;
+    backCoverPdfStorageKey?: string;
     pageCount?: number;
     finishedAt?: Date;
     errorMessage?: string;
@@ -83,6 +84,7 @@ const tripSchema = new Schema<ITrip>(
       interiorPdfStorageKey: { type: String },
       coverPdfStorageKey: { type: String },
       spinePdfStorageKey: { type: String },
+      backCoverPdfStorageKey: { type: String },
       pageCount: { type: Number },
       finishedAt: { type: Date },
       errorMessage: { type: String },
