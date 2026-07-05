@@ -8,6 +8,26 @@ type PDFDoc = InstanceType<typeof PDFDocument>;
 /** Single code points we render with the body font (Latin text style), not Noto Emoji. */
 const EMOJI_AS_TEXT_SINGLE_CP = new Set([0x00a9, 0x00ae, 0x2122]); // © ® ™
 
+const NBSP = '\u00a0';
+
+/**
+ * Join each paragraph's last three words with no-break spaces so wrapped text
+ * never ends in a one-or-two-word last line (typographic widow). Both PDFKit's
+ * UAX-14 line breaker and the emoji-aware wrapper below treat NBSP as
+ * non-breaking, and all embedded photobook fonts carry an NBSP glyph.
+ * Paragraphs under four words are left untouched.
+ */
+export function preventPhotobookTextWidows(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => {
+      const words = line.match(/\S+/g);
+      if (!words || words.length < 4) return line;
+      return line.replace(/\s+(\S+)\s+(\S+)\s*$/, `${NBSP}$1${NBSP}$2`);
+    })
+    .join('\n');
+}
+
 export type FontkitOpenFont = ReturnType<typeof fontkit.openSync>;
 
 let cachedEmojiKitKey = '';
@@ -125,7 +145,8 @@ function flattenTextForWrapping(tokens: PdfToken[]): PdfToken[] {
       out.push(t);
       continue;
     }
-    const parts = t.value.split(/(\s+)/);
+    // Whitespace runs are break points, except NBSP which stays glued to its words.
+    const parts = t.value.split(/([^\S\u00a0]+)/);
     for (const p of parts) {
       if (p) out.push({ kind: 'text', value: p });
     }
@@ -257,7 +278,7 @@ export function drawPhotobookPdfUserText(
     return;
   }
 
-  const body = text;
+  const body = preventPhotobookTextWidows(text);
   const { width, height, align = 'left', lineGap = 0 } = options;
 
   const canMix =
@@ -311,4 +332,33 @@ export function drawPhotobookPdfUserText(
 
   doc.y = Math.min(yPos, maxY);
   doc.restore();
+}
+
+/**
+ * Height {@link drawPhotobookPdfUserText} will occupy for `text` at the given
+ * width — mirrors both rendering paths exactly (PDFKit wrapping incl. lineGap
+ * for plain text; the emoji-aware wrapper, which advances by the bare line
+ * height, otherwise), including widow prevention.
+ */
+export function measurePhotobookPdfUserTextHeight(
+  doc: PDFDoc,
+  state: PhotobookPdfFontState,
+  baseRole: PhotobookPdfFontRole,
+  fontSize: number,
+  text: string,
+  width: number,
+  lineGap = 0,
+): number {
+  if (!text.trim()) return 0;
+  const body = preventPhotobookTextWidows(text);
+  setPhotobookFont(doc, state.fontsOk, baseRole);
+  doc.fontSize(fontSize);
+  const canMix =
+    state.emojiFontsRegistered && state.emojiKitFonts && textNeedsEmojiLayout(body, state.emojiKitFonts);
+  if (!canMix) {
+    return doc.heightOfString(body, { width, lineGap });
+  }
+  const tokens = buildTokens(body, state.emojiKitFonts!);
+  const lines = wrapTokensToLines(doc, state, baseRole, fontSize, tokens, width);
+  return lines.length * doc.currentLineHeight(true);
 }

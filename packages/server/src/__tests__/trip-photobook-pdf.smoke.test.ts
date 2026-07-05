@@ -79,4 +79,51 @@ describe('buildTripPhotobookPdf smoke', () => {
     expect(pageCount).toBeGreaterThanOrEqual(24);
     expect(pageCount % 2).toBe(0);
   });
+
+  it('spreads a small trip\'s images across extra pages instead of blank padding', async () => {
+    const { buildTripPhotobookPdf } = await import('../services/trip-photobook-pdf.service.js');
+
+    const trip: Trip = {
+      id: 'trip2',
+      name: 'Short Trip',
+      status: 'active',
+      createdBy: 'u1',
+      allowContributorInvites: false,
+      members: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const entry: Entry = {
+      id: 'e1',
+      tripId: 'trip2',
+      authorId: 'u1',
+      authorName: 'A',
+      title: 'Beach day',
+      content: 'A long day at the beach with plenty of sun and salt water.',
+      images: Array.from({ length: 6 }, (_, i) => ({
+        key: `media/trip2/${i}.jpg`,
+        width: 100,
+        height: 100,
+        order: i,
+        uploadedAt: new Date().toISOString(),
+      })),
+      reactions: [],
+      createdAt: '2026-06-01T12:00:00.000Z',
+      updatedAt: '2026-06-01T12:00:00.000Z',
+    };
+
+    const { preview, pageCount } = await buildTripPhotobookPdf({
+      trip,
+      entries: [entry],
+      timeZone: 'UTC',
+      photobookLocaleKey: 'en',
+    });
+
+    // 6 images would fit on 2 pages of 4, but far below the 24-page minimum they
+    // spread to one image per page: cover + 6 entry pages + back cover.
+    const pageObjects = preview.toString('latin1').match(/\/Type \/Page(?!s)/g) ?? [];
+    expect(pageObjects).toHaveLength(8);
+    expect(pageCount).toBe(24);
+  });
 });
