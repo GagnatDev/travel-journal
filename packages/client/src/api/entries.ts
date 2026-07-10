@@ -1,4 +1,9 @@
-import type { CreateEntryRequest, Entry, UpdateEntryRequest } from '@travel-journal/shared';
+import type {
+  CreateEntryRequest,
+  Entry,
+  TripStats,
+  UpdateEntryRequest,
+} from '@travel-journal/shared';
 
 import { apiJson } from './client.js';
 
@@ -38,6 +43,10 @@ export function createEntry(tripId: string, data: CreateEntryRequest, token: str
 
 export function fetchEntryLocations(tripId: string, token: string): Promise<EntryLocationPin[]> {
   return apiJson<EntryLocationPin[]>(`/api/v1/trips/${tripId}/entries/locations`, { token });
+}
+
+export function fetchTripStats(tripId: string, token: string): Promise<TripStats> {
+  return apiJson<TripStats>(`/api/v1/trips/${tripId}/entries/stats`, { token });
 }
 
 export function updateEntry(

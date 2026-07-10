@@ -308,6 +308,11 @@
     "settings": {
       "title": "Trip Settings",
       "detailsTitle": "Trip Details",
+      "statisticsTitle": "Trip Statistics",
+      "statsEntries": "Entries",
+      "statsPhotos": "Photos",
+      "statsLocations": "Locations",
+      "statsContributors": "Contributors",
       "statusTitle": "Status Management",
       "markActive": "Mark as Active",
       "markCompleted": "Mark as Completed",

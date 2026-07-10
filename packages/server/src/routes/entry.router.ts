@@ -13,6 +13,7 @@ import { getTripById } from '../services/trip.service.js';
 import {
   createEntry,
   getEntryById,
+  getTripStats,
   listEntries,
   listEntryLocations,
   softDeleteEntry,
@@ -115,6 +116,17 @@ entryRouter.get('/locations', async (req: Request, res: Response, next: NextFunc
     const tripId = req.params['id']!;
     const pins = await listEntryLocations(tripId);
     res.json(pins);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /stats — Aggregate content counts for the trip (any member)
+entryRouter.get('/stats', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const tripId = req.params['id']!;
+    const stats = await getTripStats(tripId);
+    res.json(stats);
   } catch (err) {
     next(err);
   }

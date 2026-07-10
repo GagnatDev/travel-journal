@@ -11,6 +11,7 @@ import {
   assertEntryAuthor,
   createEntry,
   getEntryById,
+  getTripStats,
   listEntries,
   normalizeImageOrder,
   softDeleteEntry,
@@ -443,6 +444,78 @@ describe('getEntryById', () => {
     await expect(getEntryById(trip.id, entry.id)).rejects.toMatchObject({
       status: 404,
       code: 'NOT_FOUND',
+    });
+  });
+});
+
+describe('getTripStats', () => {
+  it('counts entries, photos, distinct locations, and contributors', async () => {
+    const author = await makeUser('stats-author@test.com');
+    const coAuthor = await makeUser('stats-coauthor@test.com');
+    const trip = await makeTrip(String(author._id));
+
+    const img = (key: string) => ({
+      key,
+      width: 100,
+      height: 100,
+      order: 0,
+      uploadedAt: '2024-01-01T00:00:00.000Z',
+    });
+
+    await createEntry(trip.id, String(author._id), {
+      title: 'Oslo',
+      content: 'a',
+      images: [img('a'), img('b')],
+      location: { lat: 59.91, lng: 10.75, name: 'Oslo' },
+    });
+    await createEntry(trip.id, String(author._id), {
+      title: 'Oslo again',
+      content: 'b',
+      images: [img('c')],
+      location: { lat: 59.99, lng: 10.11, name: 'oslo' }, // same place by name (case-insensitive)
+    });
+    await createEntry(trip.id, String(coAuthor._id), {
+      title: 'Bergen',
+      content: 'c',
+      location: { lat: 60.39, lng: 5.32, name: 'Bergen' },
+    });
+    await createEntry(trip.id, String(coAuthor._id), {
+      title: 'No location',
+      content: 'd',
+    });
+
+    const stats = await getTripStats(trip.id);
+    expect(stats).toEqual({
+      entryCount: 4,
+      photoCount: 3,
+      uniqueLocationCount: 2,
+      contributorCount: 2,
+    });
+  });
+
+  it('excludes soft-deleted entries', async () => {
+    const user = await makeUser('stats-delete@test.com');
+    const trip = await makeTrip(String(user._id));
+
+    await createEntry(trip.id, String(user._id), { title: 'Keep', content: 'a' });
+    const gone = await createEntry(trip.id, String(user._id), { title: 'Gone', content: 'b' });
+    await softDeleteEntry(trip.id, gone.id, 'creator');
+
+    const stats = await getTripStats(trip.id);
+    expect(stats.entryCount).toBe(1);
+    expect(stats.contributorCount).toBe(1);
+  });
+
+  it('returns zeros for a trip with no entries', async () => {
+    const user = await makeUser('stats-empty@test.com');
+    const trip = await makeTrip(String(user._id));
+
+    const stats = await getTripStats(trip.id);
+    expect(stats).toEqual({
+      entryCount: 0,
+      photoCount: 0,
+      uniqueLocationCount: 0,
+      contributorCount: 0,
     });
   });
 });

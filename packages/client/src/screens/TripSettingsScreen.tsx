@@ -8,6 +8,7 @@ import { BottomNavBar } from '../components/BottomNavBar.js';
 import { TripDeleteSection } from './tripSettings/TripDeleteSection.js';
 import { TripDetailsSection } from './tripSettings/TripDetailsSection.js';
 import { TripMembersSection } from './tripSettings/TripMembersSection.js';
+import { TripStatisticsSection } from './tripSettings/TripStatisticsSection.js';
 import { TripStatusSection } from './tripSettings/TripStatusSection.js';
 import {
   canAccessTripSettingsScreen,
@@ -113,6 +114,9 @@ export function TripSettingsScreen() {
       </header>
 
       <main className="px-4 space-y-8">
+        {tripId && accessToken ? (
+          <TripStatisticsSection t={t} tripId={tripId} accessToken={accessToken} />
+        ) : null}
         {canEditTripDetailsAndLifecycle(myRole) ? (
           <TripDetailsSection
             t={t}

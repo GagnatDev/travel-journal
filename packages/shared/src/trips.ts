@@ -101,3 +101,15 @@ export interface TripMemberInviteSuggestion {
   displayName: string;
   email: string;
 }
+
+/** Aggregate counts about a trip's content, shown on the trip settings screen. */
+export interface TripStats {
+  /** Number of non-deleted entries in the trip. */
+  entryCount: number;
+  /** Total number of photos across all non-deleted entries. */
+  photoCount: number;
+  /** Distinct places entries were tagged at (by name when present, otherwise by coordinates). */
+  uniqueLocationCount: number;
+  /** Number of people who have authored at least one entry. */
+  contributorCount: number;
+}
