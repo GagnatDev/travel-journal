@@ -245,6 +245,11 @@ const nb = {
     settings: {
       title: 'Turinnstillinger',
       detailsTitle: 'Turdetaljer',
+      statisticsTitle: 'Turstatistikk',
+      statsEntries: 'Innlegg',
+      statsPhotos: 'Bilder',
+      statsLocations: 'Steder',
+      statsContributors: 'Bidragsytere',
       statusTitle: 'Statusadministrasjon',
       markActive: 'Merk som aktiv',
       markCompleted: 'Merk som fullført',

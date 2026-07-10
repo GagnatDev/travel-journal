@@ -4,6 +4,7 @@ import type {
   Entry,
   EntryImage,
   TripRole,
+  TripStats,
   UpdateEntryRequest,
 } from '@travel-journal/shared';
 
@@ -274,6 +275,41 @@ export async function listEntryLocations(tripId: string): Promise<EntryLocationP
       ...(doc.location!.name !== undefined && { name: doc.location!.name }),
       createdAt: doc.createdAt.toISOString(),
     }));
+}
+
+/** Normalizes a location into a dedup key: trimmed lowercased name when present, else rounded coordinates. */
+function locationKey(location: { lat: number; lng: number; name?: string }): string {
+  const name = location.name?.trim().toLowerCase();
+  if (name) return `name:${name}`;
+  return `coord:${location.lat.toFixed(4)},${location.lng.toFixed(4)}`;
+}
+
+/** Aggregate content counts for a trip: entries, photos, distinct locations, contributors. */
+export async function getTripStats(tripId: string): Promise<TripStats> {
+  const filter = { tripId: new mongoose.Types.ObjectId(tripId), deletedAt: null };
+
+  const docs = await EntryModel.find(filter)
+    .select('images location authorId')
+    .lean();
+
+  let photoCount = 0;
+  const locationKeys = new Set<string>();
+  const authorIds = new Set<string>();
+
+  for (const doc of docs) {
+    photoCount += doc.images?.length ?? 0;
+    authorIds.add(String(doc.authorId));
+    if (doc.location) {
+      locationKeys.add(locationKey(doc.location));
+    }
+  }
+
+  return {
+    entryCount: docs.length,
+    photoCount,
+    uniqueLocationCount: locationKeys.size,
+    contributorCount: authorIds.size,
+  };
 }
 
 export async function softDeleteEntry(
