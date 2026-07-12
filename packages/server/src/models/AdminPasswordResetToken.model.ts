@@ -5,6 +5,7 @@ export interface IAdminPasswordResetToken extends Document {
   tokenHash: string;
   issuedBy: Types.ObjectId;
   expiresAt: Date;
+  usedAt?: Date;
   createdAt: Date;
 }
 
@@ -14,6 +15,7 @@ const adminPasswordResetTokenSchema = new Schema<IAdminPasswordResetToken>(
     tokenHash: { type: String, required: true },
     issuedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     expiresAt: { type: Date, required: true },
+    usedAt: { type: Date },
   },
   { timestamps: { createdAt: true, updatedAt: false } },
 );

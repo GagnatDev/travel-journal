@@ -26,6 +26,8 @@ function renderScreen(token: string) {
           <Routes>
             <Route path="/password-reset" element={<PasswordResetScreen />} />
             <Route path="/login" element={<div>Login stub</div>} />
+            <Route path="/" element={<div>App root stub</div>} />
+            {extraRoutes}
           </Routes>
         </AuthProvider>
       </TestMemoryRouter>
@@ -90,5 +92,20 @@ describe('PasswordResetScreen', () => {
     await waitFor(() => {
       expect(screen.getByText('Login stub')).toBeInTheDocument();
     });
+  });
+
+  it('redirects to app root when the reset link was already used', async () => {
+    server.use(
+      http.get('/api/v1/auth/password-reset/:token/validate', () =>
+        HttpResponse.json({ alreadyCompleted: true, email: 'user@example.com' }),
+      ),
+    );
+
+    renderScreen('used-token');
+
+    await waitFor(() => {
+      expect(screen.getByText('App root stub')).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

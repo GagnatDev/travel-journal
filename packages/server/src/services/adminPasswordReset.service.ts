@@ -46,11 +46,17 @@ export async function createAdminPasswordResetLink(
   return { resetLink };
 }
 
-export async function validateAdminPasswordResetToken(rawToken: string): Promise<{ email: string }> {
+export type AdminPasswordResetTokenLookup =
+  | { kind: 'valid'; email: string }
+  | { kind: 'already_completed'; email: string };
+
+export async function lookupAdminPasswordResetToken(
+  rawToken: string,
+): Promise<AdminPasswordResetTokenLookup> {
   const tokenHash = hashToken(rawToken);
   const doc = await AdminPasswordResetToken.findOne({ tokenHash });
 
-  if (!doc || doc.expiresAt < new Date()) {
+  if (!doc) {
     throw createHttpError('Reset link has expired or already been used', 410, 'RESET_GONE');
   }
 
@@ -59,14 +65,30 @@ export async function validateAdminPasswordResetToken(rawToken: string): Promise
     throw createHttpError('Reset link has expired or already been used', 410, 'RESET_GONE');
   }
 
-  return { email: user.email };
+  if (doc.usedAt) {
+    return { kind: 'already_completed', email: user.email };
+  }
+
+  if (doc.expiresAt < new Date()) {
+    throw createHttpError('Reset link has expired or already been used', 410, 'RESET_GONE');
+  }
+
+  return { kind: 'valid', email: user.email };
+}
+
+export async function validateAdminPasswordResetToken(rawToken: string): Promise<{ email: string }> {
+  const result = await lookupAdminPasswordResetToken(rawToken);
+  if (result.kind === 'already_completed') {
+    throw createHttpError('Reset link has expired or already been used', 410, 'RESET_GONE');
+  }
+  return { email: result.email };
 }
 
 export async function completeAdminPasswordReset(rawToken: string, password: string): Promise<void> {
   const tokenHash = hashToken(rawToken);
   const doc = await AdminPasswordResetToken.findOne({ tokenHash });
 
-  if (!doc || doc.expiresAt < new Date()) {
+  if (!doc || doc.usedAt || doc.expiresAt < new Date()) {
     throw createHttpError('Reset link has expired or already been used', 410, 'RESET_GONE');
   }
 
@@ -83,5 +105,6 @@ export async function completeAdminPasswordReset(rawToken: string, password: str
   }
 
   await Session.deleteMany({ userId: doc.userId });
-  await AdminPasswordResetToken.deleteOne({ _id: doc._id });
+  doc.usedAt = new Date();
+  await doc.save();
 }

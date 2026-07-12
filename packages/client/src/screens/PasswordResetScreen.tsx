@@ -8,6 +8,7 @@ import { TextField } from '../components/ui/TextField.js';
 
 interface ValidateResponse {
   email: string;
+  alreadyCompleted?: boolean;
 }
 
 export function PasswordResetScreen() {
@@ -42,13 +43,15 @@ export function PasswordResetScreen() {
       .then((data) => {
         if (!data) {
           setTokenError(true);
+        } else if (data.alreadyCompleted) {
+          navigate('/', { replace: true });
         } else {
           setEmail(data.email);
         }
       })
       .catch(() => setTokenError(true))
       .finally(() => setValidating(false));
-  }, [token]);
+  }, [token, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

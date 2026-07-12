@@ -263,6 +263,12 @@ describe('admin password reset via /api/v1/auth/password-reset', () => {
       .send({ token, password: 'anotherpass12' });
     expect(reuse.status).toBe(410);
 
+    const revalidate = await request(app).get(
+      `/api/v1/auth/password-reset/${encodeURIComponent(token)}/validate`,
+    );
+    expect(revalidate.status).toBe(200);
+    expect(revalidate.body).toEqual({ alreadyCompleted: true, email: 'target@test.com' });
+
     const badOld = await request(app)
       .post('/api/v1/auth/login')
       .send({ email: 'target@test.com', password: 'oldpass' });

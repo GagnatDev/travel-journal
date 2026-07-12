@@ -8,6 +8,7 @@ import { generateRefreshToken, hashPassword, hashToken, verifyPassword } from '.
 import {
   completeAdminPasswordReset,
   createAdminPasswordResetLink,
+  lookupAdminPasswordResetToken,
   validateAdminPasswordResetToken,
 } from '../services/adminPasswordReset.service.js';
 
@@ -73,6 +74,22 @@ describe('validateAdminPasswordResetToken', () => {
   });
 });
 
+describe('lookupAdminPasswordResetToken', () => {
+  it('returns already_completed after the reset is consumed', async () => {
+    const admin = await makeUser('admin@test.com', 'admin');
+    const target = await makeUser('target@test.com');
+    const { resetLink } = await createAdminPasswordResetLink(String(target._id), String(admin._id));
+    const raw = tokenFromResetLink(resetLink);
+
+    await completeAdminPasswordReset(raw, 'newpassword123');
+
+    await expect(lookupAdminPasswordResetToken(raw)).resolves.toEqual({
+      kind: 'already_completed',
+      email: 'target@test.com',
+    });
+  });
+});
+
 describe('completeAdminPasswordReset', () => {
   it('updates password, removes sessions, and consumes the token', async () => {
     const admin = await makeUser('admin@test.com', 'admin');
@@ -94,7 +111,9 @@ describe('completeAdminPasswordReset', () => {
     expect(await verifyPassword('oldpassword', u!.passwordHash)).toBe(false);
 
     expect(await Session.countDocuments({ userId: target._id })).toBe(0);
-    expect(await AdminPasswordResetToken.countDocuments()).toBe(0);
+
+    const tokenDoc = await AdminPasswordResetToken.findOne({ tokenHash: hashToken(raw) });
+    expect(tokenDoc?.usedAt).toBeInstanceOf(Date);
 
     await expect(completeAdminPasswordReset(raw, 'anotherpass12')).rejects.toMatchObject({ status: 410 });
   });

@@ -14,7 +14,7 @@ import {
 } from '../services/auth.service.js';
 import {
   completeAdminPasswordReset,
-  validateAdminPasswordResetToken,
+  lookupAdminPasswordResetToken,
 } from '../services/adminPasswordReset.service.js';
 import { isProdigiConfigured } from '../services/prodigi.service.js';
 
@@ -267,8 +267,12 @@ authRouter.get(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const token = req.params['token']!;
-      const { email } = await validateAdminPasswordResetToken(token);
-      res.json({ email });
+      const result = await lookupAdminPasswordResetToken(token);
+      if (result.kind === 'already_completed') {
+        res.json({ alreadyCompleted: true, email: result.email });
+        return;
+      }
+      res.json({ email: result.email });
     } catch (err) {
       next(err);
     }
