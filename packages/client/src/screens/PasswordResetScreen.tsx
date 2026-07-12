@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
-import { apiJson, apiJsonIfOk } from '../api/client.js';
+import { apiJsonWithError } from '../api/client.js';
 import { AuthPageLayout } from '../components/ui/AuthPageLayout.js';
 import { TextField } from '../components/ui/TextField.js';
 
@@ -35,20 +35,24 @@ export function PasswordResetScreen() {
       return;
     }
 
-    apiJsonIfOk<ValidateResponse>(
+    apiJsonWithError<ValidateResponse>(
       `/api/v1/auth/password-reset/${encodeURIComponent(token)}/validate`,
       { credentials: 'omit' },
     )
-      .then((data) => {
-        if (!data) {
-          setTokenError(true);
-        } else {
-          setEmail(data.email);
+      .then((result) => {
+        if (result.ok) {
+          setEmail(result.data.email);
+          return;
         }
+        if (result.code === 'RESET_ALREADY_USED') {
+          navigate('/', { replace: true });
+          return;
+        }
+        setTokenError(true);
       })
       .catch(() => setTokenError(true))
       .finally(() => setValidating(false));
-  }, [token]);
+  }, [token, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,14 +71,22 @@ export function PasswordResetScreen() {
 
     setSubmitting(true);
     try {
-      await apiJson<void>('/api/v1/auth/password-reset/complete', {
+      const result = await apiJsonWithError<void>('/api/v1/auth/password-reset/complete', {
         method: 'POST',
         body: { token, password },
         credentials: 'omit',
       });
+      if (!result.ok) {
+        if (result.code === 'RESET_ALREADY_USED') {
+          navigate('/', { replace: true });
+          return;
+        }
+        setSubmitError(result.message ?? t('common.error'));
+        return;
+      }
       navigate('/login', { state: { passwordResetComplete: true, email } });
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : t('common.error'));
+    } catch {
+      setSubmitError(t('common.error'));
     } finally {
       setSubmitting(false);
     }
