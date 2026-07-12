@@ -94,8 +94,27 @@ describe('completeAdminPasswordReset', () => {
     expect(await verifyPassword('oldpassword', u!.passwordHash)).toBe(false);
 
     expect(await Session.countDocuments({ userId: target._id })).toBe(0);
-    expect(await AdminPasswordResetToken.countDocuments()).toBe(0);
 
-    await expect(completeAdminPasswordReset(raw, 'anotherpass12')).rejects.toMatchObject({ status: 410 });
+    const tokenDoc = await AdminPasswordResetToken.findOne({ userId: target._id });
+    expect(tokenDoc?.usedAt).toBeTruthy();
+
+    await expect(completeAdminPasswordReset(raw, 'anotherpass12')).rejects.toMatchObject({
+      status: 410,
+      code: 'RESET_ALREADY_USED',
+    });
+  });
+
+  it('rejects re-validating the link after the password has already been reset', async () => {
+    const admin = await makeUser('admin@test.com', 'admin');
+    const target = await makeUser('target@test.com');
+    const { resetLink } = await createAdminPasswordResetLink(String(target._id), String(admin._id));
+    const raw = tokenFromResetLink(resetLink);
+
+    await completeAdminPasswordReset(raw, 'newpassword123');
+
+    await expect(validateAdminPasswordResetToken(raw)).rejects.toMatchObject({
+      status: 410,
+      code: 'RESET_ALREADY_USED',
+    });
   });
 });

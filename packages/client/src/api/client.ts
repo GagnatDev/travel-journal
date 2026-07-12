@@ -131,6 +131,31 @@ export async function apiJson<T>(path: string, options: ApiJsonOptions = {}): Pr
   return res.json() as Promise<T>;
 }
 
+export type ApiJsonResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; code: string | undefined; message: string | undefined };
+
+/**
+ * Same request shape as {@link apiJson}, but instead of throwing on `!res.ok`,
+ * resolves to a result carrying the response's `error.code` so callers can
+ * branch on specific failure reasons (e.g. an already-used token vs. an
+ * expired one).
+ */
+export async function apiJsonWithError<T>(
+  path: string,
+  options: ApiJsonOptions = {},
+): Promise<ApiJsonResult<T>> {
+  const res = await fetchOrThrow(path, buildRequestInit(options));
+
+  if (!res.ok) {
+    const parsed = await res.json().catch(() => ({}));
+    const code = (parsed as { error?: { code?: string } }).error?.code;
+    return { ok: false, code, message: parseApiErrorMessage(parsed) };
+  }
+  if (res.status === 204) return { ok: true, data: undefined as T };
+  return { ok: true, data: (await res.json()) as T };
+}
+
 /**
  * Same request shape as {@link apiJson}, but returns `undefined` when `!res.ok` instead of throwing.
  */
