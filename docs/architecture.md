@@ -147,6 +147,12 @@ Images within an entry are stored as an ordered array (max 10). On save the clie
 
 ## 4. Authentication & Authorization
 
+> **Migration note:** auth is planned to move behind the centralized
+> homectl-auth forward-auth sidecar. The PWA-specific groundwork (service
+> worker and session-expiry behavior that prevent an installed PWA from getting
+> stuck in an auth loop behind an auth proxy) is already in place — see
+> [`docs/auth-sidecar-migration.md`](auth-sidecar-migration.md).
+
 ### Session Model
 
 Two tokens are issued on every successful login:

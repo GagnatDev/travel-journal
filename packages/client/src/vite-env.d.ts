@@ -3,6 +3,14 @@
 
 interface ImportMetaEnv {
   readonly VITE_MAPBOX_TOKEN?: string;
+  /**
+   * Interactive login URL owned by the auth layer, NOT by the SPA router.
+   * Unset while auth is hand-rolled (the app routes to its own /login screen).
+   * Set to `/auth/login` at homectl-auth sidecar cutover so session expiry
+   * escalates to a full-page navigation that bypasses the service worker
+   * (see src/auth/loginRedirect.ts).
+   */
+  readonly VITE_AUTH_LOGIN_URL?: string;
 }
 
 interface ImportMeta {

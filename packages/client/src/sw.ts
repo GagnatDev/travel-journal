@@ -2,9 +2,30 @@
 
 import { precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import { NetworkFirst, NetworkOnly, StaleWhileRevalidate } from 'workbox-strategies';
+
+import { isAuthPath } from './auth/authPaths.js';
+import { cacheableApiResponse } from './pwa/swCachePolicy.js';
 
 declare let self: ServiceWorkerGlobalScope;
+
+// Auth traffic must always reach the network, and its responses must never be
+// cached. This covers today's hand-rolled endpoints (/api/v1/auth/*) and the
+// paths the homectl-auth forward-auth sidecar will own after migration
+// (/auth/callback, /auth/logout, /auth/login). If the OAuth callback or a
+// refresh were ever answered from a cache, the session would never be
+// (re-)established while the app shell keeps loading from the precache — the
+// installed PWA would be stuck in an auth loop with no way to recover short of
+// clearing site data. Registered before all other routes so nothing can shadow it.
+//
+// IMPORTANT: for the same reason, never add a navigation fallback
+// (NavigationRoute / navigateFallback) that serves index.html for auth paths.
+// A top-level navigation with an expired session is exactly how interactive
+// re-login happens under the sidecar; it must pass through to the network.
+registerRoute(
+  ({ url, sameOrigin }) => sameOrigin && isAuthPath(url.pathname),
+  new NetworkOnly(),
+);
 
 precacheAndRoute(self.__WB_MANIFEST);
 
@@ -18,14 +39,22 @@ self.addEventListener('message', (event) => {
   }
 });
 
+// Only cache clean, non-redirected 200s (see swCachePolicy.ts) so a login
+// page or opaque redirect served by an auth proxy can never be stored as
+// trips JSON or media bytes.
+const onlyCleanApiResponses = {
+  cacheWillUpdate: ({ response }: { response: Response }) =>
+    Promise.resolve(cacheableApiResponse(response)),
+};
+
 registerRoute(
   ({ url }) => url.pathname.startsWith('/api/v1/trips'),
-  new NetworkFirst({ cacheName: 'api-trips' }),
+  new NetworkFirst({ cacheName: 'api-trips', plugins: [onlyCleanApiResponses] }),
 );
 
 registerRoute(
   ({ url }) => url.pathname.startsWith('/api/v1/media/'),
-  new StaleWhileRevalidate({ cacheName: 'media' }),
+  new StaleWhileRevalidate({ cacheName: 'media', plugins: [onlyCleanApiResponses] }),
 );
 
 interface PushPayload {
