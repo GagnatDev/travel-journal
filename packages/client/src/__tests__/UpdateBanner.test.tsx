@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '../context/AuthContext.js';
 import { ThemeProvider } from '../context/ThemeContext.js';
 import { NotificationsPanel } from '../components/NotificationsPanel.js';
+import { LoginScreen } from '../screens/LoginScreen.js';
 import { applyUpdate, usePwaUpdate } from '../pwa/usePwaUpdate.js';
 import { hasUnsavedChanges } from '../lib/unsavedChanges.js';
 import { TestMemoryRouter } from './TestMemoryRouter.js';
@@ -72,6 +73,30 @@ describe('NotificationsPanel update banner', () => {
     vi.mocked(hasUnsavedChanges).mockReturnValue(false);
     renderPanel();
 
+    await userEvent.click(screen.getByTestId('update-now'));
+    expect(applyUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders on the login screen so a logged-out client can still update', async () => {
+    // PWA pitfall (unforked auth-sidecar-migration.md): behind the auth
+    // sidecar a logged-out client cannot even fetch sw.js, so an update UI
+    // that only exists behind the auth gate pins stale installs to a broken
+    // build forever. The already-waiting worker must be applicable from the
+    // login screen.
+    vi.mocked(usePwaUpdate).mockReturnValue({ updateAvailable: true, applyUpdate });
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <TestMemoryRouter initialEntries={['/login']}>
+          <AuthProvider>
+            <ThemeProvider>
+              <LoginScreen />
+            </ThemeProvider>
+          </AuthProvider>
+        </TestMemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByTestId('update-banner')).toBeInTheDocument();
     await userEvent.click(screen.getByTestId('update-now'));
     expect(applyUpdate).toHaveBeenCalledTimes(1);
   });

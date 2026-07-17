@@ -9,6 +9,13 @@ migration: making sure the installed PWA cannot get stuck in an auth loop once
 an auth proxy sits in front of the app. Nothing here changes the current auth
 model — the app still runs its own login.
 
+The battle-tested reference for these failure modes is **unforked's migration
+guide** — [`unforked/docs/auth-sidecar-migration.md`](https://github.com/GagnatDev/unforked/blob/main/docs/auth-sidecar-migration.md),
+in particular its sections *«PWA / service worker pitfalls»* and *«Session
+handling: 401 → silent re-auth»*, written after unforked completed the same
+cutover and hit these problems in production. This document maps those lessons
+onto Travel Journal.
+
 ## Why a PWA + auth sidecar can deadlock
 
 The sidecar's contract: a top-level HTML navigation without a valid session is
@@ -40,6 +47,13 @@ installed PWA does not, for three reasons:
    caches it would be served as data — including offline, where nothing can
    evict it.
 
+4. **A logged-out client cannot update its service worker.** Behind the
+   sidecar *everything* — including `sw.js` — is auth-gated, so the periodic
+   `registration.update()` check fails while logged out. A stale client whose
+   only "update now" UI lives inside the authenticated app can therefore never
+   apply an already-installed waiting worker, and stays pinned to the old
+   (possibly broken) build forever. This is unforked's PWA pitfall #3.
+
 ## What was prepared (this change)
 
 | Concern | Where | Behavior |
@@ -47,7 +61,8 @@ installed PWA does not, for three reasons:
 | SW never intercepts auth traffic | `packages/client/src/sw.ts`, `src/auth/authPaths.ts` | `NetworkOnly` route for `/api/v1/auth/*` (today) and `/auth/*` (sidecar-owned: `/auth/login`, `/auth/callback`, `/auth/logout`), registered ahead of all other routes. |
 | Runtime caches only store clean data | `src/pwa/swCachePolicy.ts` | `api-trips` and `media` caches admit only status-200, non-redirected, non-HTML responses — a login page can never be cached as API data. |
 | Auth redirects ≠ offline | `src/api/client.ts` | API fetches use `redirect: 'manual'`; an `opaqueredirect`/3xx answer dispatches `auth:session-expired` instead of surfacing as a `NetworkError`. Inert today (our JSON API never redirects), load-bearing behind the sidecar. |
-| Loop-guarded interactive login | `src/auth/loginRedirect.ts`, `src/context/AuthContext.tsx` | Session expiry escalates through one function. With `VITE_AUTH_LOGIN_URL` unset (today) it routes to the in-app `/login` screen, unchanged. When set, it becomes a full-page `location.assign` to that URL with `?rd=<return path>` — rate-limited via `sessionStorage` (3 per minute) so a broken cookie flow (e.g. iOS PWA webview refusing the session cookie) degrades to a visible error state instead of an infinite redirect ping-pong between app and IdP. |
+| Loop-guarded interactive login | `src/auth/loginRedirect.ts`, `src/context/AuthContext.tsx` | Session expiry escalates through one function. With `VITE_AUTH_LOGIN_URL` unset (today) it routes to the in-app `/login` screen, unchanged. When set, it becomes a full-page `location.assign` to that URL with `?rd=<return path+query+hash>` — rate-limited via `sessionStorage` (3 per minute) so a broken cookie flow (e.g. iOS PWA webview refusing the session cookie) degrades to a visible error state instead of an infinite redirect ping-pong between app and IdP. A burst of concurrent expiries (one event per failing parallel request) collapses into a single navigation and consumes a single budget slot, and the budget resets after a confirmed successful auth. |
+| Update prompt reachable while logged out | `src/components/UpdateBanner.tsx`, `src/screens/LoginScreen.tsx` | The "new version available" banner renders on the login screen as well as in the (auth-gated) notifications panel, so a logged-out client can still activate an already-waiting service worker (see deadlock #4). |
 
 Invariants to preserve until and during the migration:
 
@@ -59,6 +74,15 @@ Invariants to preserve until and during the migration:
 - Session-expiry handling must go through `beginInteractiveLogin` — do not
   reintroduce ad-hoc `navigate('/login')` or `location.reload()` calls for
   auth recovery.
+- The SW update prompt (`UpdateBanner`) must stay reachable outside the auth
+  gate (today: the login screen). Behind the sidecar it is the only way for a
+  logged-out client to escape a stale build.
+- **Ship this preparation well before cutover.** Installed clients only pick
+  up the auth-safe service worker through a normal update cycle; any install
+  that never received it behaves like unforked's pre-migration stale installs
+  — it cannot self-heal and must be removed and re-added. (iOS caveat from
+  unforked: Safari's "Clear History and Website Data" does *not* clear a Home
+  Screen web app's storage — delete the icon, log in via Safari, re-add.)
 
 ## What the actual migration still needs (out of scope here)
 
@@ -75,5 +99,22 @@ Per homectl-reference `skills/migrate-to-homectl-auth`:
 5. Frontend cutover: set `VITE_AUTH_LOGIN_URL=/auth/login`, drop the login
    form, token store, and refresh flow; API calls become plain same-origin
    fetches. Decide the `suppressed`-escalation UI (the in-app `/login` screen
-   goes away with the custom auth).
-6. Remove `/api/v1/auth/*`, the `Session` collection, and `JWT_SECRET`.
+   goes away with the custom auth) — it must keep hosting the `UpdateBanner`
+   and its "log in again" action must go through `beginInteractiveLogin`,
+   never `location.reload()` (a plain reload is answered from the precache
+   and never reaches the sidecar).
+6. Re-check the session on tab focus / `visibilitychange` (throttled), so a
+   session that expired while the PWA was backgrounded triggers the silent
+   sidecar re-auth *before* the user taps anything. Today the refresh flow
+   covers this; after it is removed, port the pattern from unforked's
+   `frontend/src/lib/session.ts`.
+7. Remove `/api/v1/auth/*`, the `Session` collection, and `JWT_SECRET`.
+
+Operational prerequisites unforked learned the hard way (see their guide for
+detail): register the app in the `homectl-auth-apps` ConfigMap (with
+`clientSecretEnv`) and roll out homectl-auth *before* first deploy; target a
+homectl-auth build that includes migration `010_session_rotation_grace.sql`
+(otherwise concurrent refreshes cause spurious logouts roughly every
+access-token lifetime); import users with `role` (not `isAdmin`), email as the
+identity key, normalized the same way everywhere; and redact
+`authorization`/`cookie`/`set-cookie` from the app's HTTP logs.

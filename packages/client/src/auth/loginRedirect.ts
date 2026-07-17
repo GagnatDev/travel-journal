@@ -18,6 +18,13 @@
  * When the guard trips we stop redirecting and let the caller render a login
  * screen / error state instead of bouncing the user between origins forever.
  *
+ * A burst of parallel API calls (a screen loading several images, say) all
+ * fails at once when the session is gone, dispatching one `session-expired`
+ * event per request. Only the FIRST escalation in a page instance navigates;
+ * the rest piggyback on it — otherwise a single burst would spend the whole
+ * redirect budget and trip the loop guard on what is really one attempt
+ * (unforked auth-sidecar-migration.md, "coordinate concurrent 401s").
+ *
  * Today (hand-rolled auth, no sidecar) `VITE_AUTH_LOGIN_URL` is unset and this
  * module resolves to `'client-route'`: the caller navigates to the in-app
  * `/login` screen exactly as before. At sidecar cutover, set
@@ -72,8 +79,39 @@ function writeRedirectLog(timestamps: number[]): void {
   }
 }
 
+/**
+ * True once a full-page login navigation has been started by this page
+ * instance. `location.assign` does not stop script execution, so the other
+ * requests of a failing burst still dispatch their events while the browser
+ * is tearing the page down; they must not navigate (or consume redirect
+ * budget) again. A real new attempt always comes with a fresh page load,
+ * which resets this flag while the sessionStorage log persists.
+ */
+let redirectInFlight = false;
+
 /** Exposed for tests. */
 export function resetLoginRedirectGuard(): void {
+  redirectInFlight = false;
+  try {
+    sessionStorage.removeItem(REDIRECT_LOG_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+/** Test-only: clear the in-page flag the way a fresh page load would. */
+export function simulatePageLoadForTests(): void {
+  redirectInFlight = false;
+}
+
+/**
+ * Call whenever a session is confirmed working (successful login/refresh).
+ * Clears the redirect budget so a later, unrelated expiry gets a full set of
+ * attempts instead of inheriting leftovers from the previous recovery
+ * (unforked auth-sidecar-migration.md, "reset the budget after a confirmed auth").
+ */
+export function markAuthenticated(): void {
+  redirectInFlight = false;
   try {
     sessionStorage.removeItem(REDIRECT_LOG_KEY);
   } catch {
@@ -93,10 +131,14 @@ export function beginInteractiveLogin(
   const loginUrl = options.loginUrl ?? configuredLoginUrl();
   if (!loginUrl) return 'client-route';
 
+  // Collapse a concurrent burst into the navigation already under way.
+  if (redirectInFlight) return 'redirected';
+
   const now = options.now ?? Date.now();
   const recent = readRedirectLog().filter((t) => now - t < LOOP_WINDOW_MS);
   if (recent.length >= MAX_REDIRECTS_PER_WINDOW) return 'suppressed';
   writeRedirectLog([...recent, now]);
+  redirectInFlight = true;
 
   const separator = loginUrl.includes('?') ? '&' : '?';
   const target = `${loginUrl}${separator}rd=${encodeURIComponent(returnTo)}`;

@@ -4,7 +4,7 @@ import type { PublicUser } from '@travel-journal/shared';
 
 import { apiJson, NetworkError } from '../api/client.js';
 import { registerRefresh } from '../api/tokenStore.js';
-import { beginInteractiveLogin } from '../auth/loginRedirect.js';
+import { beginInteractiveLogin, markAuthenticated } from '../auth/loginRedirect.js';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -96,6 +96,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState({ accessToken, user, status: 'authenticated' });
     localStorage.setItem('preferredLocale', user.preferredLocale);
     writeSessionHint(user);
+    // The session works — give a later, unrelated expiry a fresh redirect
+    // budget instead of the leftovers from the last interactive login.
+    markAuthenticated();
   }, []);
 
   // Attempt silent refresh on mount. The `bootstrapRefresh` dedupe guards
@@ -185,7 +188,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     function handleSessionExpired() {
       clearSessionHint();
       setState({ accessToken: null, user: null, status: 'unauthenticated' });
-      const returnTo = window.location.pathname + window.location.search;
+      const returnTo =
+        window.location.pathname + window.location.search + window.location.hash;
       if (beginInteractiveLogin(returnTo) !== 'redirected') {
         navigate('/login', { state: { sessionExpired: true }, replace: true });
       }
