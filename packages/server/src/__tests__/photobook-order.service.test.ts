@@ -35,7 +35,7 @@ import {
 } from '../services/photobook-order.service.js';
 
 const MONGO_URI =
-  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-test-photobook-order';
+  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27019/travel-journal-test-photobook-order';
 
 const ADDRESS = {
   recipientName: 'Ada Lovelace',

@@ -29,7 +29,7 @@ vi.mock('@aws-sdk/s3-request-presigner', () => ({
 }));
 
 const MONGO_URI =
-  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-test-media-service';
+  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27019/travel-journal-test-media-service';
 
 beforeAll(async () => {
   process.env['JWT_SECRET'] = 'test-secret';

@@ -64,7 +64,7 @@ vi.mock('@aws-sdk/s3-request-presigner', () => ({
 }));
 
 const MONGO_URI =
-  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-test-media-router';
+  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27019/travel-journal-test-media-router';
 
 const app = createApp();
 

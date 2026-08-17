@@ -15,7 +15,7 @@ import {
 
 const MONGO_URI =
   process.env['MONGODB_URI'] ??
-  'mongodb://localhost:27017/travel-journal-test-notification-service';
+  'mongodb://localhost:27019/travel-journal-test-notification-service';
 
 beforeAll(async () => {
   await mongoose.connect(MONGO_URI);

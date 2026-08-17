@@ -7,7 +7,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { CreateBucketCommand, S3Client } from '@aws-sdk/client-s3';
 import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers';
 
-const SERVER_PORT = process.env['SERVER_PORT'] ?? '3101';
+const SERVER_PORT = process.env['SERVER_PORT'] ?? '8085';
 const HEALTHZ_URL = `http://localhost:${SERVER_PORT}/healthz`;
 const S3_ACCESS_KEY = process.env['S3_ACCESS_KEY'] ?? 'minioadmin';
 const S3_SECRET_KEY = process.env['S3_SECRET_KEY'] ?? 'minioadmin';
@@ -158,7 +158,7 @@ export default async function globalSetup() {
   } else {
     runtimeState = {
       mongodbUri:
-        process.env['MONGODB_URI'] ?? 'mongodb://127.0.0.1:27017/travel-journal-test',
+        process.env['MONGODB_URI'] ?? 'mongodb://127.0.0.1:27019/travel-journal-test',
       s3Endpoint: process.env['S3_ENDPOINT'] ?? 'http://127.0.0.1:9100',
       s3Bucket: process.env['S3_BUCKET'] ?? 'travel-journal',
       serverPort: SERVER_PORT,

@@ -8,7 +8,7 @@ import { User } from '../models/User.model.js';
 import { Session } from '../models/Session.model.js';
 import { generateAccessToken, hashPassword } from '../services/auth.service.js';
 
-const MONGO_URI = process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-test-auth';
+const MONGO_URI = process.env['MONGODB_URI'] ?? 'mongodb://localhost:27019/travel-journal-test-auth';
 
 beforeAll(async () => {
   process.env['JWT_SECRET'] = 'test-secret';
