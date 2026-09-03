@@ -40,6 +40,34 @@ function notifyIfSessionExpired(err: unknown): void {
   }
 }
 
+/**
+ * An API call was answered with a redirect. Our own JSON API never redirects,
+ * so this can only be an auth layer (e.g. the homectl-auth forward-auth
+ * sidecar) sending the request to interactive login. Requests are made with
+ * `redirect: 'manual'`, which surfaces as an `opaqueredirect` response in
+ * browsers (status 0) or as the raw 3xx in other fetch implementations.
+ *
+ * Without `redirect: 'manual'`, `fetch` would follow the redirect cross-origin
+ * to the identity provider and fail CORS — indistinguishable from being
+ * offline. The app would then classify an expired session as a
+ * {@link NetworkError}, keep the user in the cached "offline" experience
+ * forever, and the installed PWA would be stuck with no path back to login.
+ */
+function isAuthRedirect(res: Response): boolean {
+  return res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400);
+}
+
+/** Signal session expiry for a redirected API call and build the error to surface. */
+function sessionRedirectError(fallbackErrorMessage?: string): Error {
+  window.dispatchEvent(new CustomEvent('auth:session-expired'));
+  return new Error(fallbackErrorMessage ?? 'Session expired');
+}
+
+/** Like {@link sessionRedirectError} for callers that swallow errors instead of throwing. */
+function notifySessionRedirect(): void {
+  window.dispatchEvent(new CustomEvent('auth:session-expired'));
+}
+
 export type ApiJsonOptions = {
   token?: string;
   method?: string;
@@ -87,6 +115,10 @@ function buildRequestInit(options: ApiJsonOptions): RequestInit {
   const init: RequestInit = {
     method,
     headers: mergeHeaders(token, body, headers),
+    // Never follow redirects: the JSON API doesn't issue them, and following
+    // an auth proxy's login redirect cross-origin fails CORS and masquerades
+    // as a connectivity error (see isAuthRedirect).
+    redirect: 'manual',
   };
   if (credentials !== undefined) init.credentials = credentials;
   if (signal !== undefined) init.signal = signal;
@@ -99,6 +131,8 @@ export async function apiJson<T>(path: string, options: ApiJsonOptions = {}): Pr
   const { fallbackErrorMessage } = options;
   const res = await fetchOrThrow(path, buildRequestInit(options));
 
+  if (isAuthRedirect(res)) throw sessionRedirectError(fallbackErrorMessage);
+
   if (res.status === 401 && options.token) {
     let newToken: string;
     try {
@@ -109,6 +143,7 @@ export async function apiJson<T>(path: string, options: ApiJsonOptions = {}): Pr
       throw new Error(fallbackErrorMessage ?? 'Session expired');
     }
     const retryRes = await fetchOrThrow(path, buildRequestInit({ ...options, token: newToken }));
+    if (isAuthRedirect(retryRes)) throw sessionRedirectError(fallbackErrorMessage);
     if (!retryRes.ok) {
       if (retryRes.status === 401) {
         window.dispatchEvent(new CustomEvent('auth:session-expired'));
@@ -147,6 +182,11 @@ export async function apiJsonWithError<T>(
 ): Promise<ApiJsonResult<T>> {
   const res = await fetchOrThrow(path, buildRequestInit(options));
 
+  if (isAuthRedirect(res)) {
+    notifySessionRedirect();
+    return { ok: false, code: 'SESSION_EXPIRED', message: options.fallbackErrorMessage };
+  }
+
   if (!res.ok) {
     const parsed = await res.json().catch(() => ({}));
     const code = (parsed as { error?: { code?: string } }).error?.code;
@@ -162,6 +202,11 @@ export async function apiJsonWithError<T>(
 export async function apiJsonIfOk<T>(path: string, options: ApiJsonOptions = {}): Promise<T | undefined> {
   const res = await fetchOrThrow(path, buildRequestInit(options));
 
+  if (isAuthRedirect(res)) {
+    notifySessionRedirect();
+    return undefined;
+  }
+
   if (res.status === 401 && options.token) {
     let newToken: string;
     try {
@@ -171,6 +216,10 @@ export async function apiJsonIfOk<T>(path: string, options: ApiJsonOptions = {})
       return undefined;
     }
     const retryRes = await fetchOrThrow(path, buildRequestInit({ ...options, token: newToken }));
+    if (isAuthRedirect(retryRes)) {
+      notifySessionRedirect();
+      return undefined;
+    }
     if (!retryRes.ok) {
       if (retryRes.status === 401) {
         window.dispatchEvent(new CustomEvent('auth:session-expired'));
@@ -193,6 +242,8 @@ export async function apiBlob(path: string, options: ApiJsonOptions = {}): Promi
   const { fallbackErrorMessage } = options;
   const res = await fetchOrThrow(path, buildRequestInit(options));
 
+  if (isAuthRedirect(res)) throw sessionRedirectError(fallbackErrorMessage);
+
   if (res.status === 401 && options.token) {
     let newToken: string;
     try {
@@ -203,6 +254,7 @@ export async function apiBlob(path: string, options: ApiJsonOptions = {}): Promi
       throw new Error(fallbackErrorMessage ?? 'Session expired');
     }
     const retryRes = await fetchOrThrow(path, buildRequestInit({ ...options, token: newToken }));
+    if (isAuthRedirect(retryRes)) throw sessionRedirectError(fallbackErrorMessage);
     if (!retryRes.ok) {
       if (retryRes.status === 401) {
         window.dispatchEvent(new CustomEvent('auth:session-expired'));

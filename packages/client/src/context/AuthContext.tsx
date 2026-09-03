@@ -4,6 +4,7 @@ import type { PublicUser } from '@travel-journal/shared';
 
 import { apiJson, NetworkError } from '../api/client.js';
 import { registerRefresh } from '../api/tokenStore.js';
+import { beginInteractiveLogin, markAuthenticated } from '../auth/loginRedirect.js';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -95,6 +96,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState({ accessToken, user, status: 'authenticated' });
     localStorage.setItem('preferredLocale', user.preferredLocale);
     writeSessionHint(user);
+    // The session works — give a later, unrelated expiry a fresh redirect
+    // budget instead of the leftovers from the last interactive login.
+    markAuthenticated();
   }, []);
 
   // Attempt silent refresh on mount. The `bootstrapRefresh` dedupe guards
@@ -173,12 +177,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => registerRefresh(null);
   }, [state.status, setAuthenticated]);
 
-  // Handle session expiry (fired by apiJson when both access token and refresh token are invalid)
+  // Handle session expiry (fired by apiJson when the session cannot be
+  // recovered silently). Escalation is delegated to `beginInteractiveLogin`:
+  // with no `VITE_AUTH_LOGIN_URL` configured (hand-rolled auth, today) it
+  // resolves to the in-app /login screen; once auth sits behind the
+  // forward-auth sidecar it becomes a loop-guarded full-page navigation to the
+  // sidecar's login path, because the service worker serves the app shell from
+  // cache and only a real top-level navigation can re-establish the session.
   useEffect(() => {
     function handleSessionExpired() {
       clearSessionHint();
       setState({ accessToken: null, user: null, status: 'unauthenticated' });
-      navigate('/login', { state: { sessionExpired: true }, replace: true });
+      const returnTo =
+        window.location.pathname + window.location.search + window.location.hash;
+      if (beginInteractiveLogin(returnTo) !== 'redirected') {
+        navigate('/login', { state: { sessionExpired: true }, replace: true });
+      }
     }
     window.addEventListener('auth:session-expired', handleSessionExpired);
     return () => window.removeEventListener('auth:session-expired', handleSessionExpired);
