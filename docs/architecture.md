@@ -137,7 +137,7 @@ The Express app applies **helmet** (with Content-Security-Policy disabled at the
 | Variable | Purpose |
 |----------|---------|
 | `TRUST_PROXY` | Set to a positive integer (e.g. `1`) for the number of trusted proxy hops so `req.ip`, rate limiting, and secure cookies respect `X-Forwarded-For` / `X-Forwarded-Proto`. Omit or set `0` / `false` for local development without a proxy. |
-| `CORS_ORIGINS` | Comma-separated list of allowed browser origins (e.g. `https://app.example.com,http://localhost:5173`). When unset, cross-origin CORS headers are not sent (typical same-origin SPA + API). |
+| `CORS_ORIGINS` | Comma-separated list of allowed browser origins (e.g. `https://app.example.com,http://localhost:3004`). When unset, cross-origin CORS headers are not sent (typical same-origin SPA + API). |
 | `JSON_BODY_LIMIT` | Max JSON body size (e.g. `1mb`, `512kb`). Defaults to `1mb`. |
 
 ### Image Ordering
@@ -223,7 +223,7 @@ Environment variables required at runtime:
 
 ```
 services:
-  mongodb      mongo:8 — data on a named volume; exposed on 27017
+  mongodb      mongo:8 — data on a named volume; exposed on 27019
   minio        minio/minio — S3 API on 9000, web console on 9001
   createbuckets  one-shot minio/mc container; waits for MinIO, creates the bucket, exits
 ```
@@ -245,7 +245,7 @@ pnpm --filter @travel-journal/client dev   → Vite dev server (HMR)
 `packages/server/.env.local` (git-ignored):
 
 ```
-MONGODB_URI=mongodb://localhost:27017/travel-journal
+MONGODB_URI=mongodb://localhost:27019/travel-journal
 S3_ENDPOINT=http://localhost:9100
 S3_BUCKET=travel-journal
 S3_ACCESS_KEY=minioadmin

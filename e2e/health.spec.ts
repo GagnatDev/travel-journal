@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const SERVER_BASE = `http://localhost:${process.env['SERVER_PORT'] ?? '3101'}`;
+const SERVER_BASE = `http://localhost:${process.env['SERVER_PORT'] ?? '8085'}`;
 
 test.describe('Health endpoints', () => {
   test('GET /healthz returns 200 with status ok', async ({ request }) => {

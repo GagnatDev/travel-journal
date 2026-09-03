@@ -33,7 +33,7 @@ const buildTime = new Date().toISOString();
 const analyze = process.env['ANALYZE'] === '1';
 
 /** Dev server API target. Playwright sets E2E_API_ORIGIN so the client proxies to the e2e global-setup server. */
-const apiProxyTarget = process.env['E2E_API_ORIGIN'] ?? 'http://localhost:3100';
+const apiProxyTarget = process.env['E2E_API_ORIGIN'] ?? 'http://localhost:8084';
 
 const isE2E = process.env['TRAVEL_JOURNAL_E2E'] === '1';
 
@@ -104,6 +104,7 @@ export default defineConfig({
     },
   },
   server: {
+    port: 3004,
     proxy: {
       '/api': {
         target: apiProxyTarget,

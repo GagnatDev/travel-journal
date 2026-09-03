@@ -12,7 +12,7 @@ import {
 } from '../services/adminPasswordReset.service.js';
 
 const MONGO_URI =
-  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-test-admin-pw-reset';
+  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27019/travel-journal-test-admin-pw-reset';
 
 beforeAll(async () => {
   process.env['JWT_SECRET'] = 'test-secret';

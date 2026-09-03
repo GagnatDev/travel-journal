@@ -37,7 +37,7 @@ vi.mock('../services/media.service.js', async (importOriginal) => {
 });
 
 const MONGO_URI =
-  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-test-trip-router';
+  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27019/travel-journal-test-trip-router';
 
 beforeAll(async () => {
   process.env['JWT_SECRET'] = 'test-secret';

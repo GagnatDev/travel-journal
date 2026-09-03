@@ -30,7 +30,7 @@ async function isPortAvailable(port) {
 }
 
 async function pickClientPort() {
-  const requested = process.env.E2E_VITE_PORT ? Number(process.env.E2E_VITE_PORT) : 5173;
+  const requested = process.env.E2E_VITE_PORT ? Number(process.env.E2E_VITE_PORT) : 3005;
   if (Number.isInteger(requested) && requested > 0 && (await isPortAvailable(requested))) {
     return requested;
   }
@@ -41,7 +41,7 @@ async function pickClientPort() {
     }
   }
 
-  throw new Error('Unable to find a free port for Playwright webServer (checked 5173 and 4173-4272).');
+  throw new Error('Unable to find a free port for Playwright webServer (checked 3005 and 4173-4272).');
 }
 
 async function main() {

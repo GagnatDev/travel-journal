@@ -15,8 +15,8 @@ if (existsSync(e2eEnvPath)) {
   }
 }
 
-const e2eServerPort = process.env['SERVER_PORT'] ?? '3101';
-const e2eClientPort = process.env['E2E_VITE_PORT'] ?? '5173';
+const e2eServerPort = process.env['SERVER_PORT'] ?? '8085';
+const e2eClientPort = process.env['E2E_VITE_PORT'] ?? '3005';
 const clientOrigin = `http://localhost:${e2eClientPort}`;
 
 export default defineConfig({

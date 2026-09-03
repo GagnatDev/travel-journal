@@ -63,7 +63,7 @@ jobs:
       mongodb:
         image: mongo:8
         ports:
-          - 27017:27017
+          - 27019:27017
       minio:
         image: minio/minio
         command: server /data --console-address ":9001"
