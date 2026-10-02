@@ -65,7 +65,7 @@ jobs:
         ports:
           - 27019:27017
       minio:
-        image: minio/minio
+        image: pgsty/minio
         command: server /data --console-address ":9001"
         ports:
           - 9100:9000
