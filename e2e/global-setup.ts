@@ -67,7 +67,7 @@ async function startIsolatedInfrastructure() {
     .withWaitStrategy(Wait.forLogMessage('Waiting for connections'))
     .start();
 
-  const minioContainer = await new GenericContainer('minio/minio')
+  const minioContainer = await new GenericContainer('pgsty/minio')
     .withExposedPorts(9000)
     .withEnvironment({
       MINIO_ROOT_USER: S3_ACCESS_KEY,

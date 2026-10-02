@@ -1,6 +1,6 @@
 FROM node:24-slim AS builder
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9
 
 WORKDIR /app
 
@@ -28,7 +28,7 @@ RUN pnpm --filter @travel-journal/client build
 
 FROM node:24-slim AS runtime
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9
 
 WORKDIR /app
 
