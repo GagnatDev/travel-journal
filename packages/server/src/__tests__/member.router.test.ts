@@ -10,7 +10,7 @@ import { generateAccessToken, hashPassword } from '../services/auth.service.js';
 import { createTrip } from '../services/trip.service.js';
 
 const MONGO_URI =
-  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-test-member-router';
+  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27019/travel-journal-test-member-router';
 
 beforeAll(async () => {
   process.env['JWT_SECRET'] = 'test-secret';

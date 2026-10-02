@@ -13,6 +13,7 @@ import {
   useNotifications,
 } from '../notifications/useNotifications.js';
 import { NotificationItem } from './notifications/NotificationItem.js';
+import { UpdateBanner } from './UpdateBanner.js';
 
 interface NotificationsPanelProps {
   isOpen: boolean;
@@ -210,6 +211,8 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
         </div>
 
         <div className="flex-1 px-4 py-4 overflow-y-auto space-y-4 font-ui text-sm text-body">
+          <UpdateBanner />
+
           {notifications.length === 0 ? (
             <p className="text-caption text-center py-6" data-testid="notifications-empty">
               {isLoading ? '' : t('notifications.empty')}

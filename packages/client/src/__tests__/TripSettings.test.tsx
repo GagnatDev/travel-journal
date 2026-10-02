@@ -118,6 +118,32 @@ describe('TripSettingsScreen', () => {
     });
   });
 
+  it('shows trip statistics from the stats endpoint', async () => {
+    server.use(
+      http.get('/api/v1/trips/:id/entries/stats', () =>
+        HttpResponse.json({
+          entryCount: 7,
+          photoCount: 23,
+          uniqueLocationCount: 4,
+          contributorCount: 2,
+        }),
+      ),
+    );
+    renderSettings(makeTrip('active'));
+
+    const statsHeading = await screen.findByRole('heading', {
+      name: /turstatistikk|trip statistics/i,
+    });
+    const statsSection = statsHeading.closest('section')!;
+
+    await waitFor(() => {
+      expect(within(statsSection).getByText('7')).toBeInTheDocument();
+    });
+    expect(within(statsSection).getByText('23')).toBeInTheDocument();
+    expect(within(statsSection).getByText('4')).toBeInTheDocument();
+    expect(within(statsSection).getByText('2')).toBeInTheDocument();
+  });
+
   it('delete button requires confirmation; cancelling does not call the API', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     renderSettings(makeTrip('active'));

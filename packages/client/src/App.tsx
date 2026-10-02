@@ -7,6 +7,8 @@ import { ThemeProvider } from './context/ThemeContext.js';
 import { AppHeader } from './components/AppHeader.js';
 import { ProtectedLayout } from './components/ProtectedLayout.js';
 import { OfflineBanner } from './components/OfflineBanner.js';
+import { ScrollToTopOnNavigate } from './components/ScrollToTopOnNavigate.js';
+import { AboutScreen } from './screens/AboutScreen.js';
 import { AdminPanelScreen } from './screens/AdminPanelScreen.js';
 import { ProfileScreen } from './screens/ProfileScreen.js';
 import { AdminRegisterScreen } from './screens/AdminRegisterScreen.js';
@@ -57,6 +59,7 @@ export function App() {
 
   return (
     <ThemeProvider>
+      <ScrollToTopOnNavigate />
       <OfflineBanner />
       {status === 'authenticated' && <AppHeader />}
       <Routes>
@@ -76,6 +79,7 @@ export function App() {
           </Route>
           <Route path="/admin" element={<AdminPanelScreen />} />
           <Route path="/profile" element={<ProfileScreen />} />
+          <Route path="/about" element={<AboutScreen />} />
         </Route>
         <Route path="/" element={<Navigate to="/trips" replace />} />
       </Routes>

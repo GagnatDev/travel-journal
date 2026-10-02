@@ -24,7 +24,7 @@ S3_ENDPOINT=http://localhost:9100
 S3_BUCKET=travel-journal
 S3_ACCESS_KEY=minioadmin
 S3_SECRET_KEY=minioadmin
-MONGODB_URI=mongodb://localhost:27017/travel-journal
+MONGODB_URI=mongodb://localhost:27019/travel-journal
 ```
 
 Without `ADMIN_EMAIL`, the admin bootstrap registration endpoint returns 403.

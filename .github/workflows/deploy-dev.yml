@@ -51,7 +51,7 @@ jobs:
           container_id: ${{ secrets.DEV_SCW_CONTAINER_ID }}
           container_name: travel-journal-dev
           registry_image: ${{ steps.login.outputs.registry }}/travel-journal-dev:${{ steps.ref.outputs.sha }}
-          port: '3100'
+          port: '8084'
           min_scale: '0'
           max_scale: '1'
           memory_limit: '1024'

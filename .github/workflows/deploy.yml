@@ -40,6 +40,7 @@ jobs:
           IMAGE="${{ steps.login.outputs.registry }}/travel-journal"
           docker build \
             --build-arg VITE_MAPBOX_TOKEN="${{ secrets.APP_VITE_MAPBOX_TOKEN }}" \
+            --build-arg VITE_GIT_SHA="$HEAD_SHA" \
             -t "$IMAGE:$HEAD_SHA" -t "$IMAGE:latest" .
           docker push "$IMAGE:$HEAD_SHA"
           docker push "$IMAGE:latest"
@@ -54,7 +55,7 @@ jobs:
           container_id: ${{ secrets.SCW_CONTAINER_ID }}
           container_name: travel-journal
           registry_image: ${{ steps.login.outputs.registry }}/travel-journal:${{ github.event.workflow_run.head_sha }}
-          port: '3100'
+          port: '8084'
           min_scale: '0'
           max_scale: '1'
           memory_limit: '1024'

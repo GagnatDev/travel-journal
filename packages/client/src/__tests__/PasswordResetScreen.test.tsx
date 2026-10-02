@@ -26,6 +26,7 @@ function renderScreen(token: string) {
           <Routes>
             <Route path="/password-reset" element={<PasswordResetScreen />} />
             <Route path="/login" element={<div>Login stub</div>} />
+            <Route path="/" element={<div>App root stub</div>} />
           </Routes>
         </AuthProvider>
       </TestMemoryRouter>
@@ -47,6 +48,20 @@ describe('PasswordResetScreen', () => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
     });
     expect(screen.queryByRole('form')).not.toBeInTheDocument();
+  });
+
+  it('redirects to app root when the link was already used', async () => {
+    server.use(
+      http.get('/api/v1/auth/password-reset/:token/validate', () =>
+        HttpResponse.json({ error: { message: 'Already used', code: 'RESET_ALREADY_USED' } }, { status: 410 }),
+      ),
+    );
+
+    renderScreen('used-token');
+
+    await waitFor(() => {
+      expect(screen.getByText('App root stub')).toBeInTheDocument();
+    });
   });
 
   it('shows mismatch error when passwords differ', async () => {

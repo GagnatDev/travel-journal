@@ -6,6 +6,7 @@ export interface ISavedLocation extends Document {
   lat: number;
   lng: number;
   name?: string;
+  isFavorite: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -17,6 +18,7 @@ const savedLocationSchema = new Schema<ISavedLocation>(
     lat: { type: Number, required: true },
     lng: { type: Number, required: true },
     name: { type: String },
+    isFavorite: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

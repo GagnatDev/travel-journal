@@ -3,10 +3,12 @@ import crypto from 'node:crypto';
 import mongoose from 'mongoose';
 import type { Invite, PublicUser, TripMemberInviteSuggestion } from '@travel-journal/shared';
 
+import { logger } from '../logger.js';
 import { IInvite, Invite as InviteModel } from '../models/Invite.model.js';
 import { Trip } from '../models/Trip.model.js';
 import { User } from '../models/User.model.js';
 import { generateAccessToken, hashPassword, hashToken } from './auth.service.js';
+import { dispatchTripMemberAddedNotification } from './notification.service.js';
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -172,6 +174,20 @@ export async function acceptInvite(
         },
       },
     );
+
+    const inviter = await User.findById(doc.invitedBy).lean();
+    void dispatchTripMemberAddedNotification({
+      tripId: String(doc.tripId),
+      userId,
+      tripRole: doc.tripRole,
+      addedByUserId: String(doc.invitedBy),
+      addedByName: inviter?.displayName ?? '',
+    }).catch((err: unknown) => {
+      logger.warn(
+        { err, tripId: String(doc.tripId) },
+        'Failed to dispatch member-added notification',
+      );
+    });
   }
 
   doc.status = 'accepted';
@@ -344,6 +360,18 @@ export async function addTripMember(
         },
       },
     );
+
+    const issuer = await User.findById(issuedBy).lean();
+    void dispatchTripMemberAddedNotification({
+      tripId,
+      userId: String(user._id),
+      tripRole,
+      addedByUserId: issuedBy,
+      addedByName: issuer?.displayName ?? '',
+    }).catch((err: unknown) => {
+      logger.warn({ err, tripId }, 'Failed to dispatch member-added notification');
+    });
+
     return { type: 'added' };
   }
 

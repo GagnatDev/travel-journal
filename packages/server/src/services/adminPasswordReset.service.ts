@@ -54,6 +54,14 @@ export async function validateAdminPasswordResetToken(rawToken: string): Promise
     throw createHttpError('Reset link has expired or already been used', 410, 'RESET_GONE');
   }
 
+  if (doc.usedAt) {
+    throw createHttpError(
+      'This password has already been reset. Please log in with your new password.',
+      410,
+      'RESET_ALREADY_USED',
+    );
+  }
+
   const user = await User.findById(doc.userId).lean();
   if (!user) {
     throw createHttpError('Reset link has expired or already been used', 410, 'RESET_GONE');
@@ -70,6 +78,14 @@ export async function completeAdminPasswordReset(rawToken: string, password: str
     throw createHttpError('Reset link has expired or already been used', 410, 'RESET_GONE');
   }
 
+  if (doc.usedAt) {
+    throw createHttpError(
+      'This password has already been reset. Please log in with your new password.',
+      410,
+      'RESET_ALREADY_USED',
+    );
+  }
+
   const passwordHash = await hashPassword(password);
 
   const updated = await User.findOneAndUpdate(
@@ -83,5 +99,5 @@ export async function completeAdminPasswordReset(rawToken: string, password: str
   }
 
   await Session.deleteMany({ userId: doc.userId });
-  await AdminPasswordResetToken.deleteOne({ _id: doc._id });
+  await AdminPasswordResetToken.updateOne({ _id: doc._id }, { usedAt: new Date() });
 }

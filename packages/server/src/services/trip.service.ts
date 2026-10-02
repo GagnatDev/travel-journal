@@ -151,8 +151,23 @@ export async function listTripsForUser(userId: string): Promise<Trip[]> {
   const docs = await TripModel.find({
     'members.userId': new mongoose.Types.ObjectId(userId),
   });
+
+  const lastEntryByTrip = new Map<string, Date>();
+  if (docs.length > 0) {
+    const rows = await EntryModel.aggregate<{ _id: mongoose.Types.ObjectId; lastEntryAt: Date }>([
+      { $match: { tripId: { $in: docs.map((d) => d._id) }, deletedAt: null } },
+      { $group: { _id: '$tripId', lastEntryAt: { $max: '$createdAt' } } },
+    ]);
+    for (const row of rows) lastEntryByTrip.set(String(row._id), row.lastEntryAt);
+  }
+
   const trips = await Promise.all(docs.map(toTrip));
-  return trips.map((t) => redactPhotobookPdfJobForNonCreator(t, userId));
+  return trips.map((t) => {
+    const trip = redactPhotobookPdfJobForNonCreator(t, userId);
+    const lastEntryAt = lastEntryByTrip.get(trip.id);
+    if (lastEntryAt) trip.lastEntryAt = lastEntryAt.toISOString();
+    return trip;
+  });
 }
 
 export async function updateTrip(

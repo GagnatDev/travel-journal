@@ -76,6 +76,21 @@ const digestNotification: AppNotification = {
   },
 };
 
+const memberAddedNotification: AppNotification = {
+  id: 'notif-member-1',
+  type: 'trip.member_added',
+  createdAt: new Date(Date.now() - 10 * 60_000).toISOString(),
+  readAt: null,
+  data: {
+    type: 'trip.member_added',
+    tripId: 'trip-abc',
+    tripName: 'Nordic Loop',
+    tripRole: 'follower',
+    addedByUserId: 'other-user',
+    addedByName: 'Ada Lovelace',
+  },
+};
+
 const messageNotification: AppNotification = {
   id: 'notif-msg-1',
   type: 'user.private_message',
@@ -173,15 +188,37 @@ describe('Notifications inbox (bell badge + panel)', () => {
 
   it('renders type-specific copy for each NotificationType', async () => {
     renderPanel({
-      notifications: [tripEntryNotification, releaseNotification, messageNotification],
-      unreadCount: 3,
+      notifications: [
+        tripEntryNotification,
+        releaseNotification,
+        memberAddedNotification,
+        messageNotification,
+      ],
+      unreadCount: 4,
     });
     await screen.findByTestId('notification-item-notif-trip-1');
     expect(screen.getByText(/Ada Lovelace la til et nytt innlegg/)).toBeInTheDocument();
     expect(screen.getByText(/Fjord sunset · Nordic Loop/)).toBeInTheDocument();
     expect(screen.getByText(/er oppdatert til 2\.3\.0/)).toBeInTheDocument();
+    expect(screen.getByText(/Du er lagt til i Nordic Loop/)).toBeInTheDocument();
+    expect(screen.getByText(/Ada Lovelace la deg til som følger/)).toBeInTheDocument();
     expect(screen.getByText(/Ny melding fra Grace Hopper/)).toBeInTheDocument();
     expect(screen.getByText(/See you at the rendezvous tomorrow/)).toBeInTheDocument();
+  });
+
+  it('navigates to the trip timeline when a trip.member_added notification is activated', async () => {
+    server.use(
+      http.delete(
+        '/api/v1/notifications/notif-member-1',
+        () => new HttpResponse(null, { status: 204 }),
+      ),
+    );
+    renderPanel({ notifications: [memberAddedNotification], unreadCount: 1 });
+    const title = await screen.findByText(/Du er lagt til i Nordic Loop/);
+    await userEvent.click(title);
+    await waitFor(() =>
+      expect(screen.getByTestId('router-path')).toHaveTextContent('/trips/trip-abc/timeline'),
+    );
   });
 
   it('fires mark-all-read on open when there are unread items', async () => {

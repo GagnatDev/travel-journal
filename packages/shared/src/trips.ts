@@ -6,8 +6,22 @@ export type TripPhotobookPdfJobStatus = 'idle' | 'pending' | 'ready' | 'failed';
 
 export interface TripPhotobookPdfJob {
   status: TripPhotobookPdfJobStatus;
-  /** When status is `ready`, storage key for the generated PDF (creator-only download URL uses this). */
+  /**
+   * When status is `ready`, storage key for the merged viewable preview PDF
+   * (the creator-only download). For Prodigi ordering the print assets are
+   * stored separately below.
+   */
   pdfStorageKey?: string;
+  /** Print-ready interior PDF (228.6mm + bleed, `default` print area). */
+  interiorPdfStorageKey?: string;
+  /** Print-ready hardcover wrap/cover PDF (`cover` print area). */
+  coverPdfStorageKey?: string;
+  /** Print-ready spine PDF carrying the trip name (`spine` print area). */
+  spinePdfStorageKey?: string;
+  /** Print-ready back-cover PDF — the trip map overview when the trip has mappable locations (`backCover` print area). */
+  backCoverPdfStorageKey?: string;
+  /** Interior page count sent to Prodigi as `pageCount` (after padding to the product minimum). */
+  pageCount?: number;
   /** ISO time when generation finished successfully or failed. */
   finishedAt?: string;
   /** When status is `failed`, short message suitable for display (locale-neutral English fallback server-side). */
@@ -53,6 +67,8 @@ export interface Trip {
   photobookPdfJob?: TripPhotobookPdfJob;
   /** When true, trip contributors may invite people to this trip (same flows as the creator). */
   allowContributorInvites: boolean;
+  /** ISO time of the trip's newest non-deleted entry. Populated by the trips list endpoint; absent when the trip has no entries. */
+  lastEntryAt?: string;
   members: TripMember[];
   createdAt: string;
   updatedAt: string;
@@ -84,4 +100,16 @@ export interface TripMemberInviteSuggestion {
   userId: string;
   displayName: string;
   email: string;
+}
+
+/** Aggregate counts about a trip's content, shown on the trip settings screen. */
+export interface TripStats {
+  /** Number of non-deleted entries in the trip. */
+  entryCount: number;
+  /** Total number of photos across all non-deleted entries. */
+  photoCount: number;
+  /** Distinct places entries were tagged at (by name when present, otherwise by coordinates). */
+  uniqueLocationCount: number;
+  /** Number of people who have authored at least one entry. */
+  contributorCount: number;
 }

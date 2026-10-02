@@ -1,6 +1,6 @@
 FROM node:24-slim AS builder
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9
 
 WORKDIR /app
 
@@ -18,13 +18,17 @@ COPY tsconfig.base.json ./
 ARG VITE_MAPBOX_TOKEN
 ENV VITE_MAPBOX_TOKEN=$VITE_MAPBOX_TOKEN
 
+# Git commit hash → app version (the build image has no .git, so pass it in).
+ARG VITE_GIT_SHA
+ENV VITE_GIT_SHA=$VITE_GIT_SHA
+
 RUN pnpm --filter @travel-journal/shared build
 RUN pnpm --filter @travel-journal/server build
 RUN pnpm --filter @travel-journal/client build
 
 FROM node:24-slim AS runtime
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9
 
 WORKDIR /app
 
@@ -39,6 +43,6 @@ COPY --from=builder /app/packages/server/dist packages/server/dist
 COPY --from=builder /app/packages/server/assets packages/server/assets
 COPY --from=builder /app/packages/client/dist packages/server/dist/public
 
-EXPOSE 3100
+EXPOSE 8084
 
 CMD ["node", "packages/server/dist/index.js"]

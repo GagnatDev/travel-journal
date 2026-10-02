@@ -361,4 +361,107 @@ describe('CreateEntryScreen', () => {
       expect(screen.queryByTestId('entry-photo-upload-progress')).not.toBeInTheDocument();
     });
   });
+
+  describe('favorite places picker', () => {
+    const favoriteFixture = {
+      id: 'saved-fav-1',
+      tripId: TRIP_ID,
+      lat: 63.4305,
+      lng: 10.3951,
+      name: 'Cabin',
+      isFavorite: true,
+      savedByUserId: 'user-1',
+      savedByDisplayName: 'Test User',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const plainBookmarkFixture = {
+      ...favoriteFixture,
+      id: 'saved-plain-1',
+      name: 'One-shot pin',
+      isFavorite: false,
+    };
+
+    it('lists only favorites; picking one pre-fills the location fields', async () => {
+      server.use(
+        http.get(`/api/v1/trips/${TRIP_ID}/saved-locations`, () =>
+          HttpResponse.json([favoriteFixture, plainBookmarkFixture]),
+        ),
+      );
+
+      renderCreate();
+
+      const chip = await screen.findByRole('button', { name: /cabin/i });
+      expect(screen.queryByRole('button', { name: /one-shot pin/i })).not.toBeInTheDocument();
+
+      await userEvent.click(chip);
+
+      expect(screen.getByText('63.43050, 10.39510')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/stednavn|place name/i)).toHaveValue('Cabin');
+    });
+
+    it('submitting an entry from a favorite sends the location but never consumes it', async () => {
+      let lastEntryBody: Record<string, unknown> | undefined;
+      server.use(
+        http.get(`/api/v1/trips/${TRIP_ID}/saved-locations`, () =>
+          HttpResponse.json([favoriteFixture]),
+        ),
+        http.post(`/api/v1/trips/${TRIP_ID}/entries`, async ({ request }) => {
+          lastEntryBody = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json({ ...mockEntry, id: 'new-entry' }, { status: 201 });
+        }),
+      );
+
+      renderCreate();
+
+      await userEvent.click(await screen.findByRole('button', { name: /cabin/i }));
+      await userEvent.type(screen.getByLabelText(/tittel|title/i), 'Back at the cabin');
+      await userEvent.type(screen.getByLabelText(/innhold|content/i), 'Cozy as always');
+      await userEvent.click(screen.getByRole('button', { name: /lagre|save/i }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('timeline')).toBeInTheDocument();
+      });
+
+      expect(lastEntryBody).toBeDefined();
+      expect(lastEntryBody!['location']).toEqual({ lat: 63.4305, lng: 10.3951, name: 'Cabin' });
+      expect(lastEntryBody).not.toHaveProperty('consumedSavedLocationId');
+    });
+
+    it('hides favorite chips when editing an entry that already has a location', async () => {
+      server.use(
+        http.get(`/api/v1/trips/${TRIP_ID}/saved-locations`, () =>
+          HttpResponse.json([favoriteFixture]),
+        ),
+        http.get(`/api/v1/trips/${TRIP_ID}/entries/:entryId`, () =>
+          HttpResponse.json({
+            ...mockEntry,
+            location: { lat: 59.9139, lng: 10.7522, name: 'Oslo' },
+          }),
+        ),
+      );
+
+      renderCreate(`/trips/${TRIP_ID}/entries/entry-1/edit`);
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Oslo')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('button', { name: /cabin/i })).not.toBeInTheDocument();
+      expect(screen.queryByText(/favorittsteder|favorite places/i)).not.toBeInTheDocument();
+    });
+
+    it('shows favorite chips when editing an entry without a location', async () => {
+      server.use(
+        http.get(`/api/v1/trips/${TRIP_ID}/saved-locations`, () =>
+          HttpResponse.json([favoriteFixture]),
+        ),
+        http.get(`/api/v1/trips/${TRIP_ID}/entries/:entryId`, () => HttpResponse.json(mockEntry)),
+      );
+
+      renderCreate(`/trips/${TRIP_ID}/entries/entry-1/edit`);
+
+      expect(await screen.findByRole('button', { name: /cabin/i })).toBeInTheDocument();
+    });
+  });
 });

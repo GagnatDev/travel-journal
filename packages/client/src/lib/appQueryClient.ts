@@ -22,6 +22,7 @@ export const QUERY_STALE_MS = {
   entriesFeed: 45 * 1000,
   entryLocations: 45 * 1000,
   mapPins: 45 * 1000,
+  savedLocations: 45 * 1000,
   entryEditor: 2 * 60 * 1000,
 } as const;
 

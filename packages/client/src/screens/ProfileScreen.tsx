@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { PublicUser } from '@travel-journal/shared';
+import type { PublicUser, ShippingAddress } from '@travel-journal/shared';
 
 import { apiJson } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.js';
+import { TextField } from '../components/ui/TextField.js';
 import { useUsageHintsSettings } from '../hooks/useUsageHintsSettings.js';
 import { compressImage } from '../utils/compressImage.js';
 import {
@@ -11,6 +12,67 @@ import {
   releaseAuthenticatedMediaObjectUrl,
 } from '../lib/authenticatedMedia.js';
 import { UserProfileModal } from '../components/UserProfileModal.js';
+
+type AddressDraft = {
+  recipientName: string;
+  email: string;
+  phoneNumber: string;
+  line1: string;
+  line2: string;
+  townOrCity: string;
+  stateOrCounty: string;
+  postalOrZipCode: string;
+  countryCode: string;
+};
+
+function addressDraftFrom(address: ShippingAddress | undefined): AddressDraft {
+  return {
+    recipientName: address?.recipientName ?? '',
+    email: address?.email ?? '',
+    phoneNumber: address?.phoneNumber ?? '',
+    line1: address?.line1 ?? '',
+    line2: address?.line2 ?? '',
+    townOrCity: address?.townOrCity ?? '',
+    stateOrCounty: address?.stateOrCounty ?? '',
+    postalOrZipCode: address?.postalOrZipCode ?? '',
+    countryCode: address?.countryCode ?? '',
+  };
+}
+
+function draftToShippingAddress(draft: AddressDraft): ShippingAddress {
+  const address: ShippingAddress = {
+    recipientName: draft.recipientName.trim(),
+    line1: draft.line1.trim(),
+    townOrCity: draft.townOrCity.trim(),
+    postalOrZipCode: draft.postalOrZipCode.trim(),
+    countryCode: draft.countryCode.trim(),
+  };
+  const email = draft.email.trim();
+  const phoneNumber = draft.phoneNumber.trim();
+  const line2 = draft.line2.trim();
+  const stateOrCounty = draft.stateOrCounty.trim();
+  if (email.length > 0) address.email = email;
+  if (phoneNumber.length > 0) address.phoneNumber = phoneNumber;
+  if (line2.length > 0) address.line2 = line2;
+  if (stateOrCounty.length > 0) address.stateOrCounty = stateOrCounty;
+  return address;
+}
+
+function addressDraftComplete(draft: AddressDraft): boolean {
+  return (
+    draft.recipientName.trim().length > 0 &&
+    draft.line1.trim().length > 0 &&
+    draft.townOrCity.trim().length > 0 &&
+    draft.postalOrZipCode.trim().length > 0 &&
+    draft.countryCode.trim().length > 0
+  );
+}
+
+function addressSummary(address: ShippingAddress): string {
+  return [address.recipientName, address.line1, address.townOrCity, `${address.postalOrZipCode} ${address.countryCode}`.trim()]
+    .filter((part) => part.length > 0)
+    .join(', ');
+}
 
 function CameraIcon() {
   return (
@@ -39,11 +101,24 @@ export function ProfileScreen() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [editingAddress, setEditingAddress] = useState(false);
+  const [addressDraft, setAddressDraft] = useState<AddressDraft>(() =>
+    addressDraftFrom(user?.shippingAddress),
+  );
+  const [savingAddress, setSavingAddress] = useState(false);
+  const [addressError, setAddressError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!editing && user != null) {
       setDraftName(user.displayName);
     }
   }, [editing, user]);
+
+  useEffect(() => {
+    if (!editingAddress && user != null) {
+      setAddressDraft(addressDraftFrom(user.shippingAddress));
+    }
+  }, [editingAddress, user]);
 
   // Load avatar blob URL
   useEffect(() => {
@@ -103,6 +178,36 @@ export function ProfileScreen() {
       setError(t('common.error'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleEditAddress = () => {
+    setAddressDraft(addressDraftFrom(user.shippingAddress));
+    setAddressError(null);
+    setEditingAddress(true);
+  };
+
+  const handleCancelAddress = () => {
+    setEditingAddress(false);
+    setAddressError(null);
+  };
+
+  const handleSaveAddress = async () => {
+    if (!addressDraftComplete(addressDraft)) return;
+    setSavingAddress(true);
+    setAddressError(null);
+    try {
+      const updated = await apiJson<PublicUser>('/api/v1/users/me', {
+        method: 'PATCH',
+        ...(accessToken != null ? { token: accessToken } : {}),
+        body: { shippingAddress: draftToShippingAddress(addressDraft) },
+      });
+      setUser(updated);
+      setEditingAddress(false);
+    } catch {
+      setAddressError(t('common.error'));
+    } finally {
+      setSavingAddress(false);
     }
   };
 
@@ -280,6 +385,123 @@ export function ProfileScreen() {
             {t('profile.emailLabel')}
           </p>
           <p className="font-ui text-sm text-body">{user.email}</p>
+        </section>
+
+        {/* Shipping address */}
+        <section className="space-y-2" data-testid="profile-shipping-address">
+          <div className="flex items-center justify-between">
+            <p className="font-ui text-xs font-semibold text-caption uppercase tracking-wide">
+              {t('profile.shippingAddress.title')}
+            </p>
+            {!editingAddress ? (
+              <button
+                type="button"
+                onClick={handleEditAddress}
+                className="font-ui text-sm text-accent hover:text-heading transition-colors"
+              >
+                {t('profile.shippingAddress.editButton')}
+              </button>
+            ) : null}
+          </div>
+
+          {editingAddress ? (
+            <div className="space-y-3">
+              <TextField
+                label={t('profile.shippingAddress.recipientName')}
+                labelHtmlFor="address-recipient-name"
+                value={addressDraft.recipientName}
+                onChange={(e) =>
+                  setAddressDraft((d) => ({ ...d, recipientName: e.target.value }))
+                }
+              />
+              <TextField
+                label={t('profile.shippingAddress.line1')}
+                labelHtmlFor="address-line1"
+                value={addressDraft.line1}
+                onChange={(e) => setAddressDraft((d) => ({ ...d, line1: e.target.value }))}
+              />
+              <TextField
+                label={t('profile.shippingAddress.line2')}
+                labelHtmlFor="address-line2"
+                value={addressDraft.line2}
+                onChange={(e) => setAddressDraft((d) => ({ ...d, line2: e.target.value }))}
+              />
+              <TextField
+                label={t('profile.shippingAddress.townOrCity')}
+                labelHtmlFor="address-town"
+                value={addressDraft.townOrCity}
+                onChange={(e) => setAddressDraft((d) => ({ ...d, townOrCity: e.target.value }))}
+              />
+              <TextField
+                label={t('profile.shippingAddress.stateOrCounty')}
+                labelHtmlFor="address-state"
+                value={addressDraft.stateOrCounty}
+                onChange={(e) =>
+                  setAddressDraft((d) => ({ ...d, stateOrCounty: e.target.value }))
+                }
+              />
+              <TextField
+                label={t('profile.shippingAddress.postalOrZipCode')}
+                labelHtmlFor="address-postal"
+                value={addressDraft.postalOrZipCode}
+                onChange={(e) =>
+                  setAddressDraft((d) => ({ ...d, postalOrZipCode: e.target.value }))
+                }
+              />
+              <TextField
+                label={t('profile.shippingAddress.countryCode')}
+                labelHtmlFor="address-country"
+                value={addressDraft.countryCode}
+                onChange={(e) =>
+                  setAddressDraft((d) => ({ ...d, countryCode: e.target.value }))
+                }
+              />
+              <TextField
+                label={t('profile.shippingAddress.email')}
+                labelHtmlFor="address-email"
+                type="email"
+                value={addressDraft.email}
+                onChange={(e) => setAddressDraft((d) => ({ ...d, email: e.target.value }))}
+              />
+              <TextField
+                label={t('profile.shippingAddress.phoneNumber')}
+                labelHtmlFor="address-phone"
+                value={addressDraft.phoneNumber}
+                onChange={(e) =>
+                  setAddressDraft((d) => ({ ...d, phoneNumber: e.target.value }))
+                }
+              />
+              {addressError ? (
+                <p role="alert" className="text-xs text-red-500 font-ui">
+                  {addressError}
+                </p>
+              ) : null}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveAddress}
+                  disabled={savingAddress || !addressDraftComplete(addressDraft)}
+                  className="font-ui text-sm px-4 py-1.5 rounded-lg bg-accent text-white disabled:opacity-50"
+                >
+                  {t('profile.saveButton')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelAddress}
+                  disabled={savingAddress}
+                  className="font-ui text-sm px-4 py-1.5 rounded-lg border border-caption/30 text-body"
+                >
+                  {t('profile.cancelButton')}
+                </button>
+              </div>
+            </div>
+          ) : user.shippingAddress ? (
+            <p className="font-ui text-sm text-body">{addressSummary(user.shippingAddress)}</p>
+          ) : (
+            <p className="font-ui text-sm text-caption">
+              {t('profile.shippingAddress.emptyState')}
+            </p>
+          )}
         </section>
 
         <section className="space-y-3">

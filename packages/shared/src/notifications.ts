@@ -1,7 +1,9 @@
 export type NotificationType =
   | 'trip.new_entry'
   | 'trip.new_entry_digest'
+  | 'trip.member_added'
   | 'trip.photobook_pdf_ready'
+  | 'photobook.order_status'
   | 'system.release_announcement'
   | 'user.private_message';
 
@@ -48,11 +50,37 @@ export interface TripNewEntryDigestNotificationData {
   windowEnd: string;
 }
 
+/**
+ * Sent to a user when they are added to a trip as a contributor or follower,
+ * so they learn the trip exists without having to stumble upon it.
+ */
+export interface TripMemberAddedNotificationData {
+  type: 'trip.member_added';
+  tripId: string;
+  tripName: string;
+  tripRole: 'contributor' | 'follower';
+  addedByUserId: string;
+  addedByName: string;
+}
+
 /** Photobook PDF finished generating; deep-link opens trip settings to download. */
 export interface TripPhotobookPdfReadyNotificationData {
   type: 'trip.photobook_pdf_ready';
   tripId: string;
   tripName: string;
+}
+
+/**
+ * Status update for a physical photobook order. Sent to the trip creator when
+ * their order is submitted / fails / is rejected, and to admins when a new
+ * order is awaiting approval. `event` distinguishes the cases for rendering.
+ */
+export interface PhotobookOrderStatusNotificationData {
+  type: 'photobook.order_status';
+  tripId: string;
+  tripName: string;
+  orderId: string;
+  event: 'awaiting_approval' | 'submitted' | 'failed' | 'rejected';
 }
 
 export interface ReleaseAnnouncementNotificationData {
@@ -72,7 +100,9 @@ export interface PrivateMessageNotificationData {
 export type NotificationData =
   | TripNewEntryNotificationData
   | TripNewEntryDigestNotificationData
+  | TripMemberAddedNotificationData
   | TripPhotobookPdfReadyNotificationData
+  | PhotobookOrderStatusNotificationData
   | ReleaseAnnouncementNotificationData
   | PrivateMessageNotificationData;
 
@@ -102,7 +132,11 @@ export function notificationLinkFor(data: NotificationData): string {
       return `/trips/${data.tripId}/timeline?entryId=${data.entryId}`;
     case 'trip.new_entry_digest':
       return `/trips/${data.tripId}/timeline`;
+    case 'trip.member_added':
+      return `/trips/${data.tripId}/timeline`;
     case 'trip.photobook_pdf_ready':
+      return `/trips/${data.tripId}/settings`;
+    case 'photobook.order_status':
       return `/trips/${data.tripId}/settings`;
     case 'system.release_announcement':
       return '/trips';

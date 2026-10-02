@@ -5,7 +5,7 @@ vi.mock('../api/tokenStore.js', () => ({
   registerRefresh: vi.fn(),
 }));
 
-import { apiJson, NetworkError, parseApiErrorMessage } from '../api/client.js';
+import { apiJson, apiJsonIfOk, NetworkError, parseApiErrorMessage } from '../api/client.js';
 import { attemptRefresh } from '../api/tokenStore.js';
 
 afterEach(() => {
@@ -148,5 +148,91 @@ describe('apiJson', () => {
 
     await expect(apiJson('/api/v1/auth/refresh', { method: 'POST', credentials: 'include' })).rejects.toThrow('Unauthorized');
     expect(attemptRefresh).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Behind the homectl-auth forward-auth sidecar an expired session answers an
+ * XHR with a redirect to interactive login. Requests use `redirect: 'manual'`
+ * so this surfaces as an `opaqueredirect` (browsers) or a raw 3xx (other fetch
+ * implementations) instead of a cross-origin CORS failure that would be
+ * misread as being offline — which would strand an installed PWA on cached
+ * data with no way back to login.
+ */
+describe('auth redirect handling', () => {
+  it('sends API requests with redirect: manual', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({}),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await apiJson('/api/v1/x', { token: 't' });
+    expect(fetchMock.mock.calls[0]![1].redirect).toBe('manual');
+  });
+
+  it('treats an opaqueredirect response as session expiry, not a network error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 0,
+        type: 'opaqueredirect',
+        json: () => Promise.reject(new Error('opaque body is not readable')),
+      }),
+    );
+
+    const events: Event[] = [];
+    const handler = (e: Event) => events.push(e);
+    window.addEventListener('auth:session-expired', handler);
+
+    await expect(apiJson('/api/v1/x', { token: 't' })).rejects.toThrow('Session expired');
+    expect(events.length).toBe(1);
+    expect(attemptRefresh).not.toHaveBeenCalled();
+
+    window.removeEventListener('auth:session-expired', handler);
+  });
+
+  it('treats a raw 3xx response as session expiry', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 302,
+        type: 'basic',
+        json: () => Promise.reject(new Error('redirect body is not JSON')),
+      }),
+    );
+
+    const events: Event[] = [];
+    const handler = (e: Event) => events.push(e);
+    window.addEventListener('auth:session-expired', handler);
+
+    await expect(apiJson('/api/v1/x', { token: 't' })).rejects.toThrow('Session expired');
+    expect(events.length).toBe(1);
+
+    window.removeEventListener('auth:session-expired', handler);
+  });
+
+  it('apiJsonIfOk resolves undefined and signals session expiry on a redirect', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 0,
+        type: 'opaqueredirect',
+        json: () => Promise.reject(new Error('opaque body is not readable')),
+      }),
+    );
+
+    const events: Event[] = [];
+    const handler = (e: Event) => events.push(e);
+    window.addEventListener('auth:session-expired', handler);
+
+    await expect(apiJsonIfOk('/api/v1/x', { token: 't' })).resolves.toBeUndefined();
+    expect(events.length).toBe(1);
+
+    window.removeEventListener('auth:session-expired', handler);
   });
 });

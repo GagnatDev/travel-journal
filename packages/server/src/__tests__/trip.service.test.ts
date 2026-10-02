@@ -18,7 +18,7 @@ import {
 } from '../services/trip.service.js';
 
 const MONGO_URI =
-  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-test-trip-service';
+  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27019/travel-journal-test-trip-service';
 
 beforeAll(async () => {
   await mongoose.connect(MONGO_URI);

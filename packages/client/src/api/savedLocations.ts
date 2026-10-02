@@ -12,6 +12,11 @@ export interface SavedLocationResponse {
   createdAt: string;
   updatedAt: string;
   name?: string;
+  isFavorite: boolean;
+}
+
+export function fetchSavedLocations(tripId: string, token: string): Promise<SavedLocationResponse[]> {
+  return apiJson<SavedLocationResponse[]>(`/api/v1/trips/${tripId}/saved-locations`, { token });
 }
 
 export function createSavedLocation(

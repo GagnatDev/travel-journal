@@ -12,7 +12,7 @@ import { createTrip } from '../services/trip.service.js';
 import { createEntry } from '../services/entry.service.js';
 
 const MONGO_URI =
-  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27017/travel-journal-test-entry-router';
+  process.env['MONGODB_URI'] ?? 'mongodb://localhost:27019/travel-journal-test-entry-router';
 
 beforeAll(async () => {
   process.env['JWT_SECRET'] = 'test-secret';

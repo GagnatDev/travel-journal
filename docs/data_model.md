@@ -189,13 +189,16 @@ Quick bookmarks on the trip map (GPS + optional label) before a full journal ent
 | `lat` | number | latitude |
 | `lng` | number | longitude |
 | `name` | string? | optional label |
+| `isFavorite` | boolean | default `false`; favorites are reusable places, never consumed |
 | `createdAt` | Date | |
 | `updatedAt` | Date | |
 
 **Indexes:**
 - `{ tripId: 1, createdAt: -1 }` — list pins for trip map merge
 
-Consuming bookmark: posting an entry may include `consumedSavedLocationId`; the API validates the bookmark belongs to the same trip, creates the entry, then deletes that `SavedLocation` document.
+Consuming bookmark: posting an entry may include `consumedSavedLocationId`; the API validates the bookmark belongs to the same trip, creates the entry, then deletes that `SavedLocation` document — **unless it is a favorite** (`isFavorite: true`), which survives so the same place can seed future entries.
+
+Favorite places: starring a location on an entry card creates a `SavedLocation` with `isFavorite: true` (copying the entry's embedded coordinates). Favorites show as star pins on the map, appear as quick-pick chips in the entry composer, and entry cards match them back to entries by exact `lat`/`lng`. Same role rules as bookmarks: creator/contributor manage, followers read-only.
 
 The client may also queue bookmarks in **IndexedDB** while offline (`pendingSavedLocations`); those rows sync with `POST /trips/:id/saved-locations` when connectivity returns before they exist in MongoDB.
 

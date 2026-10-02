@@ -4,3 +4,4 @@ export * from './entries.js';
 export * from './invites.js';
 export * from './notifications.js';
 export * from './tripPhotobookPdf.js';
+export * from './photobookOrders.js';

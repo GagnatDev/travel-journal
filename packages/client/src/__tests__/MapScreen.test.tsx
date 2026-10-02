@@ -38,6 +38,10 @@ vi.mock('mapbox-gl', () => {
     on: vi.fn().mockImplementation((event: string, cb: () => void) => {
       if (event === 'load') cb();
     }),
+    off: vi.fn(),
+    // Scale degrees so pins in different cities stay further apart than the
+    // cluster radius, mirroring a city-level zoom.
+    project: vi.fn((lngLat: [number, number]) => ({ x: lngLat[0] * 10, y: lngLat[1] * 10 })),
     fitBounds: vi.fn(),
     resize: vi.fn(),
     remove: vi.fn(),
@@ -134,6 +138,8 @@ describe('MapScreen', () => {
     // Provide a dummy VITE_MAPBOX_TOKEN so the map initialises
     vi.stubEnv('VITE_MAPBOX_TOKEN', 'pk.test-token');
     vi.mocked(mapboxgl.Map).mockClear();
+    vi.mocked(mapboxgl.Marker).mockClear();
+    vi.mocked(mapboxgl.Popup).mockClear();
   });
 
   afterEach(() => {
@@ -349,6 +355,102 @@ describe('MapScreen', () => {
       configurable: true,
       value: origGeo,
     });
+  });
+
+  it('groups nearby pins into a cluster marker with a paging popup', async () => {
+    const parisCluster: MapPin[] = [
+      {
+        kind: 'entry',
+        entryId: 'entry-1',
+        title: 'Eiffel Tower',
+        lat: 48.8584,
+        lng: 2.2945,
+        createdAt: '2026-07-02T10:00:00.000Z',
+      },
+      {
+        kind: 'entry',
+        entryId: 'entry-2',
+        title: 'Louvre',
+        lat: 48.8606,
+        lng: 2.3376,
+        createdAt: '2026-07-01T10:00:00.000Z',
+      },
+      {
+        kind: 'savedLocation',
+        id: 'saved-1',
+        lat: 48.853,
+        lng: 2.3499,
+        createdAt: '2026-06-30T10:00:00.000Z',
+        savedByUserId: 'user-1',
+        savedByDisplayName: 'Test User',
+        name: 'Île de la Cité',
+        isFavorite: true,
+      },
+    ];
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json(parisCluster)),
+    );
+
+    renderMap();
+
+    await waitFor(() => {
+      expect(vi.mocked(mapboxgl.Marker)).toHaveBeenCalled();
+    });
+
+    const markerEl = vi.mocked(mapboxgl.Marker).mock.calls[0]?.[0] as HTMLElement;
+    expect(markerEl.className).toBe('map-marker-cluster');
+    expect(markerEl.textContent).toBe('3');
+
+    const popupInstance = vi.mocked(mapboxgl.Popup).mock.results[0]?.value as {
+      setHTML: ReturnType<typeof vi.fn>;
+    };
+    const popupHtml = popupInstance.setHTML.mock.calls[0]?.[0] as string;
+
+    // Mount the popup HTML the way Mapbox would, so the document-level click
+    // handler installed by the map hook drives the paging.
+    const host = document.createElement('div');
+    host.innerHTML = popupHtml;
+    document.body.appendChild(host);
+    try {
+      const item = (i: number) => host.querySelector(`[data-cluster-item="${i}"]`)!;
+      const counter = host.querySelector('[data-cluster-counter]')!;
+      expect(item(0).hasAttribute('hidden')).toBe(false);
+      expect(counter.textContent).toBe('1 / 3');
+      expect(item(0).textContent).toContain('Eiffel Tower');
+
+      await userEvent.click(host.querySelector('[data-cluster-nav="next"]')!);
+      expect(item(0).hasAttribute('hidden')).toBe(true);
+      expect(item(1).hasAttribute('hidden')).toBe(false);
+      expect(counter.textContent).toBe('2 / 3');
+      expect(item(1).textContent).toContain('Louvre');
+
+      // Prev from the first item wraps around to the last (the favorite spot).
+      await userEvent.click(host.querySelector('[data-cluster-nav="prev"]')!);
+      await userEvent.click(host.querySelector('[data-cluster-nav="prev"]')!);
+      expect(item(2).hasAttribute('hidden')).toBe(false);
+      expect(counter.textContent).toBe('3 / 3');
+      expect(item(2).textContent).toContain('Île de la Cité');
+    } finally {
+      host.remove();
+    }
+  });
+
+  it('keeps distant pins as individual markers', async () => {
+    server.use(
+      http.get(`/api/v1/trips/${TRIP_ID}/map-pins`, () => HttpResponse.json(mockPins)),
+    );
+
+    renderMap();
+
+    await waitFor(() => {
+      expect(vi.mocked(mapboxgl.Marker).mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
+
+    const markerEls = vi
+      .mocked(mapboxgl.Marker)
+      .mock.calls.map((call) => call[0] as HTMLElement | undefined);
+    expect(markerEls.filter((el) => el?.className === 'map-marker')).toHaveLength(2);
+    expect(markerEls.some((el) => el?.className === 'map-marker-cluster')).toBe(false);
   });
 
   it('shows error state when the query fails', async () => {

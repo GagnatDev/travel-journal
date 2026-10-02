@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AuthPageLayout } from '../components/ui/AuthPageLayout.js';
 import { TextField } from '../components/ui/TextField.js';
+import { UpdateBanner } from '../components/UpdateBanner.js';
 import { useAuth } from '../context/AuthContext.js';
 
 const fieldErrorClass = 'mt-1 text-xs text-accent font-ui';
@@ -62,6 +63,10 @@ export function LoginScreen() {
 
   return (
     <AuthPageLayout title={t('auth.login.title')}>
+      {/* A pending SW update must be applicable while logged out: behind the
+          auth sidecar a logged-out client can't even fetch sw.js, so this
+          screen is its only chance to escape a stale build. */}
+      <UpdateBanner className="mb-4" />
       {sessionExpired && (
         <p role="alert" className="mb-4 text-sm text-center font-ui text-accent">
           {t('auth.login.sessionExpired')}

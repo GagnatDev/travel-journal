@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -55,7 +56,7 @@ describe('TripDashboardScreen', () => {
     server.use(
       http.get('/api/v1/trips', async () => {
         await tripsGate;
-        return HttpResponse.json([makeTrip({ name: 'Gated Trip' })]);
+        return HttpResponse.json([makeTrip({ name: 'Gated Trip', status: 'active' })]);
       }),
     );
 
@@ -94,8 +95,86 @@ describe('TripDashboardScreen', () => {
     await waitFor(() => {
       expect(screen.getByText('Active Trip')).toBeInTheDocument();
       expect(screen.getByText('Planned Trip')).toBeInTheDocument();
-      expect(screen.getByText('Done Trip')).toBeInTheDocument();
     });
+
+    const plannedToggle = screen.getByRole('button', { name: /planlagte \(1\)/i });
+    const completedToggle = screen.getByRole('button', { name: /fullførte \(1\)/i });
+    expect(plannedToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(completedToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Done Trip')).not.toBeInTheDocument();
+
+    await userEvent.click(completedToggle);
+
+    expect(screen.getByText('Done Trip')).toBeInTheDocument();
+  });
+
+  it('moves planned trips without activity for over a week into a collapsed Inactive group', async () => {
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+    const trips: Trip[] = [
+      makeTrip({ id: 'trip-1', name: 'Fresh Plan', status: 'planned', updatedAt: new Date().toISOString() }),
+      makeTrip({ id: 'trip-2', name: 'Stale Plan', status: 'planned', updatedAt: eightDaysAgo }),
+    ];
+    server.use(http.get('/api/v1/trips', () => HttpResponse.json(trips)));
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText('Fresh Plan')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /planlagte \(1\)/i })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryByText('Stale Plan')).not.toBeInTheDocument();
+
+    const inactiveToggle = screen.getByRole('button', { name: /inaktive \(1\)/i });
+    expect(inactiveToggle).toHaveAttribute('aria-expanded', 'false');
+
+    await userEvent.click(inactiveToggle);
+
+    expect(screen.getByText('Stale Plan')).toBeInTheDocument();
+  });
+
+  it('moves active trips without entries for over a week into a collapsed Inactive group', async () => {
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+    const trips: Trip[] = [
+      makeTrip({ id: 'trip-1', name: 'Fresh Trip', status: 'active', lastEntryAt: new Date().toISOString() }),
+      makeTrip({ id: 'trip-2', name: 'Stale Trip', status: 'active', lastEntryAt: eightDaysAgo }),
+      makeTrip({ id: 'trip-3', name: 'Quiet Trip', status: 'active', updatedAt: eightDaysAgo }),
+    ];
+    server.use(http.get('/api/v1/trips', () => HttpResponse.json(trips)));
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText('Fresh Trip')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('heading', { name: 'Aktive' })).toBeInTheDocument();
+
+    // Collapsed by default: heading with count is there, cards are not
+    const toggle = screen.getByRole('button', { name: /inaktive \(2\)/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Stale Trip')).not.toBeInTheDocument();
+    expect(screen.queryByText('Quiet Trip')).not.toBeInTheDocument();
+
+    await userEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Stale Trip')).toBeInTheDocument();
+    expect(screen.getByText('Quiet Trip')).toBeInTheDocument();
+    // The fresh trip stays in the active group
+    expect(screen.getByText('Fresh Trip')).toBeInTheDocument();
+  });
+
+  it('does not render an Inactive group when all active trips have recent entries', async () => {
+    const trips: Trip[] = [
+      makeTrip({ id: 'trip-1', name: 'Fresh Trip', status: 'active', lastEntryAt: new Date().toISOString() }),
+    ];
+    server.use(http.get('/api/v1/trips', () => HttpResponse.json(trips)));
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText('Fresh Trip')).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /inaktive/i })).not.toBeInTheDocument();
   });
 
   it('shows Create Trip button for creator and admin', async () => {
@@ -122,6 +201,7 @@ describe('TripDashboardScreen', () => {
   it('shows user trip-level role on each card', async () => {
     const trips: Trip[] = [
       makeTrip({
+        status: 'active',
         members: [{ userId: 'user-1', displayName: 'Test User', tripRole: 'creator', addedAt: new Date().toISOString() }],
       }),
     ];

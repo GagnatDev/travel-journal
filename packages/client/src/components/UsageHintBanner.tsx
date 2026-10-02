@@ -24,7 +24,7 @@ export function UsageHintBanner({
   return (
     <div
       role="status"
-      className={`rounded-card border border-caption/10 bg-bg-secondary px-4 py-3 flex items-start justify-between gap-3 font-ui text-sm text-body ${className}`}
+      className={`rounded-card border border-caption/25 border-l-4 border-l-accent bg-sage-bg px-4 py-3 flex items-start justify-between gap-3 font-ui text-sm text-body shadow-sm ${className}`}
       data-testid={`usage-hint-${hintId.split(':').pop()}`}
     >
       <span className="min-w-0">{children}</span>

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../context/AuthContext.js';
 import { AdminInvitesTab } from './adminPanel/AdminInvitesTab.js';
+import { AdminOrdersTab } from './adminPanel/AdminOrdersTab.js';
 import { AdminUsersTab } from './adminPanel/AdminUsersTab.js';
 import type { AdminPanelTab } from './adminPanel/types.js';
 
@@ -38,7 +39,7 @@ export function AdminPanelScreen() {
       </header>
 
       <div className="px-4 flex gap-2 mb-6">
-        {(['users', 'invites'] as AdminPanelTab[]).map((tab) => (
+        {(['users', 'invites', 'orders'] as AdminPanelTab[]).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -57,6 +58,7 @@ export function AdminPanelScreen() {
       <main className="px-4">
         {activeTab === 'users' && <AdminUsersTab token={accessToken!} />}
         {activeTab === 'invites' && <AdminInvitesTab token={accessToken!} />}
+        {activeTab === 'orders' && <AdminOrdersTab token={accessToken!} />}
       </main>
     </div>
   );

@@ -2,12 +2,12 @@ services:
   mongodb:
     image: mongo:8
     ports:
-      - "27017:27017"
+      - "27019:27017"
     volumes:
       - mongo-data:/data/db
 
   minio:
-    image: minio/minio
+    image: pgsty/minio
     command: server /data --console-address ":9001"
     ports:
       - "9100:9000"
@@ -19,7 +19,7 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin
 
   createbuckets:
-    image: minio/mc
+    image: pgsty/mc
     depends_on:
       - minio
     entrypoint: >

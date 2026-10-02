@@ -12,6 +12,8 @@ import {
   releaseAuthenticatedMediaObjectUrl,
 } from '../lib/authenticatedMedia.js';
 import { patchTrip } from '../api/trips.js';
+import { useFavoriteLocations } from '../hooks/useFavoriteLocations.js';
+import { StarIcon } from './icons/index.js';
 import { AuthenticatedImage } from './AuthenticatedImage.js';
 import { AuthenticatedAvatar } from './AuthenticatedAvatar.js';
 import { EntryImageCarouselModal } from './EntryImageCarouselModal.js';
@@ -75,6 +77,20 @@ export const EntryCard = memo(function EntryCard({
 
   const isAuthor = entry.authorId === currentUserId;
   const showEntryActions = canManageEntries || isAuthor;
+
+  const { findFavoriteFor, addFavorite, removeFavorite, isMutating: favoriteBusy } =
+    useFavoriteLocations(tripId);
+  const locationFavorite = findFavoriteFor(entry.location);
+  const isLocationFavorited = locationFavorite !== undefined;
+
+  const handleFavoriteToggle = useCallback(() => {
+    if (!entry.location) return;
+    if (locationFavorite) {
+      removeFavorite(locationFavorite.id);
+    } else {
+      addFavorite(entry.location);
+    }
+  }, [entry.location, locationFavorite, addFavorite, removeFavorite]);
 
   const relativeTime = useMemo(
     () => getRelativeTime(entry.createdAt, i18n.language),
@@ -263,9 +279,36 @@ export const EntryCard = memo(function EntryCard({
       {/* Title */}
       <h2 className="font-display text-xl text-heading leading-snug px-4 mt-1">{entry.title}</h2>
 
-      {/* Location */}
-      {entry.location?.name && (
-        <p className="font-ui text-xs text-caption px-4 mt-1">{entry.location.name}</p>
+      {/* Location — creators/contributors can star it as a reusable favorite place */}
+      {entry.location && (entry.location.name || canManageEntries) && (
+        <div className="flex items-center gap-1.5 px-4 mt-1">
+          {entry.location.name && (
+            <p className="font-ui text-xs text-caption">{entry.location.name}</p>
+          )}
+          {canManageEntries && (
+            <button
+              type="button"
+              onClick={handleFavoriteToggle}
+              disabled={favoriteBusy}
+              aria-pressed={isLocationFavorited}
+              aria-label={
+                isLocationFavorited
+                  ? t('entries.unfavoriteLocation')
+                  : t('entries.favoriteLocation')
+              }
+              title={
+                isLocationFavorited
+                  ? t('entries.unfavoriteLocation')
+                  : t('entries.favoriteLocation')
+              }
+              className={`shrink-0 transition-colors disabled:opacity-50 ${
+                isLocationFavorited ? 'text-amber-500' : 'text-caption hover:text-amber-500'
+              }`}
+            >
+              <StarIcon filled={isLocationFavorited} width={14} height={14} />
+            </button>
+          )}
+        </div>
       )}
 
       {/* Additional images */}
