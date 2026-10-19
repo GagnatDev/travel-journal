@@ -30,7 +30,7 @@ importers:
         specifier: ^4.17.1
         version: 4.17.1(@typescript-eslint/utils@8.72.0(eslint@10.13.0(jiti@1.21.7))(typescript@6.0.3))(eslint-import-resolver-node@0.3.10)(eslint@10.13.0(jiti@1.21.7))
       globals:
-        specifier: ^16
+        specifier: ^16.5.0
         version: 16.5.0
       prettier:
         specifier: ^3.9.10
