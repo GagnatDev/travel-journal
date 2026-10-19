@@ -64,7 +64,7 @@ async function makeUser(
   return User.create({
     email,
     passwordHash: await hashPassword('password'),
-    displayName: email.split('@')[0],
+    displayName: email.split('@')[0] ?? email,
     appRole,
   });
 }

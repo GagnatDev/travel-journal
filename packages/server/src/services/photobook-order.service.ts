@@ -368,7 +368,7 @@ export async function createPhotobookOrder(args: {
         ...(job.pageCount !== undefined ? { pageCount: job.pageCount } : {}),
       },
     },
-    { upsert: true, new: false, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: 'before', setDefaultsOnInsert: true },
   );
 
   if (existing) {

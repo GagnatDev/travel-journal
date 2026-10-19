@@ -68,7 +68,9 @@ export function createApp(): Express {
   if (existsSync(indexHtmlPath)) {
     app.use(express.static(publicDir));
 
-    app.get('*', (req: Request, res: Response, next: NextFunction) => {
+    // Express 5 requires a named wildcard. `{*splat}` matches the SPA fallback
+    // (including `/`) without swallowing earlier `/api` routes.
+    app.get('/{*splat}', (req: Request, res: Response, next: NextFunction) => {
       if (req.path.startsWith('/api/')) {
         next();
         return;

@@ -10,6 +10,7 @@ import {
   revokeInvite,
 } from '../services/invite.service.js';
 import { getTripById } from '../services/trip.service.js';
+import { routeParam } from '../http/routeParam.js';
 
 export const memberRouter: Router = Router({ mergeParams: true });
 
@@ -27,7 +28,7 @@ function createHttpError(message: string, status: number, code: string): Error {
 async function tripMemberInviteGuard(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const auth = res.locals['auth'] as AccessTokenPayload;
-    const tripId = req.params['id']!;
+    const tripId = routeParam(req.params['id']);
 
     const trip = await getTripById(tripId);
     if (!trip) {
@@ -75,7 +76,7 @@ memberRouter.get(
   '/invites/suggestions',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tripId = req.params['id']!;
+      const tripId = routeParam(req.params['id']);
       const auth = res.locals['auth'] as AccessTokenPayload;
       const suggestions = await listTripMemberInviteSuggestions(tripId, auth.userId);
       res.json(suggestions);
@@ -90,7 +91,7 @@ memberRouter.get(
   '/invites',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tripId = req.params['id']!;
+      const tripId = routeParam(req.params['id']);
       const invites = await listTripInvites(tripId);
       res.json(invites);
     } catch (err) {
@@ -104,7 +105,7 @@ memberRouter.delete(
   '/invites/:inviteId',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const inviteId = req.params['inviteId']!;
+      const inviteId = routeParam(req.params['inviteId']);
       await revokeInvite(inviteId);
       res.status(204).send();
     } catch (err) {
@@ -119,7 +120,7 @@ memberRouter.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const auth = res.locals['auth'] as AccessTokenPayload;
-      const tripId = req.params['id']!;
+      const tripId = routeParam(req.params['id']);
       const { emailOrNickname, tripRole } = req.body as {
         emailOrNickname?: string;
         tripRole?: 'contributor' | 'follower';
@@ -161,8 +162,8 @@ memberRouter.patch(
   creatorOnlyGuard,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tripId = req.params['id']!;
-      const userId = req.params['userId']!;
+      const tripId = routeParam(req.params['id']);
+      const userId = routeParam(req.params['userId']);
       const { tripRole } = req.body as { tripRole?: 'contributor' | 'follower' };
 
       if (!tripRole || !['contributor', 'follower'].includes(tripRole)) {
@@ -209,8 +210,8 @@ memberRouter.delete(
   creatorOnlyGuard,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tripId = req.params['id']!;
-      const userId = req.params['userId']!;
+      const tripId = routeParam(req.params['id']);
+      const userId = routeParam(req.params['userId']);
 
       const trip = await getTripById(tripId);
       if (!trip) {

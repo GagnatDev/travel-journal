@@ -6,6 +6,7 @@ import type {
 } from '@travel-journal/shared';
 
 import { requireAppRole, requireAuth } from '../middleware/auth.middleware.js';
+import { routeParam } from '../http/routeParam.js';
 import {
   approveOrder,
   createPhotobookOrder,
@@ -44,7 +45,7 @@ photobookOrderRouter.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const auth = res.locals['auth'] as AccessTokenPayload;
-      const tripId = req.params['tripId']!;
+      const tripId = routeParam(req.params['tripId']);
       const request = (req.body ?? {}) as CreatePhotobookOrderRequest;
       const order = await createPhotobookOrder({ tripId, userId: auth.userId, request });
       res.status(201).json(order);
@@ -61,7 +62,7 @@ photobookOrderRouter.get(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const auth = res.locals['auth'] as AccessTokenPayload;
-      const tripId = req.params['tripId']!;
+      const tripId = routeParam(req.params['tripId']);
       const order = await getUserOrderForTrip(tripId, auth.userId);
       res.json(order);
     } catch (err) {
@@ -93,7 +94,7 @@ photobookOrderRouter.get(
   requireAppRole('admin'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const quote = await getQuoteForOrder(req.params['orderId']!);
+      const quote = await getQuoteForOrder(routeParam(req.params['orderId']));
       res.json(quote);
     } catch (err) {
       next(err);
@@ -107,7 +108,7 @@ photobookOrderRouter.post(
   requireAppRole('admin'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const order = await approveOrder(req.params['orderId']!);
+      const order = await approveOrder(routeParam(req.params['orderId']));
       res.json(order);
     } catch (err) {
       next(err);
@@ -122,7 +123,7 @@ photobookOrderRouter.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const reason = (req.body as { reason?: string } | undefined)?.reason;
-      const order = await rejectOrder(req.params['orderId']!, reason);
+      const order = await rejectOrder(routeParam(req.params['orderId']), reason);
       res.json(order);
     } catch (err) {
       next(err);
@@ -136,7 +137,7 @@ photobookOrderRouter.post(
   requireAppRole('admin'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const order = await retryOrder(req.params['orderId']!);
+      const order = await retryOrder(routeParam(req.params['orderId']));
       res.json(order);
     } catch (err) {
       next(err);

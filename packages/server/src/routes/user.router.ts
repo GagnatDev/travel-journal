@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response, Router } from 'express';
+import { NextFunction, Request, Response, Router, type RequestHandler } from 'express';
 import multer from 'multer';
 import type { AccessTokenPayload, ShippingAddress } from '@travel-journal/shared';
 
@@ -8,6 +8,7 @@ import { createAdminPasswordResetLink } from '../services/adminPasswordReset.ser
 import { sanitizeShippingAddress } from '../services/photobook-order.service.js';
 import { isProdigiConfigured } from '../services/prodigi.service.js';
 import { uploadAvatar, deleteObject } from '../services/media.service.js';
+import { routeParam } from '../http/routeParam.js';
 
 export const userRouter: Router = Router();
 
@@ -112,7 +113,7 @@ userRouter.patch(
         update['displayName'] = displayName.trim();
       }
 
-      const user = await User.findByIdAndUpdate(auth.userId, update, { new: true });
+      const user = await User.findByIdAndUpdate(auth.userId, update, { returnDocument: 'after' });
       if (!user) {
         res.status(404).json({ error: { message: 'User not found', code: 'NOT_FOUND' } });
         return;
@@ -129,7 +130,7 @@ userRouter.patch(
 userRouter.post(
   '/me/avatar',
   requireAuth,
-  avatarUpload.single('file'),
+  avatarUpload.single('file') as unknown as RequestHandler,
   (err: unknown, _req: Request, res: Response, next: NextFunction) => {
     if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
       res.status(413).json({ error: { message: 'File too large', code: 'FILE_TOO_LARGE' } });
@@ -220,7 +221,7 @@ userRouter.get(
   requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.params['id']!;
+      const userId = routeParam(req.params['id']);
       const user = await User.findById(userId).lean();
       if (!user) {
         res.status(404).json({ error: { message: 'User not found', code: 'NOT_FOUND' } });
@@ -253,7 +254,7 @@ userRouter.patch(
   requireAppRole('admin'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.params['id']!;
+      const userId = routeParam(req.params['id']);
       const user = await User.findById(userId);
       if (!user) {
         res.status(404).json({ error: { message: 'User not found', code: 'NOT_FOUND' } });
@@ -280,7 +281,7 @@ userRouter.patch(
   requireAppRole('admin'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.params['id']!;
+      const userId = routeParam(req.params['id']);
       const { enabled } = req.body as { enabled?: unknown };
       if (typeof enabled !== 'boolean') {
         res.status(400).json({
@@ -291,7 +292,7 @@ userRouter.patch(
       const user = await User.findByIdAndUpdate(
         userId,
         { photobookOrderingEnabled: enabled },
-        { new: true },
+        { returnDocument: 'after' },
       );
       if (!user) {
         res.status(404).json({ error: { message: 'User not found', code: 'NOT_FOUND' } });
@@ -311,7 +312,7 @@ userRouter.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const auth = res.locals['auth'] as AccessTokenPayload;
-      const userId = req.params['id']!;
+      const userId = routeParam(req.params['id']);
       const { resetLink } = await createAdminPasswordResetLink(userId, auth.userId);
       res.status(201).json({ resetLink });
     } catch (err) {

@@ -3,6 +3,7 @@ import type { AccessTokenPayload, CreateSavedLocationRequest, TripRole } from '@
 
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { getTripById } from '../services/trip.service.js';
+import { routeParam } from '../http/routeParam.js';
 import {
   createSavedLocation,
   deleteSavedLocation,
@@ -20,7 +21,7 @@ async function savedLocationMembershipGuard(
 ): Promise<void> {
   try {
     const auth = res.locals['auth'] as AccessTokenPayload;
-    const tripId = req.params['id']!;
+    const tripId = routeParam(req.params['id']);
 
     const trip = await getTripById(tripId);
     if (!trip) {
@@ -45,7 +46,7 @@ savedLocationRouter.use(savedLocationMembershipGuard);
 
 savedLocationRouter.get('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const tripId = req.params['id']!;
+    const tripId = routeParam(req.params['id']);
     const list = await listSavedLocationsForTrip(tripId);
     res.json(list);
   } catch (err) {
@@ -57,7 +58,7 @@ savedLocationRouter.post('/', async (req: Request, res: Response, next: NextFunc
   try {
     const auth = res.locals['auth'] as AccessTokenPayload;
     const tripRole = res.locals['tripRole'] as TripRole;
-    const tripId = req.params['id']!;
+    const tripId = routeParam(req.params['id']);
     const body = req.body as CreateSavedLocationRequest;
 
     const location = await createSavedLocation(tripId, auth.userId, body, tripRole);
@@ -72,8 +73,8 @@ savedLocationRouter.delete(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tripRole = res.locals['tripRole'] as TripRole;
-      const tripId = req.params['id']!;
-      const savedId = req.params['savedId']!;
+      const tripId = routeParam(req.params['id']);
+      const savedId = routeParam(req.params['savedId']);
 
       await deleteSavedLocation(tripId, savedId, tripRole);
       res.status(204).send();
