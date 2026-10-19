@@ -25,7 +25,8 @@
     "react-dom": "^19.3.1",
     "react-i18next": "^17.1.0",
     "react-router-dom": "^7.18.4",
-    "vite-plugin-pwa": "^0.21.2",
+    "vite-plugin-pwa": "^2.0.0",
+    "workbox-build": "^7.4.1",
     "workbox-precaching": "^7.4.1",
     "workbox-routing": "^7.4.1",
     "workbox-strategies": "^7.4.1",
@@ -39,7 +40,7 @@
     "@types/mapbox-gl": "^3.5.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^4.7.0",
+    "@vitejs/plugin-react": "^6.1.2",
     "autoprefixer": "^10.6.1",
     "happy-dom": "^14.12.3",
     "jsdom": "^29.1.1",
@@ -47,7 +48,7 @@
     "postcss": "^8.5.31",
     "rollup-plugin-visualizer": "^7.1.1",
     "tailwindcss": "^3.4.19",
-    "vite": "^5.4.21",
-    "vitest": "^1.6.1"
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
   }
 }

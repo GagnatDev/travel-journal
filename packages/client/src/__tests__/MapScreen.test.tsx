@@ -17,38 +17,48 @@ import { mockUser } from './mocks/handlers.js';
 // Mock mapbox-gl — the real SDK requires a browser WebGL context and live network
 // requests that are not available in jsdom.
 vi.mock('mapbox-gl', () => {
-  const Popup = vi.fn().mockImplementation(() => ({
-    setHTML: vi.fn().mockReturnThis(),
-  }));
+  const Popup = vi.fn().mockImplementation(function Popup() {
+    return {
+      setHTML: vi.fn().mockReturnThis(),
+    };
+  });
 
-  const Marker = vi.fn().mockImplementation(() => ({
-    setLngLat: vi.fn().mockReturnThis(),
-    setPopup: vi.fn().mockReturnThis(),
-    addTo: vi.fn().mockReturnThis(),
-  }));
+  const Marker = vi.fn().mockImplementation(function Marker() {
+    return {
+      setLngLat: vi.fn().mockReturnThis(),
+      setPopup: vi.fn().mockReturnThis(),
+      addTo: vi.fn().mockReturnThis(),
+    };
+  });
 
-  const LngLatBounds = vi.fn().mockImplementation(() => ({
-    extend: vi.fn(),
-  }));
+  const LngLatBounds = vi.fn().mockImplementation(function LngLatBounds() {
+    return {
+      extend: vi.fn(),
+    };
+  });
 
-  const NavigationControl = vi.fn();
+  const NavigationControl = vi.fn(function NavigationControl() {
+    return {};
+  });
 
-  const Map = vi.fn().mockImplementation(() => ({
-    addControl: vi.fn(),
-    on: vi.fn().mockImplementation((event: string, cb: () => void) => {
-      if (event === 'load') cb();
-    }),
-    off: vi.fn(),
-    // Scale degrees so pins in different cities stay further apart than the
-    // cluster radius, mirroring a city-level zoom.
-    project: vi.fn((lngLat: [number, number]) => ({ x: lngLat[0] * 10, y: lngLat[1] * 10 })),
-    fitBounds: vi.fn(),
-    resize: vi.fn(),
-    remove: vi.fn(),
-    stop: vi.fn(),
-    easeTo: vi.fn(),
-    flyTo: vi.fn(),
-  }));
+  const Map = vi.fn().mockImplementation(function Map() {
+    return {
+      addControl: vi.fn(),
+      on: vi.fn().mockImplementation((event: string, cb: () => void) => {
+        if (event === 'load') cb();
+      }),
+      off: vi.fn(),
+      // Scale degrees so pins in different cities stay further apart than the
+      // cluster radius, mirroring a city-level zoom.
+      project: vi.fn((lngLat: [number, number]) => ({ x: lngLat[0] * 10, y: lngLat[1] * 10 })),
+      fitBounds: vi.fn(),
+      resize: vi.fn(),
+      remove: vi.fn(),
+      stop: vi.fn(),
+      easeTo: vi.fn(),
+      flyTo: vi.fn(),
+    };
+  });
 
   return {
     default: {

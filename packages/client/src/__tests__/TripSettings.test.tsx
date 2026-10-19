@@ -281,11 +281,13 @@ describe('TripSettingsScreen', () => {
   it('shows creator settings after timeline using one QueryClient (trip cache matches useQuery shape)', async () => {
     vi.stubGlobal(
       'IntersectionObserver',
-      vi.fn().mockImplementation(() => ({
-        observe: vi.fn(),
-        disconnect: vi.fn(),
-        unobserve: vi.fn(),
-      })),
+      vi.fn().mockImplementation(function IntersectionObserver() {
+        return {
+          observe: vi.fn(),
+          disconnect: vi.fn(),
+          unobserve: vi.fn(),
+        };
+      }),
     );
 
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });

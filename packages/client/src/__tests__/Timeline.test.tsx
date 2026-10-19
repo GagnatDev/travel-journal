@@ -79,11 +79,13 @@ describe('TimelineScreen', () => {
     const mockDisconnect = vi.fn();
     vi.stubGlobal(
       'IntersectionObserver',
-      vi.fn().mockImplementation((_cb: IntersectionObserverCallback) => ({
-        observe: mockObserve,
-        disconnect: mockDisconnect,
-        unobserve: vi.fn(),
-      })),
+      vi.fn().mockImplementation(function IntersectionObserver(_cb: IntersectionObserverCallback) {
+        return {
+          observe: mockObserve,
+          disconnect: mockDisconnect,
+          unobserve: vi.fn(),
+        };
+      }),
     );
   });
 
@@ -367,7 +369,7 @@ describe('TimelineScreen', () => {
 
     vi.stubGlobal(
       'IntersectionObserver',
-      vi.fn().mockImplementation((cb: IntersectionObserverCallback) => {
+      vi.fn().mockImplementation(function IntersectionObserver(cb: IntersectionObserverCallback) {
         observerCallback = cb;
         return {
           observe: vi.fn(),
