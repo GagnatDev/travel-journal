@@ -2,8 +2,8 @@ import { type RefObject, useEffect } from 'react';
 
 export function useSettingsMenuDismiss(
   open: boolean,
-  menuRef: RefObject<HTMLDivElement>,
-  buttonRef: RefObject<HTMLButtonElement>,
+  menuRef: RefObject<HTMLDivElement | null>,
+  buttonRef: RefObject<HTMLButtonElement | null>,
   setOpen: (value: boolean) => void,
 ): void {
   useEffect(() => {
