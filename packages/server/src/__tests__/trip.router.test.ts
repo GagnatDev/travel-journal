@@ -7,6 +7,7 @@ import { Entry } from '../models/Entry.model.js';
 import { User } from '../models/User.model.js';
 import { Trip } from '../models/Trip.model.js';
 import { hashPassword, generateAccessToken } from '../services/auth.service.js';
+import { schedulePhotobookPdfJob } from '../services/trip-photobook-job.service.js';
 
 const { onePxPng } = vi.hoisted(() => ({
   onePxPng: Buffer.from(
@@ -95,6 +96,16 @@ describe('POST /api/v1/trips', () => {
     expect(res.status).toBe(400);
   });
 
+  it('returns 400 rather than 500 when the JSON body is omitted', async () => {
+    const user = await makeUser('creator@test.com', 'creator');
+    const res = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(user._id), user.email, 'creator'));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
   it('returns 201 with trip for creator; creator is in members', async () => {
     const user = await makeUser('creator@test.com', 'creator');
     const userId = String(user._id);
@@ -176,6 +187,77 @@ describe('GET /api/v1/trips', () => {
       newer.toISOString(),
     );
     expect(byName.get('Without Entries')).not.toHaveProperty('lastEntryAt');
+  });
+});
+
+describe('POST /api/v1/trips/:id/photobook/generate', () => {
+  it('returns 202 and marks the job pending for an active trip creator', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'Active Trip' });
+    const tripId = createRes.body.id as string;
+    await Trip.updateOne({ _id: tripId }, { $set: { status: 'active' } });
+
+    const res = await request(app)
+      .post(`/api/v1/trips/${tripId}/photobook/generate`)
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'));
+
+    expect(res.status).toBe(202);
+    expect(res.body.photobookPdfJob.status).toBe('pending');
+    expect(schedulePhotobookPdfJob).toHaveBeenCalledWith(tripId);
+
+    const doc = await Trip.findById(tripId).lean();
+    expect(doc?.photobookPdfJob?.status).toBe('pending');
+  });
+
+  it('returns 409 when a photobook job is already pending', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'Active Trip' });
+    const tripId = createRes.body.id as string;
+    await Trip.updateOne({ _id: tripId }, { $set: { status: 'active' } });
+    const auth = authHeader(String(creator._id), creator.email, 'creator');
+
+    const first = await request(app).post(`/api/v1/trips/${tripId}/photobook/generate`).set('Authorization', auth);
+    const second = await request(app).post(`/api/v1/trips/${tripId}/photobook/generate`).set('Authorization', auth);
+
+    expect(first.status).toBe(202);
+    expect(second.status).toBe(409);
+    expect(second.body.error.code).toBe('CONFLICT');
+  });
+
+  it('returns 403 for a member who is not the trip creator', async () => {
+    const creator = await makeUser('creator@test.com', 'creator');
+    const follower = await makeUser('follower@test.com', 'follower');
+    const createRes = await request(app)
+      .post('/api/v1/trips')
+      .set('Authorization', authHeader(String(creator._id), creator.email, 'creator'))
+      .send({ name: 'Shared' });
+    const tripId = createRes.body.id as string;
+    await Trip.updateOne(
+      { _id: tripId },
+      {
+        $set: { status: 'active' },
+        $push: {
+          members: {
+            userId: follower._id,
+            tripRole: 'follower',
+            addedAt: new Date(),
+            notificationPreferences: { newEntriesMode: 'off' },
+          },
+        },
+      },
+    );
+
+    const res = await request(app)
+      .post(`/api/v1/trips/${tripId}/photobook/generate`)
+      .set('Authorization', authHeader(String(follower._id), follower.email, 'follower'));
+
+    expect(res.status).toBe(403);
   });
 });
 

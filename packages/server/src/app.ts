@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import cookieParser from 'cookie-parser';
 import express, { Express, NextFunction, Request, Response } from 'express';
 
+import { defaultEmptyJsonBody } from './http/jsonBody.js';
 import { applyCorsAllowlist } from './middleware/corsAllowlist.js';
 import { applySecurityHeaders } from './middleware/securityHeaders.js';
 import { applyTrustProxy } from './middleware/trustProxy.js';
@@ -28,6 +29,7 @@ export function createApp(): Express {
 
   const jsonBodyLimit = process.env['JSON_BODY_LIMIT'] ?? '1mb';
   app.use(express.json({ limit: jsonBodyLimit }));
+  app.use(defaultEmptyJsonBody);
   app.use(cookieParser());
 
   // Request-ID middleware

@@ -49,4 +49,23 @@ describe('SPA static serving', () => {
     expect(res.status).toBe(200);
     expect(res.text).toContain('travel-journal');
   });
+
+  it('serves index.html for nested SPA routes (Express 5 named wildcard)', async () => {
+    const app = createApp();
+    const login = await request(app).get('/login');
+    const timeline = await request(app).get('/trips/abc123/timeline');
+
+    expect(login.status).toBe(200);
+    expect(login.text).toContain('travel-journal');
+    expect(timeline.status).toBe(200);
+    expect(timeline.text).toContain('travel-journal');
+  });
+
+  it('does not serve the SPA shell for unknown API paths', async () => {
+    const app = createApp();
+    const res = await request(app).get('/api/v1/no-such-route');
+
+    expect(res.status).toBe(404);
+    expect(res.text).not.toContain('travel-journal');
+  });
 });

@@ -10,6 +10,7 @@ import type {
   UpsertPushSubscriptionRequest,
 } from '@travel-journal/shared';
 
+import { routeParam } from '../http/routeParam.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { Notification } from '../models/Notification.model.js';
 import { PushSubscription } from '../models/PushSubscription.model.js';
@@ -223,7 +224,7 @@ notificationRouter.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const auth = res.locals['auth'] as AccessTokenPayload;
-      const id = String(req.params['id'] ?? '');
+      const id = routeParam(req.params['id']);
       if (!mongoose.Types.ObjectId.isValid(id)) {
         res.status(400).json({ error: { message: 'Invalid id', code: 'VALIDATION_ERROR' } });
         return;
@@ -258,7 +259,7 @@ notificationRouter.delete(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const auth = res.locals['auth'] as AccessTokenPayload;
-      const id = String(req.params['id'] ?? '');
+      const id = routeParam(req.params['id']);
       if (!mongoose.Types.ObjectId.isValid(id)) {
         res.status(400).json({ error: { message: 'Invalid id', code: 'VALIDATION_ERROR' } });
         return;

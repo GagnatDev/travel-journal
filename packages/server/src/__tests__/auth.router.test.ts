@@ -72,6 +72,13 @@ describe('POST /api/v1/auth/register', () => {
 });
 
 describe('POST /api/v1/auth/login', () => {
+  it('returns 401 rather than 500 when Express 5 leaves req.body undefined', async () => {
+    const res = await request(app).post('/api/v1/auth/login');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
+  });
+
   beforeEach(async () => {
     await User.create({
       email: 'user@test.com',

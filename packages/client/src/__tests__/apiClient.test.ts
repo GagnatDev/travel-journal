@@ -95,7 +95,11 @@ describe('apiJson', () => {
     const events: Event[] = [];
     window.addEventListener('auth:session-expired', (e) => events.push(e));
 
-    await expect(apiJson('/api/v1/x', { token: 'old-token' })).rejects.toThrow();
+    const err = await apiJson('/api/v1/x', { token: 'old-token' }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toBe('Session expired');
+    expect((err as Error).cause).toBeInstanceOf(Error);
+    expect(((err as Error).cause as Error).message).toBe('Refresh failed');
     expect(events.length).toBe(1);
 
     window.removeEventListener('auth:session-expired', (e) => events.push(e));
