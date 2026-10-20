@@ -1,6 +1,11 @@
 {
   "name": "travel-journal",
   "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22.12.0",
+    "pnpm": ">=9 <10"
+  },
   "scripts": {
     "dev": "concurrently \"pnpm --filter @travel-journal/server dev\" \"pnpm --filter @travel-journal/client dev\"",
     "build": "pnpm --filter @travel-journal/shared build && pnpm --filter @travel-journal/server build && pnpm --filter @travel-journal/client build",
@@ -21,7 +26,10 @@
       "protobufjs",
       "sharp",
       "ssh2"
-    ]
+    ],
+    "overrides": {
+      "protobufjs": "^7.5.5"
+    }
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
