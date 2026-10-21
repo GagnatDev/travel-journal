@@ -225,11 +225,11 @@ Environment variables required at runtime:
 
 ### 5.2 Local Development — Docker Compose
 
-`docker-compose.yml` starts the external dependencies only. The app server runs from source so hot-reload works normally.
+`docker-compose.yml` starts the external dependencies only. The app server runs from source so hot-reload works normally. Compose, CI, and local e2e pin `mongo:8.2.12`: the floating `mongo:8` tag (8.3.13) exits on Ubuntu kernels whose `uname` is `7.0.0`, including current GitHub-hosted runners.
 
 ```
 services:
-  mongodb      mongo:8 — data on a named volume; exposed on 27019
+  mongodb      mongo:8.2.12 — data on a named volume; exposed on 27019
   minio        minio/minio — S3 API on 9000, web console on 9001
   createbuckets  one-shot minio/mc container; waits for MinIO, creates the bucket, exits
 ```
