@@ -17,6 +17,7 @@ import {
   validateAdminPasswordResetToken,
 } from '../services/adminPasswordReset.service.js';
 import { isProdigiConfigured } from '../services/prodigi.service.js';
+import { routeParam } from '../http/routeParam.js';
 
 export const authRouter: Router = Router();
 
@@ -266,7 +267,7 @@ authRouter.get(
   '/password-reset/:token/validate',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const token = req.params['token']!;
+      const token = routeParam(req.params['token']);
       const { email } = await validateAdminPasswordResetToken(token);
       res.json({ email });
     } catch (err) {

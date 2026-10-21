@@ -1,10 +1,15 @@
 {
   "name": "travel-journal",
   "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22.12.0",
+    "pnpm": ">=9 <10"
+  },
   "scripts": {
     "dev": "concurrently \"pnpm --filter @travel-journal/server dev\" \"pnpm --filter @travel-journal/client dev\"",
     "build": "pnpm --filter @travel-journal/shared build && pnpm --filter @travel-journal/server build && pnpm --filter @travel-journal/client build",
-    "lint": "eslint packages --ext .ts,.tsx && tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/client/tsconfig.json",
+    "lint": "eslint packages && tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/client/tsconfig.json",
     "test": "pnpm --filter @travel-journal/server test && pnpm --filter @travel-journal/client test",
     "e2e": "node e2e/run-e2e.mjs",
     "e2e:ui": "node e2e/run-e2e.mjs --ui",
@@ -21,17 +26,22 @@
       "protobufjs",
       "sharp",
       "ssh2"
-    ]
+    ],
+    "overrides": {
+      "protobufjs": "^7.5.5"
+    }
   },
   "devDependencies": {
-    "@playwright/test": "1.60.0",
-    "@typescript-eslint/eslint-plugin": "^8.58.2",
-    "@typescript-eslint/parser": "^8.58.2",
-    "concurrently": "^8.2.2",
-    "eslint": "^8.57.0",
-    "eslint-plugin-import": "^2.29.1",
-    "prettier": "^3.2.5",
-    "testcontainers": "^11.14.0",
-    "typescript": "5.9.3"
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.64.1",
+    "@typescript-eslint/eslint-plugin": "^8.72.0",
+    "@typescript-eslint/parser": "^8.72.0",
+    "concurrently": "^10.0.6",
+    "eslint": "^10.13.0",
+    "eslint-plugin-import-x": "^4.17.1",
+    "globals": "^16.5.0",
+    "prettier": "^3.9.10",
+    "testcontainers": "^12.2.1",
+    "typescript": "6.0.3"
   }
 }

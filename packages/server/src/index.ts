@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 import { createApp } from './app.js';
 import { connectDb } from './db.js';
+import { listenApp } from './http/listenApp.js';
 import { startDailyEntryDigestJob } from './jobs/entryDigestJob.js';
 import { logger } from './logger.js';
 
@@ -25,9 +26,17 @@ async function main() {
 
   startDailyEntryDigestJob();
 
-  app.listen(PORT, () => {
-    logger.info({ port: PORT }, 'Server listening');
-  });
+  listenApp(
+    app,
+    PORT,
+    () => {
+      logger.info({ port: PORT }, 'Server listening');
+    },
+    (err) => {
+      logger.error(err, 'Failed to start server');
+      process.exit(1);
+    },
+  );
 }
 
 main().catch((err) => {

@@ -5,6 +5,7 @@ import { requireAppRole } from '../middleware/auth.middleware.js';
 import { createRateLimit } from '../middleware/rateLimit.js';
 import { Session } from '../models/Session.model.js';
 import { generateRefreshToken, hashToken } from '../services/auth.service.js';
+import { routeParam } from '../http/routeParam.js';
 import {
   acceptInvite,
   createPlatformInvite,
@@ -92,7 +93,7 @@ inviteRouter.delete(
   requireAppRole('admin'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      await revokeInvite(req.params['id']!);
+      await revokeInvite(routeParam(req.params['id']));
       res.status(204).send();
     } catch (err) {
       next(err);
@@ -105,7 +106,7 @@ inviteRouter.get(
   '/:token/validate',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const token = req.params['token']!;
+      const token = routeParam(req.params['token']);
       const result = await lookupInviteToken(token);
       if (result.kind === 'already_accepted') {
         res.json({ alreadyAccepted: true, email: result.email });

@@ -4,14 +4,18 @@ import { compressImage } from '../utils/compressImage.js';
 
 describe('compressImage', () => {
   let mockBlob: Blob;
-  let mockToBlob: ReturnType<typeof vi.fn<[BlobCallback, string, number], void>>;
+  let mockToBlob: ReturnType<
+    typeof vi.fn<(callback: BlobCallback, type?: string, quality?: number) => void>
+  >;
   let mockCanvas: HTMLCanvasElement;
   let mockCtx: CanvasRenderingContext2D;
   let mockImg: { onload: (() => void) | null; onerror: (() => void) | null; src: string; naturalWidth: number; naturalHeight: number };
 
   beforeEach(() => {
     mockBlob = new Blob(['fake jpeg content'], { type: 'image/jpeg' });
-    mockToBlob = vi.fn<[BlobCallback, string, number], void>((callback: BlobCallback) => callback(mockBlob));
+    mockToBlob = vi.fn<(callback: BlobCallback, type?: string, quality?: number) => void>(
+      (callback) => callback(mockBlob),
+    );
     mockCtx = { drawImage: vi.fn() } as unknown as CanvasRenderingContext2D;
     mockCanvas = {
       width: 0,

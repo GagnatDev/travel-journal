@@ -1,11 +1,9 @@
 import type { ComponentProps } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 
-import { routerFutureV7 } from '../reactRouterFuture.js';
+type Props = ComponentProps<typeof MemoryRouter>;
 
-type Props = Omit<ComponentProps<typeof MemoryRouter>, 'future'>;
-
-/** MemoryRouter with React Router v7 future flags applied for tests. */
+/** MemoryRouter wrapper so tests share one router setup. */
 export function TestMemoryRouter(props: Props) {
-  return <MemoryRouter {...props} future={routerFutureV7} />;
+  return <MemoryRouter {...props} />;
 }

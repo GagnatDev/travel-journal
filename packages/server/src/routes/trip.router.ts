@@ -28,6 +28,7 @@ import { entryRouter } from './entry.router.js';
 import { memberRouter } from './member.router.js';
 import { savedLocationRouter } from './saved-location.router.js';
 import { listMapPins } from '../services/map-pins.service.js';
+import { routeParam } from '../http/routeParam.js';
 
 export const tripRouter: Router = Router();
 
@@ -38,7 +39,7 @@ tripRouter.use(requireAuth);
 async function membershipGuard(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const auth = res.locals['auth'] as AccessTokenPayload;
-    const tripId = req.params['id']!;
+    const tripId = routeParam(req.params['id']);
 
     const trip = await getTripById(tripId);
     if (!trip) {
@@ -102,7 +103,7 @@ tripRouter.patch(
     try {
       const auth = res.locals['auth'] as AccessTokenPayload;
       const { status } = req.body as { status: TripStatus };
-      const tripId = req.params['id']!;
+      const tripId = routeParam(req.params['id']);
 
       if (!status) {
         res.status(400).json({ error: { message: 'status is required', code: 'VALIDATION_ERROR' } });
@@ -125,7 +126,7 @@ tripRouter.post(
     try {
       const auth = res.locals['auth'] as AccessTokenPayload;
       const trip = res.locals['trip'] as Trip;
-      const tripId = req.params['id']!;
+      const tripId = routeParam(req.params['id']);
 
       try {
         assertTripCreator(trip, auth.userId);
@@ -154,13 +155,15 @@ tripRouter.post(
       const timeZone =
         typeof body.timeZone === 'string' && body.timeZone.trim() ? body.timeZone.trim() : undefined;
 
-      const filter: mongoose.FilterQuery<typeof TripModel> = {
+      const filter = {
         _id: new mongoose.Types.ObjectId(tripId),
         $or: [{ 'photobookPdfJob.status': { $ne: 'pending' } }, { photobookPdfJob: { $exists: false } }],
       };
 
       const updated = await TripModel.findOneAndUpdate(
-        filter,
+        // Mongoose 9's strict QueryFilter rejects this $or (dotted status vs missing job).
+        // The object is still a valid Mongo filter; the cast only satisfies the types.
+        filter as unknown as mongoose.Query<unknown, unknown>,
         {
           $set: {
             photobookPdfJob: {
@@ -170,7 +173,7 @@ tripRouter.post(
             },
           },
         },
-        { new: true },
+        { returnDocument: 'after' },
       );
 
       if (!updated) {
@@ -248,7 +251,7 @@ tripRouter.get(
   membershipGuard,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tripId = req.params['id']!;
+      const tripId = routeParam(req.params['id']);
       const pins = await listMapPins(tripId);
       res.json(pins);
     } catch (err) {
@@ -273,7 +276,7 @@ tripRouter.patch(
     try {
       const auth = res.locals['auth'] as AccessTokenPayload;
       const body = req.body as UpdateTripRequest;
-      const tripId = req.params['id']!;
+      const tripId = routeParam(req.params['id']);
 
       const trip = await updateTrip(tripId, body, auth.userId);
       res.json(trip);
@@ -290,7 +293,7 @@ tripRouter.patch(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const auth = res.locals['auth'] as AccessTokenPayload;
-      const tripId = req.params['id']!;
+      const tripId = routeParam(req.params['id']);
       const body = req.body as UpdateTripMemberNotificationPreferencesRequest;
 
       const validModes: UpdateTripMemberNotificationPreferencesRequest['newEntriesMode'][] = [
@@ -354,7 +357,7 @@ tripRouter.delete(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const auth = res.locals['auth'] as AccessTokenPayload;
-      const tripId = req.params['id']!;
+      const tripId = routeParam(req.params['id']);
 
       await deleteTrip(tripId, auth.userId, auth.appRole);
       res.status(204).send();

@@ -91,7 +91,7 @@ export async function completeAdminPasswordReset(rawToken: string, password: str
   const updated = await User.findOneAndUpdate(
     { _id: doc.userId },
     { passwordHash },
-    { new: false },
+    { returnDocument: 'before' },
   );
   if (!updated) {
     await AdminPasswordResetToken.deleteOne({ _id: doc._id });

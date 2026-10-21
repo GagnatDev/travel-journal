@@ -7,8 +7,8 @@ type MapSettingsMenuProps = {
   visible: boolean;
   menuOpen: boolean;
   onToggleMenu: () => void;
-  menuRef: RefObject<HTMLDivElement>;
-  buttonRef: RefObject<HTMLButtonElement>;
+  menuRef: RefObject<HTMLDivElement | null>;
+  buttonRef: RefObject<HTMLButtonElement | null>;
   offlineQueuedFlash: boolean;
   onSaveCurrentLocation: () => void;
   onGoToMyLocation: () => void;

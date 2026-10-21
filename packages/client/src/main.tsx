@@ -9,7 +9,6 @@ import { QueryClientProvider } from '@tanstack/react-query';
 
 import { AuthProvider } from './context/AuthContext.js';
 import { initPwaUpdate } from './pwa/usePwaUpdate.js';
-import { routerFutureV7 } from './reactRouterFuture.js';
 import { App } from './App.js';
 import { createAppQueryClient } from './lib/appQueryClient.js';
 
@@ -29,7 +28,7 @@ if (!rootEl) throw new Error('Root element not found');
 
 ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
-    <BrowserRouter future={routerFutureV7}>
+    <BrowserRouter>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <App />

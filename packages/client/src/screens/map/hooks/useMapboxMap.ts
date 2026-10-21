@@ -22,7 +22,7 @@ export type MapScreenMapActions = {
 };
 
 export type MapboxMapRefsBundle = {
-  mapContainerRef: RefObject<HTMLDivElement>;
+  mapContainerRef: RefObject<HTMLDivElement | null>;
   mapRef: MutableRefObject<mapboxgl.Map | null>;
   markersRef: MutableRefObject<mapboxgl.Marker[]>;
   lastRenderedPinKeyRef: MutableRefObject<string>;

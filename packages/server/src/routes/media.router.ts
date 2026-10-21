@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response, Router } from 'express';
+import { NextFunction, Request, Response, Router, type RequestHandler } from 'express';
 import multer from 'multer';
 import type { AccessTokenPayload } from '@travel-journal/shared';
 
@@ -19,7 +19,7 @@ mediaRouter.post(
   '/upload',
   requireAuth,
   createRateLimit(30),
-  upload.single('file'),
+  upload.single('file') as unknown as RequestHandler,
   // Multer error handler (must have 4 params)
   (err: unknown, _req: Request, res: Response, next: NextFunction) => {
     if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
@@ -78,8 +78,9 @@ mediaRouter.post(
   },
 );
 
-// GET * — Stream media from object storage (same-origin for the SPA; avoids bucket CORS on fetch)
-mediaRouter.get('/*', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+// GET *key — Stream media from object storage (same-origin for the SPA; avoids bucket CORS on fetch).
+// Express 5 requires a named wildcard. The handler still reads the key from req.path.
+mediaRouter.get('/*key', requireAuth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const auth = res.locals['auth'] as AccessTokenPayload;
     const key = req.path.slice(1); // remove leading /

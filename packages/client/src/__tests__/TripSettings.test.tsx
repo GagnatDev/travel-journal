@@ -281,11 +281,13 @@ describe('TripSettingsScreen', () => {
   it('shows creator settings after timeline using one QueryClient (trip cache matches useQuery shape)', async () => {
     vi.stubGlobal(
       'IntersectionObserver',
-      vi.fn().mockImplementation(() => ({
-        observe: vi.fn(),
-        disconnect: vi.fn(),
-        unobserve: vi.fn(),
-      })),
+      vi.fn().mockImplementation(function IntersectionObserver() {
+        return {
+          observe: vi.fn(),
+          disconnect: vi.fn(),
+          unobserve: vi.fn(),
+        };
+      }),
     );
 
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -314,8 +316,9 @@ describe('TripSettingsScreen', () => {
       </QueryClientProvider>,
     );
 
-    // Wait for the timeline to load (story-mode toggle is always rendered)
-    await screen.findByTestId('story-mode-toggle');
+    // Story-mode toggle renders before the trip query resolves. Settings appears
+    // once the viewer role is known.
+    await screen.findByRole('button', { name: /settings|innstillinger/i });
 
     await userEvent.click(screen.getByRole('button', { name: /settings|innstillinger/i }));
 

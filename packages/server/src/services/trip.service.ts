@@ -119,11 +119,15 @@ export async function createTrip(data: CreateTripRequest, creatorId: string): Pr
   const user = await User.findById(creatorId).lean();
   if (!user) throw createHttpError('User not found', 404, 'NOT_FOUND');
 
+  const description = normalizeTripDescription(data.description);
+  const departureDate = data.departureDate ? new Date(data.departureDate) : undefined;
+  const returnDate = data.returnDate ? new Date(data.returnDate) : undefined;
+
   const doc = await TripModel.create({
     name: data.name.trim(),
-    description: normalizeTripDescription(data.description),
-    departureDate: data.departureDate ? new Date(data.departureDate) : undefined,
-    returnDate: data.returnDate ? new Date(data.returnDate) : undefined,
+    ...(description !== undefined ? { description } : {}),
+    ...(departureDate !== undefined ? { departureDate } : {}),
+    ...(returnDate !== undefined ? { returnDate } : {}),
     createdBy: new mongoose.Types.ObjectId(creatorId),
     members: [
       {

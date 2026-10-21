@@ -140,7 +140,7 @@ export async function apiJson<T>(path: string, options: ApiJsonOptions = {}): Pr
     } catch (err) {
       notifyIfSessionExpired(err);
       if (err instanceof NetworkError) throw err;
-      throw new Error(fallbackErrorMessage ?? 'Session expired');
+      throw new Error(fallbackErrorMessage ?? 'Session expired', { cause: err });
     }
     const retryRes = await fetchOrThrow(path, buildRequestInit({ ...options, token: newToken }));
     if (isAuthRedirect(retryRes)) throw sessionRedirectError(fallbackErrorMessage);
@@ -251,7 +251,7 @@ export async function apiBlob(path: string, options: ApiJsonOptions = {}): Promi
     } catch (err) {
       notifyIfSessionExpired(err);
       if (err instanceof NetworkError) throw err;
-      throw new Error(fallbackErrorMessage ?? 'Session expired');
+      throw new Error(fallbackErrorMessage ?? 'Session expired', { cause: err });
     }
     const retryRes = await fetchOrThrow(path, buildRequestInit({ ...options, token: newToken }));
     if (isAuthRedirect(retryRes)) throw sessionRedirectError(fallbackErrorMessage);

@@ -38,7 +38,7 @@ async function makeUser(email: string, appRole: 'admin' | 'creator' | 'follower'
   return User.create({
     email,
     passwordHash: await hashPassword('password'),
-    displayName: email.split('@')[0],
+    displayName: email.split('@')[0] ?? email,
     appRole,
   });
 }

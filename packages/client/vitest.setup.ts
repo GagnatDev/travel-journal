@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom/vitest';
 import { configure } from '@testing-library/react';
 import { beforeAll, beforeEach, afterAll } from 'vitest';
 import i18n from 'i18next';

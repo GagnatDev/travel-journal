@@ -145,7 +145,7 @@ export async function createEntry(
       ...img,
       uploadedAt: new Date(img.uploadedAt),
     })),
-    location: rest.location,
+    ...(rest.location !== undefined ? { location: rest.location } : {}),
     deletedAt: null,
     ...(createdAt !== undefined && { createdAt, updatedAt: now }),
   };

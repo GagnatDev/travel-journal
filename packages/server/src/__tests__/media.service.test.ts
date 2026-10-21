@@ -19,7 +19,9 @@ vi.mock('sharp', () => {
 
 vi.mock('@aws-sdk/client-s3', () => {
   const mockSend = vi.fn().mockResolvedValue({});
-  const S3Client = vi.fn(() => ({ send: mockSend }));
+  const S3Client = vi.fn(function S3Client() {
+    return { send: mockSend };
+  });
   const PutObjectCommand = vi.fn();
   const GetObjectCommand = vi.fn();
   return { S3Client, PutObjectCommand, GetObjectCommand, __mockSend: mockSend };

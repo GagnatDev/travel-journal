@@ -56,7 +56,9 @@ vi.mock('@aws-sdk/client-s3', () => {
     }
     return {};
   });
-  const S3Client = vi.fn(() => ({ send: mockSend }));
+  const S3Client = vi.fn(function S3Client() {
+    return { send: mockSend };
+  });
   return { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand };
 });
 vi.mock('@aws-sdk/s3-request-presigner', () => ({

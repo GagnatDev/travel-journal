@@ -22,6 +22,7 @@ import {
 } from '../services/entry.service.js';
 import { toggleReaction } from '../services/reaction.service.js';
 import { addComment, deleteComment, listComments } from '../services/comment.service.js';
+import { routeParam } from '../http/routeParam.js';
 
 export const entryRouter: Router = Router({ mergeParams: true });
 
@@ -31,7 +32,7 @@ entryRouter.use(requireAuth);
 async function entryMembershipGuard(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const auth = res.locals['auth'] as AccessTokenPayload;
-    const tripId = req.params['id']!;
+    const tripId = routeParam(req.params['id']);
 
     const trip = await getTripById(tripId);
     if (!trip) {
@@ -60,7 +61,7 @@ entryRouter.post('/', async (req: Request, res: Response, next: NextFunction): P
   try {
     const auth = res.locals['auth'] as AccessTokenPayload;
     const tripRole = res.locals['tripRole'] as string;
-    const tripId = req.params['id']!;
+    const tripId = routeParam(req.params['id']);
     const body = req.body as CreateEntryRequest;
 
     if (tripRole === 'follower') {
@@ -99,7 +100,7 @@ entryRouter.post('/', async (req: Request, res: Response, next: NextFunction): P
 // GET / — List entries (any member, paginated)
 entryRouter.get('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const tripId = req.params['id']!;
+    const tripId = routeParam(req.params['id']);
     const page = Math.max(1, parseInt(String(req.query['page'] ?? '1'), 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(String(req.query['limit'] ?? '20'), 10) || 20));
 
@@ -113,7 +114,7 @@ entryRouter.get('/', async (req: Request, res: Response, next: NextFunction): Pr
 // GET /locations — Lightweight location pins for all entries with a location (any member)
 entryRouter.get('/locations', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const tripId = req.params['id']!;
+    const tripId = routeParam(req.params['id']);
     const pins = await listEntryLocations(tripId);
     res.json(pins);
   } catch (err) {
@@ -124,7 +125,7 @@ entryRouter.get('/locations', async (req: Request, res: Response, next: NextFunc
 // GET /stats — Aggregate content counts for the trip (any member)
 entryRouter.get('/stats', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const tripId = req.params['id']!;
+    const tripId = routeParam(req.params['id']);
     const stats = await getTripStats(tripId);
     res.json(stats);
   } catch (err) {
@@ -135,8 +136,8 @@ entryRouter.get('/stats', async (req: Request, res: Response, next: NextFunction
 // GET /:entryId — Entry detail (any member)
 entryRouter.get('/:entryId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const tripId = req.params['id']!;
-    const entryId = req.params['entryId']!;
+    const tripId = routeParam(req.params['id']);
+    const entryId = routeParam(req.params['entryId']);
 
     const entry = await getEntryById(tripId, entryId);
     res.json(entry);
@@ -149,8 +150,8 @@ entryRouter.get('/:entryId', async (req: Request, res: Response, next: NextFunct
 entryRouter.patch('/:entryId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const tripRole = res.locals['tripRole'] as TripRole;
-    const tripId = req.params['id']!;
-    const entryId = req.params['entryId']!;
+    const tripId = routeParam(req.params['id']);
+    const entryId = routeParam(req.params['entryId']);
     const body = req.body as UpdateEntryRequest;
 
     const entry = await updateEntry(tripId, entryId, tripRole, body);
@@ -164,8 +165,8 @@ entryRouter.patch('/:entryId', async (req: Request, res: Response, next: NextFun
 entryRouter.delete('/:entryId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const tripRole = res.locals['tripRole'] as TripRole;
-    const tripId = req.params['id']!;
-    const entryId = req.params['entryId']!;
+    const tripId = routeParam(req.params['id']);
+    const entryId = routeParam(req.params['entryId']);
 
     await softDeleteEntry(tripId, entryId, tripRole);
     res.status(204).send();
@@ -178,8 +179,8 @@ entryRouter.delete('/:entryId', async (req: Request, res: Response, next: NextFu
 entryRouter.post('/:entryId/reactions', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const auth = res.locals['auth'] as AccessTokenPayload;
-    const tripId = req.params['id']!;
-    const entryId = req.params['entryId']!;
+    const tripId = routeParam(req.params['id']);
+    const entryId = routeParam(req.params['entryId']);
     const { emoji } = req.body as { emoji: ReactionEmoji };
 
     const validEmojis: ReactionEmoji[] = ['❤️', '👍', '😂'];
@@ -198,7 +199,7 @@ entryRouter.post('/:entryId/reactions', async (req: Request, res: Response, next
 // GET /:entryId/comments — List comments (any member)
 entryRouter.get('/:entryId/comments', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const entryId = req.params['entryId']!;
+    const entryId = routeParam(req.params['entryId']);
     const comments = await listComments(entryId);
     res.json(comments);
   } catch (err) {
@@ -210,8 +211,8 @@ entryRouter.get('/:entryId/comments', async (req: Request, res: Response, next: 
 entryRouter.post('/:entryId/comments', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const auth = res.locals['auth'] as AccessTokenPayload;
-    const tripId = req.params['id']!;
-    const entryId = req.params['entryId']!;
+    const tripId = routeParam(req.params['id']);
+    const entryId = routeParam(req.params['entryId']);
     const body = req.body as AddCommentRequest;
 
     const comment = await addComment(tripId, entryId, auth.userId, body.content ?? '');
@@ -225,7 +226,7 @@ entryRouter.post('/:entryId/comments', async (req: Request, res: Response, next:
 entryRouter.delete('/:entryId/comments/:commentId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const auth = res.locals['auth'] as AccessTokenPayload;
-    const commentId = req.params['commentId']!;
+    const commentId = routeParam(req.params['commentId']);
 
     await deleteComment(commentId, auth.userId);
     res.status(204).send();
