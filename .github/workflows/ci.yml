@@ -57,9 +57,18 @@ jobs:
     needs: [unit]
     services:
       mongodb:
-        image: mongo:8
+        # `mongo:8` is 8.3.13, which exits when uname is 7.0.0. GitHub-hosted
+        # ubuntu-24.04 reports 7.0.0-1017-azure for an upstream 7.0.14 kernel
+        # (SERVER-121912 / SERVER-131779). 8.2.12 does not include that guard
+        # and runs on the fixed kernel. Unpin once 8.0.35 or 8.3.14 is published.
+        image: mongo:8.2.12
         ports:
           - 27019:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'quit(db.runCommand({ ping: 1 }).ok ? 0 : 1)'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
       minio:
         image: pgsty/minio
         command: server /data --console-address ":9001"

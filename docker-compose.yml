@@ -1,6 +1,9 @@
 services:
   mongodb:
-    image: mongo:8
+    # Pinned below the floating `mongo:8` tag (8.3.13). That release refuses
+    # Ubuntu kernels whose uname is 7.0.0, including GitHub-hosted runners.
+    # 8.2.12 starts there. Volumes created by 8.3 cannot be opened by 8.2.
+    image: mongo:8.2.12
     ports:
       - "27019:27017"
     volumes:
