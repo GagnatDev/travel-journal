@@ -78,8 +78,18 @@ export function EntryImageCarouselModal({
   const gestureAxisRef = useRef<'horizontal' | 'vertical' | null>(null);
   /** True once this gesture used two+ touches (e.g. pinch-zoom); swipe is ignored until all touches end. */
   const skipSwipeForGestureRef = useRef(false);
+  const dragSnapTimeoutRef = useRef<number | null>(null);
 
   useViewportPinchZoom(isOpen);
+
+  useEffect(() => {
+    return () => {
+      if (dragSnapTimeoutRef.current !== null) {
+        window.clearTimeout(dragSnapTimeoutRef.current);
+        dragSnapTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -205,7 +215,13 @@ export function EntryImageCarouselModal({
   const snapDragBack = () => {
     setIsDragSnapping(true);
     setDragOffsetY(0);
-    window.setTimeout(() => setIsDragSnapping(false), DRAG_SNAP_MS);
+    if (dragSnapTimeoutRef.current !== null) {
+      window.clearTimeout(dragSnapTimeoutRef.current);
+    }
+    dragSnapTimeoutRef.current = window.setTimeout(() => {
+      dragSnapTimeoutRef.current = null;
+      setIsDragSnapping(false);
+    }, DRAG_SNAP_MS);
   };
 
   const onTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
