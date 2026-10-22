@@ -479,6 +479,46 @@ describe('EntryCard', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('cancels the drag-snap timer before jsdom teardown can drop window', async () => {
+    const entry = makeEntry({
+      images: [
+        { key: 'media/trip-1/a.jpg', width: 800, height: 600, order: 0, uploadedAt: new Date().toISOString() },
+        { key: 'media/trip-1/b.jpg', width: 800, height: 600, order: 1, uploadedAt: new Date().toISOString() },
+      ],
+    });
+    const user = userEvent.setup();
+    const view = renderCard(entry, 'other-user');
+
+    await user.click(await screen.findByRole('button', { name: /åpne bildekarusell|open image carousel/i }));
+    const carouselContainer = screen.getByTestId('entry-image-carousel-swipe-area');
+
+    fireEvent.touchStart(carouselContainer, {
+      touches: [{ clientX: 200, clientY: 100 }],
+      changedTouches: [{ clientX: 200, clientY: 100 }],
+    });
+    fireEvent.touchMove(carouselContainer, {
+      touches: [{ clientX: 200, clientY: 115 }],
+      changedTouches: [{ clientX: 200, clientY: 115 }],
+    });
+    fireEvent.touchEnd(carouselContainer, {
+      touches: [],
+      changedTouches: [{ clientX: 200, clientY: 130 }],
+    });
+
+    view.unmount();
+    const held = globalThis.window;
+    // Main CI failed the same way: Vitest 5 tears down jsdom (drops `window`)
+    // while this 200ms snap timer is still queued. React 19 setState then reads
+    // `window.event` and the unhandled ReferenceError fails the run.
+    // @ts-expect-error intentional teardown simulation
+    delete globalThis.window;
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    } finally {
+      globalThis.window = held;
+    }
+  });
+
   it('does not close the carousel on a small downward pull', async () => {
     const entry = makeEntry({
       images: [
