@@ -406,6 +406,6 @@ i18n.use(initReactI18next).init({
 });
 
 // Global MSW lifecycle — shared across all test files
-beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
+beforeAll(() => server.listen({ onUnhandledFrame: 'warn' }));
 beforeEach(() => server.resetHandlers()); // reset BEFORE each test so each starts clean
 afterAll(() => server.close());

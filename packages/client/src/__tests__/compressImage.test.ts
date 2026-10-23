@@ -26,9 +26,17 @@ describe('compressImage', () => {
 
     mockImg = { onload: null, onerror: null, src: '', naturalWidth: 0, naturalHeight: 0 };
 
+    // jsdom 30 builds `new Image()` from the internal document, so spying on
+    // `document.createElement('img')` no longer intercepts it.
+    vi.stubGlobal(
+      'Image',
+      function Image() {
+        return mockImg;
+      } as unknown as typeof globalThis.Image,
+    );
+
     vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
       if (tag === 'canvas') return mockCanvas;
-      if (tag === 'img') return mockImg as unknown as HTMLImageElement;
       return document.createElement(tag);
     });
 

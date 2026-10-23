@@ -349,7 +349,10 @@ describe('CreateEntryScreen', () => {
     });
 
     const file = new File(['fake'], 'shot.jpg', { type: 'image/jpeg' });
-    await userEvent.upload(screen.getByTestId('entry-media-file-input'), file);
+    // MSW 3 keeps the upload fetch pending until the handler resolves, and
+    // user-event waits for that change-handler promise. Observe the banner
+    // while the request is still in flight, then release it.
+    const uploadInteraction = userEvent.upload(screen.getByTestId('entry-media-file-input'), file);
 
     await waitFor(() => {
       expect(screen.getByTestId('entry-photo-upload-progress')).toBeInTheDocument();
@@ -357,6 +360,7 @@ describe('CreateEntryScreen', () => {
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
 
     resolveUpload?.();
+    await uploadInteraction;
     await waitFor(() => {
       expect(screen.queryByTestId('entry-photo-upload-progress')).not.toBeInTheDocument();
     });
