@@ -306,10 +306,10 @@ describe('TimelineScreen', () => {
 
     renderTimeline();
 
-    expect(
-      await screen.findByTestId('story-mode-toggle', {}, { timeout: 5000 }),
-    ).toBeInTheDocument();
-    expect(screen.getAllByTestId('timeline-entry-skeleton')).toHaveLength(4);
+    // MSW 3 resolves handlers asynchronously, so the shell paints before the
+    // delayed entries request is in flight. Wait for the skeletons themselves.
+    expect(await screen.findAllByTestId('timeline-entry-skeleton', {}, { timeout: 5000 })).toHaveLength(4);
+    expect(screen.getByTestId('story-mode-toggle')).toBeInTheDocument();
   });
 
   it('shows entries load error and retry when entries request fails', async () => {
