@@ -1,4 +1,4 @@
-FROM node:24.22.1-slim AS builder
+FROM node:24.22.2-slim AS builder
 
 RUN npm install -g pnpm@9
 
@@ -26,7 +26,7 @@ RUN pnpm --filter @travel-journal/shared build
 RUN pnpm --filter @travel-journal/server build
 RUN pnpm --filter @travel-journal/client build
 
-FROM node:24.22.1-slim AS runtime
+FROM node:24.22.2-slim AS runtime
 
 RUN npm install -g pnpm@9
 
