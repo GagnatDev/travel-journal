@@ -21,7 +21,7 @@ bucket needs no database migration**, only an object copy.
 
 Travel Journal is moving from a Scaleway Serverless Container to the homectl
 Kapsule cluster (#155). At first it keeps using the bucket it has today, outside the
-cluster ("legacy"). Later it moves to the Terraform-managed in-cluster bucket
+cluster ("legacy": `travel-journal-bucket`, not managed by Terraform). Later it moves to the Terraform-managed in-cluster bucket
 `homectl-reisedagbok` ("homectl"). The facade makes that move a config change plus a
 copy job, with no code change and no downtime.
 
@@ -87,8 +87,8 @@ Run on the cluster once the app is serving from there in `legacy` mode.
    counts per prefix in both buckets.
 4. **Cut over.** Set `STORAGE_MODE=homectl`, roll out, and remove `LEGACY_S3_*` from
    `reisedagbok-secrets`.
-5. **Retire.** Keep the legacy bucket read-only for a grace period, then delete it and
-   its key. Bucket CORS (`.scaleway/`, `put-bucket-cors.yml`) isn't needed: browsers
+5. **Retire.** Keep `travel-journal-bucket` read-only for a grace period, then delete
+   it and its key by hand (it isn't in Terraform). Bucket CORS (`.scaleway/`, `put-bucket-cors.yml`) isn't needed: browsers
    never talk to the bucket directly.
 
 **Rollback:** until step 4, going back to `legacy` is safe for everything except
