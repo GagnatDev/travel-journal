@@ -126,7 +126,7 @@ Every request is assigned a UUID `requestId` at the middleware layer:
 
 ### Health & Readiness Endpoints
 
-- `GET /healthz` — liveness probe; returns `200 OK` if the process is alive
+- `GET /health` — liveness probe; returns `200 OK` if the process is alive
 - `GET /readyz` — readiness probe; checks MongoDB connectivity; returns `200 OK` or `503 Service Unavailable`
 
 Required by Scaleway Serverless Containers for zero-downtime rolling deployments.
@@ -322,7 +322,7 @@ Covers complete user journeys through the real UI, a real running backend, **rea
 - Playwright's `globalSetup` script then:
   1. Ensures the MinIO bucket exists (idempotent `CreateBucket` call via the AWS SDK).
   2. Starts the Express server as a child process with `NODE_ENV=test`, a fresh `MONGODB_URI` pointing at the test database, and a test-only `JWT_SECRET`.
-  3. Polls `GET /healthz` until the server is ready.
+  3. Polls `GET /health` until the server is ready.
   4. Seeds the minimum required state: one admin user, one test trip.
 - `globalTeardown` kills the server process and drops the test database. The MinIO container is discarded by CI; locally, it persists between runs (objects accumulate but do not affect test correctness).
 

@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test';
 const SERVER_BASE = `http://localhost:${process.env['SERVER_PORT'] ?? '8085'}`;
 
 test.describe('Health endpoints', () => {
-  test('GET /healthz returns 200 with status ok', async ({ request }) => {
-    const res = await request.get(`${SERVER_BASE}/healthz`);
+  test('GET /health returns 200 with status ok', async ({ request }) => {
+    const res = await request.get(`${SERVER_BASE}/health`);
 
     expect(res.status()).toBe(200);
     const body = await res.json() as { status: string };
@@ -20,7 +20,7 @@ test.describe('Health endpoints', () => {
   });
 
   test('responses include X-Request-Id header', async ({ request }) => {
-    const res = await request.get(`${SERVER_BASE}/healthz`);
+    const res = await request.get(`${SERVER_BASE}/health`);
 
     expect(res.headers()['x-request-id']).toBeTruthy();
   });
