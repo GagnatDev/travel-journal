@@ -69,6 +69,44 @@ describe('POST /api/v1/notifications/subscriptions', () => {
     expect(stored?.deviceLabel).toBe('Chrome');
   });
 
+  it('records the VAPID public key the client subscribed with', async () => {
+    const user = await makeUser('user@test.com');
+    await request(app)
+      .post('/api/v1/notifications/subscriptions')
+      .set('Authorization', authHeader(String(user._id), user.email, user.appRole))
+      .send({
+        subscription: { endpoint: 'https://push.example/sub-k', keys: { p256dh: 'p', auth: 'a' } },
+        vapidPublicKey: 'client-key',
+      });
+
+    const stored = await PushSubscription.findOne({ endpoint: 'https://push.example/sub-k' }).lean();
+    expect(stored?.vapidPublicKey).toBe('client-key');
+  });
+
+  it("falls back to the server's current key for clients that don't send one", async () => {
+    const user = await makeUser('user@test.com');
+    const saved = { ...process.env };
+    process.env['VAPID_PUBLIC_KEY'] = 'server-key';
+    process.env['VAPID_PRIVATE_KEY'] = 'server-private';
+    process.env['VAPID_SUBJECT'] = 'mailto:admin@homectl.no';
+    try {
+      await request(app)
+        .post('/api/v1/notifications/subscriptions')
+        .set('Authorization', authHeader(String(user._id), user.email, user.appRole))
+        .send({
+          subscription: { endpoint: 'https://push.example/sub-old', keys: { p256dh: 'p', auth: 'a' } },
+        });
+    } finally {
+      for (const k of ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT']) {
+        if (saved[k] === undefined) delete process.env[k];
+        else process.env[k] = saved[k];
+      }
+    }
+
+    const stored = await PushSubscription.findOne({ endpoint: 'https://push.example/sub-old' }).lean();
+    expect(stored?.vapidPublicKey).toBe('server-key');
+  });
+
   it('returns 400 for invalid payload', async () => {
     const user = await makeUser('user@test.com');
     const res = await request(app)
@@ -125,6 +163,8 @@ describe('GET /api/v1/notifications/vapid-public-key', () => {
   it('returns VAPID key when configured', async () => {
     const user = await makeUser('user@test.com');
     process.env['WEB_PUSH_VAPID_PUBLIC_KEY'] = 'public-key';
+    process.env['WEB_PUSH_VAPID_PRIVATE_KEY'] = 'private-key';
+    process.env['WEB_PUSH_SUBJECT'] = 'mailto:test@example.com';
 
     const res = await request(app)
       .get('/api/v1/notifications/vapid-public-key')
@@ -132,6 +172,40 @@ describe('GET /api/v1/notifications/vapid-public-key', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.publicKey).toBe('public-key');
+  });
+
+  it('returns 503 when only the public key is set (server could not send)', async () => {
+    const user = await makeUser('user@test.com');
+    const saved = { ...process.env };
+    process.env['WEB_PUSH_VAPID_PUBLIC_KEY'] = 'public-key';
+    delete process.env['WEB_PUSH_VAPID_PRIVATE_KEY'];
+    try {
+      const res = await request(app)
+        .get('/api/v1/notifications/vapid-public-key')
+        .set('Authorization', authHeader(String(user._id), user.email, user.appRole));
+      expect(res.status).toBe(503);
+    } finally {
+      process.env['WEB_PUSH_VAPID_PRIVATE_KEY'] = saved['WEB_PUSH_VAPID_PRIVATE_KEY'];
+    }
+  });
+
+  it('serves the Terraform VAPID_PUBLIC_KEY over the legacy name', async () => {
+    const user = await makeUser('user@test.com');
+    const saved = { ...process.env };
+    process.env['VAPID_PUBLIC_KEY'] = 'terraform-key';
+    process.env['VAPID_PRIVATE_KEY'] = 'terraform-private';
+    process.env['VAPID_SUBJECT'] = 'mailto:admin@homectl.no';
+    try {
+      const res = await request(app)
+        .get('/api/v1/notifications/vapid-public-key')
+        .set('Authorization', authHeader(String(user._id), user.email, user.appRole));
+      expect(res.body.publicKey).toBe('terraform-key');
+    } finally {
+      for (const k of ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT']) {
+        if (saved[k] === undefined) delete process.env[k];
+        else process.env[k] = saved[k];
+      }
+    }
   });
 });
 
