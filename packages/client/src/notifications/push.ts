@@ -1,4 +1,8 @@
-import { fetchVapidPublicKey, upsertPushSubscription } from '../api/notifications.js';
+import {
+  deletePushSubscription,
+  fetchVapidPublicKey,
+  upsertPushSubscription,
+} from '../api/notifications.js';
 
 export type PushPermissionState = NotificationPermission | 'unsupported';
 
@@ -27,6 +31,22 @@ function toUint8Array(base64String: string): Uint8Array {
     outputArray[i] = rawData.charCodeAt(i);
   }
   return outputArray;
+}
+
+/**
+ * True when `subscription` was created with `serverKey`. A subscription is bound to the
+ * VAPID key it was made with; after the server's keypair changes (e.g. moving to the
+ * Terraform-managed keys on the cluster) the push service rejects every send to it, so
+ * it must be replaced. Unknown (browser doesn't expose the key) counts as a match.
+ */
+export function subscriptionMatchesServerKey(
+  subscription: PushSubscription,
+  serverKey: Uint8Array,
+): boolean {
+  const current = subscription.options?.applicationServerKey;
+  if (!current) return true;
+  const bytes = new Uint8Array(current);
+  return bytes.length === serverKey.length && bytes.every((b, i) => b === serverKey[i]);
 }
 
 const SERVICE_WORKER_READY_TIMEOUT_MS = 5_000;
@@ -76,11 +96,20 @@ export async function ensurePushSubscription(token: string): Promise<PushPermiss
     fetchVapidPublicKey(token),
     getServiceWorkerRegistration(),
   ]);
+  const serverKey = toUint8Array(publicKey);
   let subscription = await registration.pushManager.getSubscription();
+  if (subscription && !subscriptionMatchesServerKey(subscription, serverKey)) {
+    // Made under the previous VAPID keypair: replace it silently (permission is already
+    // granted, so no prompt) and drop the dead endpoint server-side.
+    const staleEndpoint = subscription.endpoint;
+    await subscription.unsubscribe().catch(() => false);
+    await deletePushSubscription(token, staleEndpoint).catch(() => undefined);
+    subscription = null;
+  }
   if (!subscription) {
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: toUint8Array(publicKey) as unknown as BufferSource,
+      applicationServerKey: serverKey as unknown as BufferSource,
     });
   }
 
@@ -99,6 +128,7 @@ export async function ensurePushSubscription(token: string): Promise<PushPermiss
       },
     },
     navigator.userAgent.slice(0, 200),
+    publicKey,
   );
 
   return permission;
