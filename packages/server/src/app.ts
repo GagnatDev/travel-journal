@@ -41,7 +41,7 @@ export function createApp(): Express {
   });
 
   // Health endpoints
-  app.get('/healthz', (_req: Request, res: Response) => {
+  app.get('/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok' });
   });
 

@@ -8,7 +8,7 @@ import { CreateBucketCommand, S3Client } from '@aws-sdk/client-s3';
 import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers';
 
 const SERVER_PORT = process.env['SERVER_PORT'] ?? '8085';
-const HEALTHZ_URL = `http://localhost:${SERVER_PORT}/healthz`;
+const HEALTH_URL = `http://localhost:${SERVER_PORT}/health`;
 const S3_ACCESS_KEY = process.env['S3_ACCESS_KEY'] ?? 'minioadmin';
 const S3_SECRET_KEY = process.env['S3_SECRET_KEY'] ?? 'minioadmin';
 const SHOULD_USE_TESTCONTAINERS = process.env['E2E_USE_TESTCONTAINERS'] !== '0';
@@ -169,7 +169,7 @@ export default async function globalSetup() {
   }
 
   await startServer(runtimeState);
-  await waitForServer(HEALTHZ_URL);
+  await waitForServer(HEALTH_URL);
   await persistRuntimeState(runtimeState);
 
   (globalThis as Record<string, unknown>).__e2eServerProcess = serverProcess;

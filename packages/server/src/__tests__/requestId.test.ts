@@ -7,7 +7,7 @@ describe('X-Request-Id header', () => {
   const app = createApp();
 
   it('attaches a unique X-Request-Id to every response', async () => {
-    const res = await request(app).get('/healthz');
+    const res = await request(app).get('/health');
 
     expect(res.headers['x-request-id']).toBeDefined();
     expect(typeof res.headers['x-request-id']).toBe('string');
@@ -18,8 +18,8 @@ describe('X-Request-Id header', () => {
 
   it('generates different IDs for concurrent requests', async () => {
     const [res1, res2] = await Promise.all([
-      request(app).get('/healthz'),
-      request(app).get('/healthz'),
+      request(app).get('/health'),
+      request(app).get('/health'),
     ]);
 
     const id1 = res1.headers['x-request-id'];
