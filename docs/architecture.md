@@ -100,11 +100,12 @@ Client → POST /api/v1/media/upload (multipart)
 ```
 Client → GET /api/v1/media/:key
        → Backend verifies trip membership
-       → Backend generates signed S3 URL (1-hour TTL)
-       → 302 redirect to signed URL
+       → Backend streams the object bytes (ETag / If-None-Match → 304)
 ```
 
-Storing only the `key` in the database (not the full S3 URL or the signed URL) means the proxy endpoint is the stable reference — signed URLs are generated on demand and never persisted.
+Storing only the `key` in the database (not the full S3 URL or the signed URL) means the proxy endpoint is the stable reference — signed URLs (used only for server-to-server hand-offs such as Prodigi print files) are generated on demand and never persisted.
+
+All object access goes through the **storage facade** (`packages/server/src/storage/`), never an S3 client directly. Because keys don't name a bucket, the backing bucket can change by configuration alone — see [storage.md](storage.md) for the modes and the bucket migration runbook.
 
 ### Rate Limiting
 Applied to:
@@ -218,7 +219,7 @@ Environment variables required at runtime:
 - `ADMIN_EMAIL` — bootstraps the first admin account
 - `JWT_SECRET` — signs and verifies tokens
 - `MONGODB_URI` — Atlas connection string
-- `S3_BUCKET`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` — object storage credentials
+- `S3_BUCKET`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` (+ optional `S3_REGION`) — object storage credentials; with `STORAGE_MODE` set, also `LEGACY_S3_*` — see [storage.md](storage.md)
 - `TRUST_PROXY` — set to `1` (or the number of proxy hops) in production behind Scaleway’s ingress so forwarded headers and secure cookies behave correctly (see **HTTP security middleware** above)
 - `CORS_ORIGINS` — optional; only if the web client is hosted on a different origin than the API
 - `JSON_BODY_LIMIT` — optional; override default JSON body size if needed

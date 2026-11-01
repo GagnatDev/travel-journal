@@ -6,6 +6,7 @@ import { connectDb } from './db.js';
 import { listenApp } from './http/listenApp.js';
 import { startDailyEntryDigestJob } from './jobs/entryDigestJob.js';
 import { logger } from './logger.js';
+import { initObjectStore } from './storage/index.js';
 
 // Local dev uses packages/server/.env.local (gitignored). E2E and CI set env explicitly;
 // skip .env.local under test so the API process is not mixed with dev-only variables.
@@ -20,6 +21,8 @@ const PORT = parseInt(process.env['PORT'] ?? '8084', 10);
 const MONGODB_URI = process.env['MONGODB_URI'] ?? 'mongodb://localhost:27019/travel-journal';
 
 async function main() {
+  // Fail fast on a misconfigured STORAGE_MODE / bucket env before taking traffic.
+  initObjectStore();
   await connectDb(MONGODB_URI);
 
   const app = createApp();
