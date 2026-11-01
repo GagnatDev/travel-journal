@@ -1,12 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { pipeline } from 'node:stream/promises';
-import type { Readable } from 'node:stream';
 
-import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { Response } from 'express';
 import sharp from 'sharp';
 
+import { getObjectStore } from '../storage/index.js';
 import { getTripById } from './trip.service.js';
 
 const ALLOWED_MIME_TYPES: Record<string, string> = {
@@ -27,44 +25,19 @@ function createHttpError(message: string, status: number, code: string): Error {
   return err;
 }
 
-function createS3Client(): S3Client {
-  return new S3Client({
-    endpoint: process.env['S3_ENDPOINT'] ?? 'http://localhost:9100',
-    region: 'us-east-1',
-    credentials: {
-      accessKeyId: process.env['S3_ACCESS_KEY'] ?? 'minioadmin',
-      secretAccessKey: process.env['S3_SECRET_KEY'] ?? 'minioadmin',
-    },
-    forcePathStyle: true,
-  });
-}
-
-const BUCKET = process.env['S3_BUCKET'] ?? 'travel-journal';
-
 /** Upload a generated PDF to object storage (trip-scoped key). */
 export async function uploadTripPdf(tripId: string, buffer: Buffer): Promise<string> {
-  const client = createS3Client();
   const id = randomUUID();
   const key = `pdf/${tripId}/${id}.pdf`;
-  await client.send(
-    new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: key,
-      Body: buffer,
-      ContentType: 'application/pdf',
-    }),
-  );
+  await getObjectStore().put(key, buffer, { contentType: 'application/pdf' });
   return key;
 }
+
 function ifNoneMatchIncludesServerEtag(ifNoneMatchHeader: string, serverEtag: string | undefined): boolean {
   if (!serverEtag) return false;
   const normalize = (t: string) => t.trim().replace(/^W\//i, '').replaceAll('"', '');
   const server = normalize(serverEtag);
   return ifNoneMatchHeader.split(',').some((p) => normalize(p) === server);
-}
-
-function s3ErrorName(err: unknown): string {
-  return err && typeof err === 'object' && 'name' in err ? String((err as { name: string }).name) : '';
 }
 
 export async function uploadMedia(
@@ -86,16 +59,9 @@ export async function uploadMedia(
   const id = randomUUID();
   const key = `media/${tripId}/${id}.${ext}`;
   const thumbnailKey = `media/${tripId}/${id}.thumb.webp`;
-  const client = createS3Client();
+  const store = getObjectStore();
 
-  await client.send(
-    new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: key,
-      Body: fileBuffer,
-      ContentType: mimeType,
-    }),
-  );
+  await store.put(key, fileBuffer, { contentType: mimeType });
 
   let thumbnailKeyOut: string | undefined;
   try {
@@ -105,14 +71,7 @@ export async function uploadMedia(
       .webp({ quality: 82 })
       .toBuffer();
 
-    await client.send(
-      new PutObjectCommand({
-        Bucket: BUCKET,
-        Key: thumbnailKey,
-        Body: thumbBuf,
-        ContentType: 'image/webp',
-      }),
-    );
+    await store.put(thumbnailKey, thumbBuf, { contentType: 'image/webp' });
     thumbnailKeyOut = thumbnailKey;
   } catch {
     // Original is stored; timeline can fall back to full key for thumbnails.
@@ -127,9 +86,7 @@ export async function uploadMedia(
 }
 
 export async function generateSignedUrl(key: string, ttlSeconds = 3600): Promise<string> {
-  const client = createS3Client();
-  const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
-  return getSignedUrl(client, command, { expiresIn: ttlSeconds });
+  return getObjectStore().presignGet(key, ttlSeconds);
 }
 
 /**
@@ -144,93 +101,59 @@ export async function streamMediaObject(
   ifNoneMatch?: string | null,
   options?: { attachmentFilename?: string },
 ): Promise<void> {
-  const client = createS3Client();
+  const store = getObjectStore();
+  const notFound = () =>
+    res.status(404).json({ error: { message: 'Media not found', code: 'NOT_FOUND' } });
 
   const inm = ifNoneMatch?.trim();
   if (inm && inm !== '*') {
-    let headOut;
-    try {
-      headOut = await client.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
-    } catch (err: unknown) {
-      const name = s3ErrorName(err);
-      const http404 =
-        err && typeof err === 'object' && '$metadata' in err
-          ? (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404
-          : false;
-      if (name === 'NoSuchKey' || name === 'NotFound' || http404) {
-        res.status(404).json({ error: { message: 'Media not found', code: 'NOT_FOUND' } });
-        return;
-      }
-      throw err;
+    const headOut = await store.head(key);
+    if (!headOut) {
+      notFound();
+      return;
     }
-    if (ifNoneMatchIncludesServerEtag(inm, headOut.ETag)) {
+    if (ifNoneMatchIncludesServerEtag(inm, headOut.etag)) {
       res.status(304);
       res.setHeader('Cache-Control', MEDIA_CACHE_CONTROL);
-      res.setHeader('ETag', headOut.ETag ?? inm);
+      res.setHeader('ETag', headOut.etag ?? inm);
       res.end();
       return;
     }
   }
 
-  let out;
-  try {
-    out = await client.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
-  } catch (err: unknown) {
-    const name = s3ErrorName(err);
-    if (name === 'NoSuchKey' || name === 'NotFound') {
-      res.status(404).json({ error: { message: 'Media not found', code: 'NOT_FOUND' } });
-      return;
-    }
-    throw err;
-  }
-
-  const body = out.Body;
-  if (!body) {
-    res.status(404).json({ error: { message: 'Media not found', code: 'NOT_FOUND' } });
+  const out = await store.get(key);
+  if (!out) {
+    notFound();
     return;
   }
 
-  const contentType = out.ContentType ?? 'application/octet-stream';
+  const contentType = out.contentType ?? 'application/octet-stream';
   res.setHeader('Content-Type', contentType);
   if (options?.attachmentFilename) {
     const safe = options.attachmentFilename.replace(/[^\w\s.-]/g, '').trim().slice(0, 120) || 'download.pdf';
     res.setHeader('Content-Disposition', `attachment; filename="${safe}"`);
   }
-  if (typeof out.ContentLength === 'number') {
-    res.setHeader('Content-Length', String(out.ContentLength));
+  if (typeof out.contentLength === 'number') {
+    res.setHeader('Content-Length', String(out.contentLength));
   }
-  if (out.ETag) {
-    res.setHeader('ETag', out.ETag);
+  if (out.etag) {
+    res.setHeader('ETag', out.etag);
   }
   res.setHeader('Cache-Control', MEDIA_CACHE_CONTROL);
 
-  const readable = body as Readable;
-  await pipeline(readable, res);
+  await pipeline(out.body, res);
 }
 
 /** Read full object bytes from S3 (e.g. for server-side PDF assembly). */
 export async function getObjectBuffer(key: string): Promise<Buffer> {
-  const client = createS3Client();
-  let out;
-  try {
-    out = await client.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
-  } catch (err: unknown) {
-    const name = s3ErrorName(err);
-    if (name === 'NoSuchKey' || name === 'NotFound') {
-      throw createHttpError('Media not found', 404, 'NOT_FOUND');
-    }
-    throw err;
-  }
-
-  const body = out.Body;
-  if (!body) {
+  const out = await getObjectStore().get(key);
+  if (!out) {
     throw createHttpError('Media not found', 404, 'NOT_FOUND');
   }
 
-  const readable = body as Readable;
   const chunks: Buffer[] = [];
-  for await (const chunk of readable) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  for await (const chunk of out.body) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : (chunk as Buffer));
   }
   return Buffer.concat(chunks);
 }
@@ -274,28 +197,18 @@ export async function uploadAvatar(fileBuffer: Buffer, mimeType: string, userId:
     .webp({ quality: 85 })
     .toBuffer();
 
-  const client = createS3Client();
   const id = randomUUID();
   const key = `avatars/${userId}/${id}.webp`;
 
-  await client.send(
-    new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: key,
-      Body: processed,
-      ContentType: 'image/webp',
-    }),
-  );
+  await getObjectStore().put(key, processed, { contentType: 'image/webp' });
 
   return key;
 }
 
 /** Delete an object from storage by key (best-effort; swallows not-found). */
 export async function deleteObject(key: string): Promise<void> {
-  const client = createS3Client();
-  const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
   try {
-    await client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
+    await getObjectStore().delete(key);
   } catch {
     // best-effort
   }
