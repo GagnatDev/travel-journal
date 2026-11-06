@@ -29,7 +29,8 @@
     ],
     "overrides": {
       "protobufjs": "^7.5.5",
-      "@types/node@>=25": "24.19.2"
+      "@types/node@>=25": "24.19.2",
+      "typescript": "6.0.3"
     }
   },
   "devDependencies": {
