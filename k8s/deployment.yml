@@ -1,0 +1,145 @@
+# reisedagbok.homectl.no — Deployment + Service + Ingress on the homectl Kapsule cluster.
+# Pattern: homectl-reference/templates/k8s/deployment.yml, adapted (see #155):
+#
+#   - NO homectl-auth-proxy sidecar (yet). The app keeps its own login (JWT + refresh
+#     cookie + Mongo sessions), so the Service targets the app container directly:
+#       ingress → Service:80 → app:8084
+#     When the app moves to homectl-auth later, add the sidecar and point the Service at
+#     4180 instead (see docs/auth-sidecar-migration.md).
+#   - Port 8084, not the template's 8080: every homectl app keeps its own port so local
+#     dev servers don't collide (homectl-reference docs/local-ports.md).
+#
+# Secrets (namespace homectl), in envFrom order — the LAST source wins on key conflicts:
+#   reisedagbok-terraform-secrets  Terraform: S3_* for the in-cluster bucket homectl-reisedagbok
+#   reisedagbok-vapid-secrets      Terraform: VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT
+#   reisedagbok-secrets            hand-managed: MONGODB_URI, JWT_SECRET, ADMIN_EMAIL,
+#                                  TRIP_PDF_MAPBOX_TOKEN, LEGACY_S3_* (travel-journal-bucket), …
+#                                  — see docs/kubernetes.md for the full list
+#
+# $IMAGE_TAG is substituted by .github/workflows/deploy-k8s.yml (the commit SHA).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reisedagbok
+  namespace: homectl
+spec:
+  # Keep ONE replica: the daily digest cron and the photobook PDF job run in-process, so
+  # a second replica would send every digest twice.
+  replicas: 1
+  # Rolling update (default maxSurge 1, maxUnavailable 0): no downtime, the new pod's
+  # memory request must fit next to the old one for a few seconds (see docs/kubernetes.md).
+  selector:
+    matchLabels:
+      app: reisedagbok
+  template:
+    metadata:
+      labels:
+        app: reisedagbok
+    spec:
+      # The server drains in-flight requests on SIGTERM with a 25s deadline.
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: reisedagbok
+          image: rg.fr-par.scw.cloud/homectl/reisedagbok:$IMAGE_TAG
+          ports:
+            - containerPort: 8084
+          envFrom:
+            - secretRef:
+                name: reisedagbok-terraform-secrets
+            # Optional so the manifest applies before the VAPID Secret exists; without
+            # it push is simply disabled.
+            - secretRef:
+                name: reisedagbok-vapid-secrets
+                optional: true
+            # NOT optional: without MONGODB_URI / JWT_SECRET the app must not start.
+            - secretRef:
+                name: reisedagbok-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+            # Phase 4–5: keep serving from the bucket outside the cluster
+            # (travel-journal-bucket via LEGACY_S3_*). Phase 6 moves to `migrating`, then
+            # `homectl` — see docs/storage.md.
+            - name: STORAGE_MODE
+              value: legacy
+            # One proxy hop (ingress-nginx) in front of the pod. Real client IPs also
+            # need proxy protocol on the load balancer — see docs/kubernetes.md.
+            - name: TRUST_PROXY
+              value: "1"
+          startupProbe:
+            # The server connects to MongoDB before it listens; give a slow Atlas
+            # connection room on first boot.
+            httpGet:
+              path: /health
+              port: 8084
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            # /readyz pings MongoDB: take the pod out of the Service while the DB is
+            # unreachable instead of serving 500s.
+            httpGet:
+              path: /readyz
+              port: 8084
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            # Process-only check: a MongoDB outage must not restart the pod.
+            httpGet:
+              path: /health
+              port: 8084
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            # Request = what the scheduler reserves on the single node (the cluster
+            # memory budget). Start here and set it to ~2x observed usage after a few
+            # days (`kubectl top pods -n homectl --containers`).
+            # Limit = headroom for sharp + photobook PDF rendering; the Serverless
+            # container ran with 1024 MB.
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reisedagbok
+  namespace: homectl
+spec:
+  selector:
+    app: reisedagbok
+  ports:
+    - port: 80
+      targetPort: 8084 # the app itself — no auth sidecar yet
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: reisedagbok
+  namespace: homectl
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Uploads go through the server (multipart, up to 10 MB per photo), unlike apps that
+    # upload straight to the bucket. ingress-nginx defaults to a 1 MB request body,
+    # which would turn every photo upload into a 413.
+    nginx.ingress.kubernetes.io/proxy-body-size: "12m"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - reisedagbok.homectl.no
+      secretName: reisedagbok-tls
+  rules:
+    - host: reisedagbok.homectl.no
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: reisedagbok
+                port:
+                  number: 80

@@ -45,4 +45,9 @@ COPY --from=builder /app/packages/client/dist packages/server/dist/public
 
 EXPOSE 8084
 
+# Run as the image's unprivileged `node` user (homectl convention). The server only
+# reads from disk; uploads and PDFs go to object storage.
+USER node
+
+# Exec form: node is PID 1 and receives SIGTERM directly (graceful shutdown).
 CMD ["node", "packages/server/dist/index.js"]
