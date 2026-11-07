@@ -8,37 +8,41 @@ import { Notification } from '../models/Notification.model.js';
 import { PushSubscription } from '../models/PushSubscription.model.js';
 import { Trip as TripModel, readTripMemberEntryMode } from '../models/Trip.model.js';
 import { User } from '../models/User.model.js';
+import { readVapidConfig } from './vapidConfig.js';
 
-function isWebPushConfigured(): boolean {
-  return Boolean(
-    process.env['WEB_PUSH_VAPID_PUBLIC_KEY'] &&
-      process.env['WEB_PUSH_VAPID_PRIVATE_KEY'] &&
-      process.env['WEB_PUSH_SUBJECT'],
-  );
+/** Public key webpush is currently configured with, so a key change re-configures it. */
+let configuredPublicKey: string | undefined;
+
+/** Returns the active VAPID public key, or `null` when push is not configured. */
+function configureWebPushIfNeeded(): string | null {
+  const config = readVapidConfig();
+  if (!config) {
+    return null;
+  }
+  if (configuredPublicKey !== config.publicKey) {
+    webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey);
+    configuredPublicKey = config.publicKey;
+  }
+  return config.publicKey;
 }
 
-let vapidConfigured = false;
-
-function configureWebPushIfNeeded(): boolean {
-  if (!isWebPushConfigured()) {
-    return false;
-  }
-  if (vapidConfigured) {
-    return true;
-  }
-
-  webpush.setVapidDetails(
-    process.env['WEB_PUSH_SUBJECT']!,
-    process.env['WEB_PUSH_VAPID_PUBLIC_KEY']!,
-    process.env['WEB_PUSH_VAPID_PRIVATE_KEY']!,
-  );
-  vapidConfigured = true;
-  return true;
+function pushStatusCode(err: unknown): number | undefined {
+  return (err as { statusCode?: number })?.statusCode;
 }
 
 function isGoneStatusCode(err: unknown): boolean {
-  const statusCode = (err as { statusCode?: number })?.statusCode;
+  const statusCode = pushStatusCode(err);
   return statusCode === 404 || statusCode === 410;
+}
+
+/**
+ * Push services answer 401/403 when the request's VAPID key isn't the one the browser
+ * subscribed with (e.g. FCM 403, Mozilla autopush 401), which is what happens to every
+ * existing subscription after the keypair changes.
+ */
+function isVapidMismatchStatusCode(err: unknown): boolean {
+  const statusCode = pushStatusCode(err);
+  return statusCode === 401 || statusCode === 403;
 }
 
 /**
@@ -83,7 +87,8 @@ export async function deliverWebPush(
   userIds: mongoose.Types.ObjectId[],
   options: DeliverPushOptions,
 ): Promise<void> {
-  if (!configureWebPushIfNeeded()) {
+  const activePublicKey = configureWebPushIfNeeded();
+  if (!activePublicKey) {
     return;
   }
   if (!userIds.length) {
@@ -101,8 +106,17 @@ export async function deliverWebPush(
 
   const url = notificationLinkFor(options.data);
 
+  const disable = (id: mongoose.Types.ObjectId) =>
+    PushSubscription.updateOne({ _id: id }, { $set: { disabledAt: new Date() } });
+
   await Promise.allSettled(
     subscriptions.map(async (subscription) => {
+      // Made under another VAPID keypair: the push service will reject it. The client
+      // re-subscribes with the current key on its next start (notifications/push.ts).
+      if (subscription.vapidPublicKey && subscription.vapidPublicKey !== activePublicKey) {
+        await disable(subscription._id);
+        return;
+      }
       const notificationId = options.notificationIdByUser?.get(String(subscription.userId));
       const payload = JSON.stringify({
         type: options.data.type,
@@ -120,12 +134,24 @@ export async function deliverWebPush(
           },
           payload,
         );
-      } catch (err) {
-        if (isGoneStatusCode(err)) {
+        if (!subscription.vapidPublicKey) {
+          // Legacy row that works with the current key: record it, so a later 401/403 for
+          // this row is treated as a server-side problem rather than a stale key.
           await PushSubscription.updateOne(
             { _id: subscription._id },
-            { $set: { disabledAt: new Date() } },
+            { $set: { vapidPublicKey: activePublicKey } },
           );
+        }
+      } catch (err) {
+        if (isGoneStatusCode(err)) {
+          await disable(subscription._id);
+          return;
+        }
+        if (isVapidMismatchStatusCode(err) && !subscription.vapidPublicKey) {
+          // Legacy row (no recorded key) rejected for its VAPID key: it was made under
+          // the previous keypair. Rows stamped with the current key are NOT disabled on
+          // 401/403, so a broken server keypair can't wipe every subscription.
+          await disable(subscription._id);
           return;
         }
         logger.warn(

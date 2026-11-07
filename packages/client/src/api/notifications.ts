@@ -72,11 +72,12 @@ export function upsertPushSubscription(
   token: string,
   subscription: PushSubscriptionInput,
   deviceLabel?: string,
+  vapidPublicKey?: string,
 ): Promise<{ success: true }> {
   return apiJson<{ success: true }>('/api/v1/notifications/subscriptions', {
     method: 'POST',
     token,
-    body: { subscription, deviceLabel },
+    body: { subscription, deviceLabel, vapidPublicKey },
   });
 }
 

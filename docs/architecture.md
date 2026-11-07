@@ -220,6 +220,7 @@ Environment variables required at runtime:
 - `JWT_SECRET` — signs and verifies tokens
 - `MONGODB_URI` — Atlas connection string
 - `S3_BUCKET`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` (+ optional `S3_REGION`) — object storage credentials; with `STORAGE_MODE` set, also `LEGACY_S3_*` — see [storage.md](storage.md)
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` — Web Push keypair (on the cluster from Terraform's `reisedagbok-vapid-secrets`). The original `WEB_PUSH_VAPID_PUBLIC_KEY` / `WEB_PUSH_VAPID_PRIVATE_KEY` / `WEB_PUSH_SUBJECT` still work as a fallback; the two sets are never mixed. Without a complete set, push is disabled and `/notifications/vapid-public-key` returns 503. Changing the keypair is handled: each subscription records the key it was made with, the server stops sending to (and disables) subscriptions from an older key, and the client silently re-subscribes on its next start.
 - `TRUST_PROXY` — set to `1` (or the number of proxy hops) in production behind Scaleway’s ingress so forwarded headers and secure cookies behave correctly (see **HTTP security middleware** above)
 - `CORS_ORIGINS` — optional; only if the web client is hosted on a different origin than the API
 - `JSON_BODY_LIMIT` — optional; override default JSON body size if needed
