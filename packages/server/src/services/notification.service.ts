@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import webpush from 'web-push';
+import * as webpush from 'web-push';
 import type { Entry, NotificationData } from '@travel-journal/shared';
 import { notificationLinkFor } from '@travel-journal/shared';
 
