@@ -62,8 +62,8 @@ async function startIsolatedInfrastructure() {
   const databaseName = `travel-journal-e2e-${runId}`;
   const bucketName = `travel-journal-e2e-${runId}`;
 
-  // Same pin as CI and Compose: mongo:8 (8.3.13) exits on Ubuntu's 7.0.0 uname.
-  const mongoContainer = await new GenericContainer('mongo:8.2.12')
+  // Same pin as CI and Compose: mongo 8.3.17 (8.3.16+ starts on Ubuntu uname 7.0.0).
+  const mongoContainer = await new GenericContainer('mongo:8.3.17')
     .withExposedPorts(27017)
     .withWaitStrategy(Wait.forLogMessage('Waiting for connections'))
     .start();

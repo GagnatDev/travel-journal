@@ -1,6 +1,15 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
-import webpush from 'web-push';
+import * as webpush from 'web-push';
+
+const { sendNotification } = vi.hoisted(() => ({
+  sendNotification: vi.fn(),
+}));
+
+vi.mock('web-push', async () => {
+  const actual = await vi.importActual<typeof import('web-push')>('web-push');
+  return { ...actual, sendNotification };
+});
 
 import { Notification } from '../models/Notification.model.js';
 import { PushSubscription } from '../models/PushSubscription.model.js';
@@ -26,6 +35,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  sendNotification.mockReset();
   await User.deleteMany({});
   await Trip.deleteMany({});
   await PushSubscription.deleteMany({});
@@ -83,7 +93,7 @@ describe('dispatchNewEntryNotification', () => {
       },
     );
 
-    vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
+    sendNotification.mockResolvedValue({} as never);
 
     await dispatchNewEntryNotification({
       id: 'entry-1',
@@ -173,7 +183,7 @@ describe('dispatchNewEntryNotification', () => {
       },
     ]);
 
-    const sendSpy = vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
+    const sendSpy = sendNotification.mockResolvedValue({} as never);
 
     await dispatchNewEntryNotification({
       id: 'entry-1',
@@ -202,7 +212,7 @@ describe('dispatchNewEntryNotification', () => {
   it('is a no-op when the only trip member is the author', async () => {
     const creator = await makeUser('creator@test.com', 'creator');
     const trip = await createTrip({ name: 'Solo Trip' }, String(creator._id));
-    const sendSpy = vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
+    const sendSpy = sendNotification.mockResolvedValue({} as never);
 
     await dispatchNewEntryNotification({
       id: 'entry-solo',
@@ -241,7 +251,7 @@ describe('dispatchNewEntryNotification', () => {
       },
     );
 
-    const sendSpy = vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
+    const sendSpy = sendNotification.mockResolvedValue({} as never);
 
     await dispatchNewEntryNotification({
       id: 'entry-legacy',
@@ -285,7 +295,7 @@ describe('dispatchNewEntryNotification', () => {
       keys: { p256dh: 'a', auth: 'a' },
     });
 
-    vi.spyOn(webpush, 'sendNotification').mockRejectedValue({ statusCode: 410 });
+    sendNotification.mockRejectedValue({ statusCode: 410 });
 
     await dispatchNewEntryNotification({
       id: 'entry-1',
@@ -311,7 +321,7 @@ describe('dispatchTripMemberAddedNotification', () => {
     const added = await makeUser('added@test.com', 'follower');
     const trip = await createTrip({ name: 'Nordic Adventure' }, String(creator._id));
 
-    vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
+    sendNotification.mockResolvedValue({} as never);
 
     await dispatchTripMemberAddedNotification({
       tripId: trip.id,
@@ -348,7 +358,7 @@ describe('dispatchTripMemberAddedNotification', () => {
       keys: { p256dh: 'a', auth: 'a' },
     });
 
-    const sendSpy = vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
+    const sendSpy = sendNotification.mockResolvedValue({} as never);
 
     await dispatchTripMemberAddedNotification({
       tripId: trip.id,
@@ -381,7 +391,7 @@ describe('dispatchTripMemberAddedNotification', () => {
       keys: { p256dh: 'a', auth: 'a' },
     });
 
-    const sendSpy = vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
+    const sendSpy = sendNotification.mockResolvedValue({} as never);
 
     await dispatchTripMemberAddedNotification({
       tripId: trip.id,
@@ -400,7 +410,7 @@ describe('dispatchTripMemberAddedNotification', () => {
   it('is a no-op for a missing trip', async () => {
     const creator = await makeUser('creator@test.com', 'creator');
     const added = await makeUser('added@test.com', 'follower');
-    const sendSpy = vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
+    const sendSpy = sendNotification.mockResolvedValue({} as never);
 
     await dispatchTripMemberAddedNotification({
       tripId: String(new mongoose.Types.ObjectId()),

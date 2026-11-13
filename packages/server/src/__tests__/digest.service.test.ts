@@ -1,6 +1,15 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
-import webpush from 'web-push';
+import * as webpush from 'web-push';
+
+const { sendNotification } = vi.hoisted(() => ({
+  sendNotification: vi.fn(),
+}));
+
+vi.mock('web-push', async () => {
+  const actual = await vi.importActual<typeof import('web-push')>('web-push');
+  return { ...actual, sendNotification };
+});
 
 import { Entry } from '../models/Entry.model.js';
 import { Notification } from '../models/Notification.model.js';
@@ -24,6 +33,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  sendNotification.mockReset();
   await User.deleteMany({});
   await Trip.deleteMany({});
   await Entry.deleteMany({});
@@ -100,7 +110,7 @@ describe('runDailyEntryDigest', () => {
       keys: { p256dh: 'a', auth: 'a' },
     });
 
-    const sendSpy = vi.spyOn(webpush, 'sendNotification').mockResolvedValue({} as never);
+    sendNotification.mockResolvedValue({} as never);
 
     const result = await runDailyEntryDigest({ now });
 
@@ -118,8 +128,8 @@ describe('runDailyEntryDigest', () => {
       entryCount: 2,
     });
 
-    expect(sendSpy).toHaveBeenCalledTimes(1);
-    const [, payloadArg] = sendSpy.mock.calls[0]!;
+    expect(sendNotification).toHaveBeenCalledTimes(1);
+    const [, payloadArg] = sendNotification.mock.calls[0]!;
     const payload = JSON.parse(String(payloadArg));
     expect(payload.type).toBe('trip.new_entry_digest');
     expect(payload.url).toBe(`/trips/${trip.id}/timeline`);
