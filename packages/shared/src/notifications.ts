@@ -20,6 +20,11 @@ export interface PushSubscriptionInput {
 export interface UpsertPushSubscriptionRequest {
   subscription: PushSubscriptionInput;
   deviceLabel?: string;
+  /**
+   * The VAPID public key (base64url) the browser subscribed with. Lets the server tell
+   * subscriptions made under an older keypair apart after the key changes.
+   */
+  vapidPublicKey?: string;
 }
 
 export interface DeletePushSubscriptionRequest {

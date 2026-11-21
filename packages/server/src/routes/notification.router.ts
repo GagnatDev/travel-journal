@@ -14,6 +14,7 @@ import { routeParam } from '../http/routeParam.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { Notification } from '../models/Notification.model.js';
 import { PushSubscription } from '../models/PushSubscription.model.js';
+import { readVapidConfig } from '../services/vapidConfig.js';
 
 export const notificationRouter: Router = Router();
 
@@ -47,7 +48,7 @@ notificationRouter.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const auth = res.locals['auth'] as AccessTokenPayload;
-      const { subscription, deviceLabel } = req.body as UpsertPushSubscriptionRequest;
+      const { subscription, deviceLabel, vapidPublicKey } = req.body as UpsertPushSubscriptionRequest;
 
       if (!subscription?.endpoint || typeof subscription.endpoint !== 'string') {
         res.status(400).json({
@@ -75,6 +76,11 @@ notificationRouter.post(
           $set: {
             keys: subscription.keys,
             deviceLabel: typeof deviceLabel === 'string' ? deviceLabel.trim() : undefined,
+            // Older clients don't send it; fall back to the key this server hands out.
+            vapidPublicKey:
+              typeof vapidPublicKey === 'string' && vapidPublicKey.trim()
+                ? vapidPublicKey.trim()
+                : readVapidConfig()?.publicKey,
             disabledAt: null,
           },
         },
@@ -119,7 +125,8 @@ notificationRouter.delete(
 notificationRouter.get(
   '/vapid-public-key',
   async (_req: Request, res: Response, _next: NextFunction): Promise<void> => {
-    const publicKey = process.env['WEB_PUSH_VAPID_PUBLIC_KEY'];
+    // Only advertise a key the server can also send with (full keypair + subject).
+    const publicKey = readVapidConfig()?.publicKey;
     if (!publicKey) {
       res.status(503).json({
         error: { message: 'Push notifications are unavailable', code: 'PUSH_UNAVAILABLE' },

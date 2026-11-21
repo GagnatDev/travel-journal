@@ -10,6 +10,8 @@ export interface IPushSubscription extends Document {
   endpoint: string;
   keys: IPushSubscriptionKeys;
   deviceLabel?: string;
+  /** VAPID public key the subscription was created with; absent on legacy rows. */
+  vapidPublicKey?: string;
   disabledAt?: Date;
   lastSuccessAt?: Date;
   createdAt: Date;
@@ -25,6 +27,7 @@ const pushSubscriptionSchema = new Schema<IPushSubscription>(
       auth: { type: String, required: true },
     },
     deviceLabel: { type: String, trim: true },
+    vapidPublicKey: { type: String, trim: true },
     disabledAt: { type: Date },
     lastSuccessAt: { type: Date },
   },
