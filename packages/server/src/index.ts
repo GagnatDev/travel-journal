@@ -2,9 +2,10 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { createApp } from './app.js';
-import { connectDb } from './db.js';
+import { connectDb, disconnectDb } from './db.js';
+import { installGracefulShutdown } from './http/gracefulShutdown.js';
 import { listenApp } from './http/listenApp.js';
-import { startDailyEntryDigestJob } from './jobs/entryDigestJob.js';
+import { startDailyEntryDigestJob, stopDailyEntryDigestJob } from './jobs/entryDigestJob.js';
 import { logger } from './logger.js';
 import { initObjectStore } from './storage/index.js';
 
@@ -29,7 +30,7 @@ async function main() {
 
   startDailyEntryDigestJob();
 
-  listenApp(
+  const server = listenApp(
     app,
     PORT,
     () => {
@@ -40,6 +41,14 @@ async function main() {
       process.exit(1);
     },
   );
+
+  installGracefulShutdown({
+    server,
+    cleanup: async () => {
+      stopDailyEntryDigestJob();
+      await disconnectDb();
+    },
+  });
 }
 
 main().catch((err) => {

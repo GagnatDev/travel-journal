@@ -1,0 +1,72 @@
+# Build the image, push it to the homectl registry and roll it out on the Kapsule
+# cluster as `reisedagbok`. Pattern: homectl-reference/templates/github-workflows/deploy.yml.
+#
+# Manual only (workflow_dispatch) until the DNS cutover (#155 Phase 5). Until then,
+# production keeps deploying to Serverless via deploy.yml. After cutover, add the
+# `workflow_run` trigger on CI success (as in the template) and delete deploy.yml.
+#
+# Required repo secrets:
+#   K8S_SCW_ACCESS_KEY, K8S_SCW_SECRET_KEY  homectl API key (registry push + cluster access).
+#                                           Named K8S_* so they don't replace SCW_SECRET_KEY,
+#                                           which the Serverless deploy.yml and
+#                                           deploy-dev.yml keep using.
+#   SCW_ORGANIZATION_ID, SCW_PROJECT_ID, K8S_CLUSTER_ID
+#   APP_VITE_MAPBOX_TOKEN                   (existing) Mapbox token baked into the client
+name: Deploy to Kubernetes
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-k8s-reisedagbok
+  cancel-in-progress: false
+
+env:
+  IMAGE: rg.fr-par.scw.cloud/homectl/reisedagbok
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build:
+    name: Build and push image
+    # This deploys to production: only ever from main.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build and push image
+        run: |
+          echo "${{ secrets.K8S_SCW_SECRET_KEY }}" | docker login rg.fr-par.scw.cloud \
+            -u nologin --password-stdin
+          docker build \
+            --build-arg VITE_MAPBOX_TOKEN="${{ secrets.APP_VITE_MAPBOX_TOKEN }}" \
+            --build-arg VITE_GIT_SHA="$IMAGE_TAG" \
+            -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" .
+          docker push "$IMAGE:$IMAGE_TAG"
+          docker push "$IMAGE:latest"
+
+  deploy:
+    name: Roll out on Kapsule
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Scaleway CLI and get kubeconfig
+        uses: scaleway/action-scw@v0
+        with:
+          access-key: ${{ secrets.K8S_SCW_ACCESS_KEY }}
+          secret-key: ${{ secrets.K8S_SCW_SECRET_KEY }}
+          default-organization-id: ${{ secrets.SCW_ORGANIZATION_ID }}
+          default-project-id: ${{ secrets.SCW_PROJECT_ID }}
+          args: k8s kubeconfig install ${{ secrets.K8S_CLUSTER_ID }} region=fr-par
+
+      - name: Deploy to cluster
+        run: |
+          sed -i "s|\$IMAGE_TAG|$IMAGE_TAG|g" k8s/deployment.yml
+          kubectl apply -f k8s/deployment.yml
+          # The startup probe allows ~5 min for the first boot.
+          kubectl rollout status deployment/reisedagbok -n homectl --timeout=300s

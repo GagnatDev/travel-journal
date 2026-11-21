@@ -26,7 +26,7 @@ describe('HTTP stack hardening', () => {
 
   it('sets security headers via helmet', async () => {
     const app = createApp();
-    const res = await request(app).get('/healthz');
+    const res = await request(app).get('/health');
 
     expect(res.headers['x-content-type-options']).toBe('nosniff');
   });
@@ -57,7 +57,7 @@ describe('HTTP stack hardening', () => {
   it('does not send CORS headers when CORS_ORIGINS is unset', async () => {
     delete process.env['CORS_ORIGINS'];
     const app = createApp();
-    const res = await request(app).get('/healthz').set('Origin', 'https://other.example');
+    const res = await request(app).get('/health').set('Origin', 'https://other.example');
 
     expect(res.headers['access-control-allow-origin']).toBeUndefined();
   });
@@ -66,7 +66,7 @@ describe('HTTP stack hardening', () => {
     process.env['CORS_ORIGINS'] = 'https://app.example.com';
     const app = createApp();
     const res = await request(app)
-      .get('/healthz')
+      .get('/health')
       .set('Origin', 'https://app.example.com');
 
     expect(res.headers['access-control-allow-origin']).toBe('https://app.example.com');
@@ -76,7 +76,7 @@ describe('HTTP stack hardening', () => {
     process.env['CORS_ORIGINS'] = 'https://app.example.com';
     const app = createApp();
     const res = await request(app)
-      .get('/healthz')
+      .get('/health')
       .set('Origin', 'https://evil.example');
 
     expect(res.headers['access-control-allow-origin']).toBeUndefined();
