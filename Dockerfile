@@ -1,6 +1,7 @@
 FROM node:24.22.3-slim AS builder
 
-RUN npm install -g pnpm@9
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
 
 WORKDIR /app
 
@@ -28,15 +29,19 @@ RUN pnpm --filter @travel-journal/client build
 
 FROM node:24.22.3-slim AS runtime
 
-RUN npm install -g pnpm@9
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
 
 WORKDIR /app
 
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/client/package.json packages/client/
 COPY packages/server/package.json packages/server/
 
-RUN pnpm install --frozen-lockfile --prod
+# Client package.json is required so the lockfile importers match. Filter so
+# the runtime image only installs server + workspace dependencies (shared).
+RUN pnpm install --frozen-lockfile --prod --filter @travel-journal/server...
 
 COPY --from=builder /app/packages/shared/dist packages/shared/dist
 COPY --from=builder /app/packages/server/dist packages/server/dist

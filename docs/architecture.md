@@ -195,12 +195,13 @@ The very first account is bootstrapped via the `ADMIN_EMAIL` environment variabl
 The application ships as a **single Docker image** built in two stages:
 
 1. **Build stage** — copies workspace manifests first (for layer caching), runs `pnpm install --frozen-lockfile`, compiles `packages/shared` and `packages/server`, and runs `vite build` for `packages/client`; produces compiled server code and static client assets.
-2. **Runtime stage** — copies only the compiled output into a slim Node.js image. The server serves the frontend static assets via `express.static` and the API under `/api/v1/`. No separate static host or CDN origin is required.
+2. **Runtime stage** — installs production dependencies for the server workspace (and `shared`) via Corepack/pnpm, then copies compiled server output, assets, and the built client into a slim Node.js image. The server serves the frontend static assets via `express.static` and the API under `/api/v1/`. No separate static host or CDN origin is required.
 
 The Dockerfile copies workspace manifests in dependency order before installing to maximise Docker layer cache reuse:
 
 ```dockerfile
-COPY pnpm-workspace.yaml package.json ./
+RUN corepack enable
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/client/package.json packages/client/
 COPY packages/server/package.json packages/server/
@@ -208,6 +209,8 @@ RUN pnpm install --frozen-lockfile
 COPY packages/ packages/
 # then build steps
 ```
+
+pnpm is pinned only in root `package.json` (`packageManager`). Corepack (Docker) and `pnpm/action-setup` (CI) read that field. The runtime stage copies every workspace `package.json` so the lockfile importers match, then installs with `--filter @travel-journal/server...` so client production dependencies stay out of the image.
 
 | Layer | Service |
 |-------|---------|
