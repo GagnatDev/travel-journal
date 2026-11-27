@@ -54,6 +54,6 @@ The trip map uses Mapbox GL. Set **`VITE_MAPBOX_TOKEN`** to a [Mapbox public acc
 ## Gotchas
 
 - The `@travel-journal/shared` package **must be built** before running server or client (`pnpm --filter @travel-journal/shared build`). Without this, imports from `@travel-journal/shared` fail.
-- pnpm 10 blocks build scripts by default. The root `package.json` field `pnpm.onlyBuiltDependencies` allowlists packages that need postinstall/install scripts (sharp, mongodb-memory-server, etc.). If a new native dependency is added and its build script is blocked, add it to that list.
+- pnpm 12 blocks build scripts by default (`strictDepBuilds`). Allow or deny each package in `pnpm-workspace.yaml` `allowBuilds` (sharp, mongodb-memory-server, etc.). Unlisted packages fail the install.
 - Server unit tests use `mongodb-memory-server` (embedded MongoDB binary) — no external MongoDB needed. Client unit tests use `msw` + `happy-dom` — no external services needed.
 - Docker daemon in nested container environments needs `fuse-overlayfs` storage driver and `iptables-legacy`. See the `daemon.json` and `update-alternatives` setup in the VM snapshot.

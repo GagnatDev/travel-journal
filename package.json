@@ -1,10 +1,9 @@
 {
   "name": "travel-journal",
   "private": true,
-  "packageManager": "pnpm@9.15.9",
+  "packageManager": "pnpm@12.24.0",
   "engines": {
-    "node": ">=22.12.0",
-    "pnpm": ">=9 <10"
+    "node": ">=22.12.0"
   },
   "scripts": {
     "dev": "concurrently \"pnpm --filter @travel-journal/server dev\" \"pnpm --filter @travel-journal/client dev\"",
@@ -15,36 +14,6 @@
     "e2e:ui": "node e2e/run-e2e.mjs --ui",
     "e2e:ci": "E2E_ENV_FILE=.env.ci node e2e/run-e2e.mjs",
     "typecheck": "tsc --noEmit -p packages/server/tsconfig.json && tsc --noEmit -p packages/client/tsconfig.json"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "cpu-features",
-      "esbuild",
-      "mongodb-memory-server",
-      "msw",
-      "@playwright/test",
-      "protobufjs",
-      "sharp",
-      "ssh2"
-    ],
-    "overrides": {
-      "protobufjs": "^7.5.5",
-      "@types/node@>=25": "24.19.4",
-      "typescript": "6.0.3",
-      "bare-fs": "4.8.7",
-      "baseline-browser-mapping": "2.11.39",
-      "electron-to-chromium": "1.5.494",
-      "source-map-js": "1.2.4",
-      "tldts": "7.6.0",
-      "tldts-core": "7.6.0",
-      "undici": "8.13.1",
-      "vite": "8.3.8",
-      "mapbox-gl": "3.35.2",
-      "comment-parser": "1.4.10",
-      "node-releases": "2.0.65",
-      "readable-stream@3>string_decoder": "1.3.0",
-      "readable-stream@4>string_decoder": "1.3.0"
-    }
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,6 +1,8 @@
 packages:
   - 'packages/*'
-# pnpm v11: allow dependency install/build scripts (see root package.json pnpm.onlyBuiltDependencies)
+
+# pnpm 12: every dependency with a build/postinstall script must be allowed
+# (`true`) or denied (`false`). Unlisted packages fail the install.
 allowBuilds:
   '@playwright/test': true
   cpu-features: true
@@ -10,3 +12,24 @@ allowBuilds:
   protobufjs: true
   sharp: true
   ssh2: true
+
+# Hold newly published versions for 24h (pnpm 11+ default; explicit for policy).
+minimumReleaseAge: 1440
+
+overrides:
+  protobufjs: ^7.5.5
+  '@types/node@>=25': 24.19.4
+  typescript: 6.0.3
+  bare-fs: 4.8.7
+  baseline-browser-mapping: 2.11.39
+  electron-to-chromium: 1.5.494
+  source-map-js: 1.2.4
+  tldts: 7.6.0
+  tldts-core: 7.6.0
+  undici: 8.13.1
+  vite: 8.3.8
+  mapbox-gl: 3.35.2
+  comment-parser: 1.4.10
+  node-releases: 2.0.65
+  'readable-stream@3>string_decoder': 1.3.0
+  'readable-stream@4>string_decoder': 1.3.0
